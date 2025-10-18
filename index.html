@@ -1278,6 +1278,57 @@
 .my-profile-btn:active {
     transform: translateY(0);
 }
+
+        /* Virtual Keyboard */
+.virtual-keyboard {
+    margin: 20px auto;
+    max-width: 600px;
+}
+
+.keyboard-row {
+    display: flex;
+    justify-content: center;
+    gap: 5px;
+    margin-bottom: 8px;
+}
+
+.keyboard-key {
+    padding: 12px 8px;
+    min-width: 40px;
+    background: #0d3b66;
+    color: white;
+    border: 2px solid #0a2f4d;
+    border-radius: 5px;
+    font-size: 1rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: Georgia, serif;
+}
+
+.keyboard-key:hover {
+    background: #ffd700;
+    color: #0d3b66;
+    transform: translateY(-2px);
+}
+
+.keyboard-key:active {
+    transform: translateY(0);
+}
+
+.keyboard-key.space {
+    min-width: 200px;
+}
+
+.keyboard-key.backspace, .keyboard-key.enter {
+    min-width: 80px;
+    background: #dc3545;
+}
+
+.keyboard-key.backspace:hover, .keyboard-key.enter:hover {
+    background: #c82333;
+    color: white;
+}
     </style>
 </head>
 <body>
@@ -1653,7 +1704,7 @@
                         <button class="practice-btn" onclick="speakWordInSentence()" style="font-size: 0.9rem; padding: 10px 15px;">
                             💬 Use in Sentence
                         </button>
-                        <button class="practice-btn" onclick="showSpellingWordDetails()" style="font-size: 0.9rem; padding: 10px 15px;">
+                        <button class="practice-btn" id="show-details-btn" onclick="showSpellingWordDetails()" style="font-size: 0.9rem; padding: 10px 15px; display: none;">
                             📖 Word Details
                         </button>
                         <button class="practice-btn" id="add-spelling-favorite-btn" onclick="addCurrentSpellingToFavorites()" style="font-size: 0.9rem; padding: 10px 15px; display: none;">
@@ -1663,30 +1714,68 @@
                     <p style="margin-top: 5px; color: #666; font-style: italic; font-size: 0.9rem;">Listen to the word alone, in a sentence, see details, or add to favorites</p>
                 </div>
                                 
-                                <div class="form-group" style="margin: 30px 0;">
-                                    <label style="font-size: 1.2rem;">Type what you hear:</label>
-                                    <input type="text" id="spelling-input" 
-                                           placeholder="Type the word here..." 
-                                           style="width: 100%; padding: 15px; font-size: 1.3rem; text-align: center; border: 3px solid #0d3b66; border-radius: 8px; margin-top: 10px;"
-                                           onkeypress="if(event.key==='Enter') submitSpelling()">
-                                </div>
-                                
-                               <div style="text-align: center;">
-                                <button class="practice-btn" onclick="skipSpellingWord()" style="background: #666; margin-left: 10px;">
-                               ⏭️ Skip
-                               </button>
-                               <button class="practice-btn" onclick="submitSpelling()" style="font-size: 1.2rem; padding: 15px 50px;">
-                               ✓ Submit Answer
-                               </button>
-                                </div>
-                                
-                                <div id="spelling-feedback" style="margin-top: 20px;"></div>
-                            </div>
-                        </div>
-                        
-                        <div id="spelling-results" style="display: none;"></div>
+                <div class="form-group" style="margin: 30px 0;">
+                    <label style="font-size: 1.2rem;">Type what you hear:</label>
+                    <input type="text" id="spelling-input" 
+                           placeholder="Use the keyboard below..." 
+                           style="width: 100%; padding: 15px; font-size: 1.3rem; text-align: center; border: 3px solid #0d3b66; border-radius: 8px; margin-top: 10px;"
+                           readonly>
+                </div>
+                
+                <!-- Virtual Keyboard -->
+                <div class="virtual-keyboard">
+                    <div class="keyboard-row">
+                        <button class="keyboard-key" onclick="typeKey('Q')">Q</button>
+                        <button class="keyboard-key" onclick="typeKey('W')">W</button>
+                        <button class="keyboard-key" onclick="typeKey('E')">E</button>
+                        <button class="keyboard-key" onclick="typeKey('R')">R</button>
+                        <button class="keyboard-key" onclick="typeKey('T')">T</button>
+                        <button class="keyboard-key" onclick="typeKey('Y')">Y</button>
+                        <button class="keyboard-key" onclick="typeKey('U')">U</button>
+                        <button class="keyboard-key" onclick="typeKey('I')">I</button>
+                        <button class="keyboard-key" onclick="typeKey('O')">O</button>
+                        <button class="keyboard-key" onclick="typeKey('P')">P</button>
+                    </div>
+                    <div class="keyboard-row">
+                        <button class="keyboard-key" onclick="typeKey('A')">A</button>
+                        <button class="keyboard-key" onclick="typeKey('S')">S</button>
+                        <button class="keyboard-key" onclick="typeKey('D')">D</button>
+                        <button class="keyboard-key" onclick="typeKey('F')">F</button>
+                        <button class="keyboard-key" onclick="typeKey('G')">G</button>
+                        <button class="keyboard-key" onclick="typeKey('H')">H</button>
+                        <button class="keyboard-key" onclick="typeKey('J')">J</button>
+                        <button class="keyboard-key" onclick="typeKey('K')">K</button>
+                        <button class="keyboard-key" onclick="typeKey('L')">L</button>
+                    </div>
+                    <div class="keyboard-row">
+                        <button class="keyboard-key" onclick="typeKey('Z')">Z</button>
+                        <button class="keyboard-key" onclick="typeKey('X')">X</button>
+                        <button class="keyboard-key" onclick="typeKey('C')">C</button>
+                        <button class="keyboard-key" onclick="typeKey('V')">V</button>
+                        <button class="keyboard-key" onclick="typeKey('B')">B</button>
+                        <button class="keyboard-key" onclick="typeKey('N')">N</button>
+                        <button class="keyboard-key" onclick="typeKey('M')">M</button>
+                    </div>
+                    <div class="keyboard-row">
+                        <button class="keyboard-key backspace" onclick="backspaceKey()">⌫ Delete</button>
+                        <button class="keyboard-key space" onclick="typeKey(' ')">Space</button>
+                        <button class="keyboard-key enter" onclick="submitSpelling()">✓ Enter</button>
                     </div>
                 </div>
+                                
+                <div style="text-align: center; margin-top: 20px;">
+                    <button class="practice-btn" onclick="skipSpellingWord()" style="background: #666;">
+                        ⏭️ Skip
+                    </button>
+                </div>
+                                
+                <div id="spelling-feedback" style="margin-top: 20px;"></div>
+            </div>
+        </div>
+                        
+        <div id="spelling-results" style="display: none;"></div>
+    </div>
+</div>
 
                 <!-- Live Spelling Mode -->
                 <div id="live-spelling-mode" class="quiz-mode">
@@ -1954,7 +2043,7 @@
                 if (e.key === 'Enter') searchWord();
             });
 
-// Listen for auth state changes
+
 // Listen for auth state changes
 auth.onAuthStateChanged(async user => {
     if (user) {
@@ -3484,12 +3573,22 @@ function displayFavorites() {
         favoriteBtn.style.display = 'inline-block';
     }
     
+    // Hide word details button for new word
+    const detailsBtn = document.getElementById('show-details-btn');
+    if (detailsBtn) {
+        detailsBtn.style.display = 'none';
+    }
+    
+    // Re-enable input for new word
+    document.getElementById('spelling-input').disabled = false;
+    
     // Auto-play the word when loaded
     setTimeout(() => speakCurrentSpellingWord(), 500);
     
     // Focus on input
     document.getElementById('spelling-input').focus();
 }
+        
        function speakCurrentSpellingWord() {
             if (!currentSpellingWord) return;
             
@@ -3564,14 +3663,26 @@ function displayFavorites() {
                     exampleSentence = `The word is ${currentSpellingWord}.`;
                 }
                 
-                // Speak the sentence
-                const utterance = new SpeechSynthesisUtterance(exampleSentence);
-                utterance.rate = 0.8;
-                utterance.pitch = 1;
-                utterance.volume = 1;
-                
-                window.speechSynthesis.cancel();
-                window.speechSynthesis.speak(utterance);
+               
+               // Split sentence and emphasize the target word
+const words = exampleSentence.split(' ');
+const targetWordLower = currentSpellingWord.toLowerCase();
+
+// Speak each word, emphasizing the target
+for (let i = 0; i < words.length; i++) {
+    const word = words[i];
+    const cleanWord = word.replace(/[^\w]/g, '').toLowerCase();
+    
+    const utterance = new SpeechSynthesisUtterance(word);
+    utterance.rate = cleanWord === targetWordLower ? 0.6 : 0.8; // Slower for target word
+    utterance.volume = cleanWord === targetWordLower ? 1 : 0.9; // Louder for target word
+    utterance.pitch = cleanWord === targetWordLower ? 1.2 : 1; // Higher pitch for target word
+    
+    // Add delay between words
+    setTimeout(() => {
+        window.speechSynthesis.speak(utterance);
+    }, i * 600); // 600ms between words
+}
                 
             } catch (error) {
                 console.error('Error getting sentence:', error);
@@ -3637,8 +3748,18 @@ function displayFavorites() {
         `;
     }
 }
+
+        function nextSpellingWord() {
+    document.getElementById('spelling-input').disabled = false;
+    currentSpellingIndex++;
+    if (currentSpellingIndex < spellingWords.length) {
+        loadSpellingWord();
+    } else {
+        showSpellingResults();
+    }
+}
         
-      async function submitSpelling() {
+     async function submitSpelling() {
     const userAnswer = document.getElementById('spelling-input').value.trim().toLowerCase();
     const correctWord = currentSpellingWord.toLowerCase();
     const feedbackDiv = document.getElementById('spelling-feedback');
@@ -3689,6 +3810,10 @@ function displayFavorites() {
                             <strong>Definition:</strong> ${wordDetails.definition}
                         </div>
                     ` : ''}
+                    
+                    <button class="practice-btn" onclick="nextSpellingWord()" style="margin-top: 15px; font-size: 1.1rem;">
+                        ➡️ Next Word
+                    </button>
                 </div>
             `;
         } catch (error) {
@@ -3701,6 +3826,10 @@ function displayFavorites() {
                             ⭐ Add to Favorites
                         </button>
                     ` : ''}
+                    
+                    <button class="practice-btn" onclick="nextSpellingWord()" style="margin-top: 15px; font-size: 1.1rem;">
+                        ➡️ Next Word
+                    </button>
                 </div>
             `;
         }
@@ -3746,6 +3875,10 @@ function displayFavorites() {
                             <strong>Definition:</strong> ${wordDetails.definition}
                         </div>
                     ` : ''}
+                    
+                    <button class="practice-btn" onclick="nextSpellingWord()" style="margin-top: 15px; font-size: 1.1rem;">
+                        ➡️ Next Word
+                    </button>
                 </div>
             `;
         } catch (error) {
@@ -3754,6 +3887,10 @@ function displayFavorites() {
                     ❌ Incorrect. You wrote: <strong>${userAnswer}</strong><br>
                     Correct spelling: <strong>${currentSpellingWord}</strong>
                     ${currentUser ? '<p style="margin-top: 10px; color: #721c24; font-style: italic;">✅ Automatically saved to Spelling Mistakes</p>' : ''}
+                    
+                    <button class="practice-btn" onclick="nextSpellingWord()" style="margin-top: 15px; font-size: 1.1rem;">
+                        ➡️ Next Word
+                    </button>
                 </div>
             `;
         }
@@ -3762,22 +3899,18 @@ function displayFavorites() {
         setTimeout(() => speakCurrentSpellingWord(), 1000);
     }
     
-    // Move to next word after delay
-    setTimeout(() => {
-        document.getElementById('spelling-input').disabled = false;
-        currentSpellingIndex++;
-        if (currentSpellingIndex < spellingWords.length) {
-            loadSpellingWord();
-        } else {
-            showSpellingResults();
-        }
-    }, 7000); // 7 second delay to read origin
+    // Show the word details button after attempt
+    document.getElementById('show-details-btn').style.display = 'inline-block';
 }
+        
         async function skipSpellingWord() {
     spellingMistakes.push({
         word: currentSpellingWord,
         userAnswer: '(skipped)'
     });
+    
+    // Disable input while processing
+    document.getElementById('spelling-input').disabled = true;
     
     const feedbackDiv = document.getElementById('spelling-feedback');
     feedbackDiv.innerHTML = '<div class="loading">⏭️ Loading word details...</div>';
@@ -3807,26 +3940,28 @@ function displayFavorites() {
                         <strong>Definition:</strong> ${wordDetails.definition}
                     </div>
                 ` : ''}
+                
+                <button class="practice-btn" onclick="nextSpellingWord()" style="margin-top: 15px; font-size: 1.1rem;">
+                    ➡️ Next Word
+                </button>
             </div>
         `;
     } catch (error) {
         feedbackDiv.innerHTML = `
             <div class="feedback" style="background: #fff3cd; border-color: #ffc107; color: #856404;">
                 ⏭️ Skipped. The word was: <strong>${currentSpellingWord}</strong>
+                
+                <button class="practice-btn" onclick="nextSpellingWord()" style="margin-top: 15px; font-size: 1.1rem;">
+                    ➡️ Next Word
+                </button>
             </div>
         `;
     }
     
     speakCurrentSpellingWord();
     
-    setTimeout(() => {
-        currentSpellingIndex++;
-        if (currentSpellingIndex < spellingWords.length) {
-            loadSpellingWord();
-        } else {
-            showSpellingResults();
-        }
-    }, 4000);
+    // Show the word details button after skip
+    document.getElementById('show-details-btn').style.display = 'inline-block';
 }
         
         function showSpellingResults() {
@@ -4394,6 +4529,18 @@ async function deleteUserAccount() {
         alert('Failed to delete account: ' + error.message);
     }
 }
+
+     function typeKey(letter) {
+    const input = document.getElementById('spelling-input');
+    if (input.disabled) return;
+    input.value += letter.toLowerCase();
+}
+
+function backspaceKey() {
+    const input = document.getElementById('spelling-input');
+    if (input.disabled) return;
+    input.value = input.value.slice(0, -1);
+}   
     </script>
 </body>
 </html>
