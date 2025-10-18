@@ -2325,28 +2325,63 @@ auth.onAuthStateChanged(async user => {
             }
         }
 
-        // ===== DISPLAY WORDS =====
-        function displayWords(words) {
-            const wordList = document.getElementById('wordList');
-            
-            if (words.length === 0) {
-                wordList.innerHTML = '<div class="loading">No words found</div>';
-                return;
-            }
+       // ===== DISPLAY WORDS =====
+async function displayWords(words) {
+    const wordList = document.getElementById('wordList');
+    
+    if (words.length === 0) {
+        wordList.innerHTML = '<div class="loading">No words found</div>';
+        return;
+    }
 
-            wordList.innerHTML = words.map(word => `
-                <div class="word-card" onclick="showWordDetail('${word}')">
-                    <div class="word-title">
-                        <span>${word}</span>
-                        <div class="word-actions">
-                            <button class="icon-btn" onclick="event.stopPropagation(); speakWordQuick('${word}')">🔊</button>
-                        </div>
-                    </div>
-                    <div class="word-definition">Click to see AI-powered definition with synonyms & antonyms</div>
+    // Show loading state first
+    wordList.innerHTML = words.map(word => `
+        <div class="word-card" onclick="showWordDetail('${word}')">
+            <div class="word-title">
+                <span>${word}</span>
+                <div class="word-actions">
+                    <button class="icon-btn" onclick="event.stopPropagation(); speakWordQuick('${word}')">🔊</button>
                 </div>
-            `).join('');
+            </div>
+            <div class="word-definition" id="phonetic-${word}">Loading pronunciation...</div>
+        </div>
+    `).join('');
+    
+    // Fetch phonetics for each word
+    words.forEach(async (word) => {
+        const phoneticEl = document.getElementById(`phonetic-${word}`);
+        if (!phoneticEl) return;
+        
+        try {
+            const wordRef = db.collection('dictionary').doc(word.toLowerCase());
+            const wordDoc = await wordRef.get();
+            
+            if (wordDoc.exists && wordDoc.data().phonetic) {
+                phoneticEl.textContent = wordDoc.data().phonetic;
+            } else {
+                // Fetch from API if not in cache
+                const response = await fetch(CLOUD_FUNCTION_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ data: { word: word } })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.result && data.result.phonetic) {
+                        phoneticEl.textContent = data.result.phonetic;
+                    } else {
+                        phoneticEl.textContent = 'Click to see full definition';
+                    }
+                } else {
+                    phoneticEl.textContent = 'Click to see full definition';
+                }
+            }
+        } catch (error) {
+            phoneticEl.textContent = 'Click to see full definition';
         }
-
+    });
+}
         // ===== SHOW WORD DETAIL (CALL CLOUD FUNCTION) =====
        async function showWordDetail(word) {
     currentWord = word;
