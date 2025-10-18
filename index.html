@@ -1329,6 +1329,92 @@
     background: #c82333;
     color: white;
 }
+
+        /* Balloon Animation */
+@keyframes float {
+    0%, 100% {
+        transform: translateY(0) rotate(0deg);
+    }
+    25% {
+        transform: translateY(-20px) rotate(5deg);
+    }
+    75% {
+        transform: translateY(-10px) rotate(-5deg);
+    }
+}
+
+@keyframes rise {
+    0% {
+        bottom: -100px;
+        opacity: 0;
+    }
+    10% {
+        opacity: 1;
+    }
+    90% {
+        opacity: 1;
+    }
+    100% {
+        bottom: 100%;
+        opacity: 0;
+    }
+}
+
+.balloon {
+    position: fixed;
+    font-size: 3rem;
+    animation: rise 8s ease-in infinite;
+    z-index: 1000;
+    pointer-events: none;
+}
+
+.balloon:nth-child(1) { left: 10%; animation-delay: 0s; }
+.balloon:nth-child(2) { left: 25%; animation-delay: 1s; }
+.balloon:nth-child(3) { left: 40%; animation-delay: 2s; }
+.balloon:nth-child(4) { left: 55%; animation-delay: 3s; }
+.balloon:nth-child(5) { left: 70%; animation-delay: 4s; }
+.balloon:nth-child(6) { left: 85%; animation-delay: 5s; }
+
+.confetti {
+    position: fixed;
+    width: 10px;
+    height: 10px;
+    top: -10px;
+    z-index: 1000;
+    animation: confetti-fall 3s linear;
+    pointer-events: none;
+}
+
+@keyframes confetti-fall {
+    to {
+        transform: translateY(100vh) rotate(360deg);
+        opacity: 0;
+    }
+}
+
+.iq-badge {
+    display: inline-block;
+    padding: 20px 40px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 50px;
+    font-size: 2.5rem;
+    font-weight: bold;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    animation: pulse-glow 2s infinite;
+    margin: 20px 0;
+}
+
+@keyframes pulse-glow {
+    0%, 100% {
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.5);
+        transform: scale(1);
+    }
+    50% {
+        box-shadow: 0 15px 40px rgba(118, 75, 162, 0.8);
+        transform: scale(1.05);
+    }
+}
     </style>
 </head>
 <body>
@@ -2023,6 +2109,10 @@
         let userIncorrect = [];
         let userSpellingFavorites = [];
         let userSpellingIncorrect = [];
+        let quizStartTime = null;
+        let quizAnswerTimes = [];
+        let quizDifficulty = 'medium'; // track difficulty
+        let questionStartTime = null;
 
 
          // ===== SPELLING PRACTICE FUNCTIONS =====
@@ -2971,45 +3061,52 @@ async function signUpWithGoogle(userType) {
             document.getElementById('practice-quiz-mode').classList.add('active');
         }
 
-        async function startPracticeQuiz() {
-            document.getElementById('practice-quiz-container').innerHTML = '<div class="loading">🎲 Generating quiz questions...</div>';
-            
-            const quizWords = [];
-            for (let i = 0; i < 5; i++) {
-                const randomWord = allWords[Math.floor(Math.random() * allWords.length)];
-                quizWords.push(randomWord);
-            }
+       async function startPracticeQuiz() {
+    document.getElementById('practice-quiz-container').innerHTML = '<div class="loading">🎲 Generating quiz questions...</div>';
+    
+    // Initialize IQ tracking
+    quizStartTime = Date.now();
+    quizAnswerTimes = [];
+    
+    const quizWords = [];
+    for (let i = 0; i < 5; i++) {
+        const randomWord = allWords[Math.floor(Math.random() * allWords.length)];
+        quizWords.push(randomWord);
+    }
+    
+    try {
+        const response = await fetch(CLOUD_FUNCTION_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                data: { 
+                    action: 'generatePracticeQuiz',
+                    words: quizWords 
+                } 
+            })
+        });
+        
+        const data = await response.json();
+        currentQuiz = data.result;
+        currentQuestionIndex = 0;
+        quizScore = 0;
+        
+        showQuestion('practice');
+    } catch (error) {
+        console.error('Error generating quiz:', error);
+        document.getElementById('practice-quiz-container').innerHTML = 
+            '<div class="feedback error">Failed to generate quiz. Please try again.</div>';
+    }
+}
 
-            try {
-                const response = await fetch(CLOUD_FUNCTION_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        data: { 
-                            action: 'generatePracticeQuiz',
-                            words: quizWords 
-                        } 
-                    })
-                });
-
-                const data = await response.json();
-                currentQuiz = data.result;
-                currentQuestionIndex = 0;
-                quizScore = 0;
-                
-                showQuestion('practice');
-            } catch (error) {
-                console.error('Error generating quiz:', error);
-                document.getElementById('practice-quiz-container').innerHTML = 
-                    '<div class="feedback error">Failed to generate quiz. Please try again.</div>';
-            }
-        }
-
-        function showQuestion(quizType = 'practice') {
+function showQuestion(quizType = 'practice') {
     const question = currentQuiz.questions[currentQuestionIndex];
     const container = document.getElementById('practice-quiz-container');
     
     const isFavorited = userFavorites.some(fav => fav.word === question.word);
+    
+    // Start timing for this question
+    questionStartTime = Date.now();
     
     container.innerHTML = `
         <div class="quiz-question-card" style="position: relative;">
@@ -3033,9 +3130,16 @@ async function signUpWithGoogle(userType) {
     `;
 }
 
-        async function checkAnswer(selectedIndex, quizType = 'practice') {
+       async function checkAnswer(selectedIndex, quizType = 'practice') {
     const question = currentQuiz.questions[currentQuestionIndex];
     const options = document.querySelectorAll('.quiz-option');
+    
+    // Calculate time taken for this question
+    const timeTaken = Date.now() - questionStartTime;
+    quizAnswerTimes.push({
+        correct: selectedIndex === question.correctAnswer,
+        timeTaken: timeTaken
+    });
     
     options.forEach(opt => opt.style.pointerEvents = 'none');
     
@@ -3048,12 +3152,10 @@ async function signUpWithGoogle(userType) {
         options[selectedIndex].classList.add('wrong');
         options[question.correctAnswer].classList.add('correct');
         
-        // Save incorrect question with user's answer
         if (currentUser) {
             await saveIncorrectQuestion(question, quizType, selectedIndex);
         }
         
-        // Update the favorite if it exists to include the wrong answer
         if (currentUser) {
             const favoriteRef = db.collection('users').doc(currentUser.uid).collection('favorites').doc(question.word);
             const favoriteDoc = await favoriteRef.get();
@@ -3063,13 +3165,11 @@ async function signUpWithGoogle(userType) {
                     userAnswerIndex: selectedIndex
                 });
                 
-                // Update local favorites array
                 const favIndex = userFavorites.findIndex(fav => fav.word === question.word);
                 if (favIndex !== -1) {
                     userFavorites[favIndex].userAnswerIndex = selectedIndex;
                 }
                 
-                // ADD THIS LINE - Refresh the favorites display if user is on that page
                 if (document.getElementById('favorites-section').classList.contains('active')) {
                     displayFavorites();
                 }
@@ -3080,45 +3180,169 @@ async function signUpWithGoogle(userType) {
     setTimeout(() => {
         currentQuestionIndex++;
         if (currentQuestionIndex < currentQuiz.questions.length) {
+            questionStartTime = Date.now(); // Reset timer for next question
             showQuestion(quizType);
         } else {
             showQuizResults();
         }
     }, 3000);
 }
+
+        function calculateIQScore(score, total, answerTimes) {
+    // Base IQ calculation on accuracy and speed
+    const accuracyPercentage = (score / total) * 100;
+    
+    // Calculate average time per question (in seconds)
+    const avgTime = answerTimes.reduce((sum, ans) => sum + ans.timeTaken, 0) / answerTimes.length / 1000;
+    
+    // Speed score: faster is better (ideal time: 5-10 seconds per question)
+    let speedScore = 0;
+    if (avgTime < 5) speedScore = 100;
+    else if (avgTime < 10) speedScore = 90;
+    else if (avgTime < 15) speedScore = 75;
+    else if (avgTime < 20) speedScore = 60;
+    else speedScore = 40;
+    
+    // Consistency score: fewer mistakes on easy questions = higher IQ
+    const correctAnswers = answerTimes.filter(ans => ans.correct).length;
+    const consistencyScore = (correctAnswers / total) * 100;
+    
+    // Calculate base IQ (scale: 70-145)
+    // Formula: 70 + (accuracy * 0.5) + (speed * 0.2) + (consistency * 0.05)
+    let iq = 70 + (accuracyPercentage * 0.5) + (speedScore * 0.2) + (consistencyScore * 0.05);
+    
+    // Cap at 145 (genius level)
+    iq = Math.min(145, Math.round(iq));
+    
+    return {
+        iq: iq,
+        accuracy: accuracyPercentage,
+        avgTime: avgTime.toFixed(1),
+        speedScore: speedScore,
+        category: getIQCategory(iq)
+    };
+}
+
+function getIQCategory(iq) {
+    if (iq >= 130) return { label: "Genius", color: "#FFD700", emoji: "🧠✨" };
+    if (iq >= 120) return { label: "Superior", color: "#4CAF50", emoji: "🌟" };
+    if (iq >= 110) return { label: "High Average", color: "#2196F3", emoji: "⭐" };
+    if (iq >= 90) return { label: "Average", color: "#FF9800", emoji: "👍" };
+    if (iq >= 80) return { label: "Low Average", color: "#FF5722", emoji: "📚" };
+    return { label: "Keep Practicing", color: "#9E9E9E", emoji: "💪" };
+}
         
         function showQuizResults() {
-            const container = document.getElementById('practice-quiz-container');
-            const percentage = Math.round((quizScore / currentQuiz.questions.length) * 100);
+    const container = document.getElementById('practice-quiz-container');
+    const percentage = Math.round((quizScore / currentQuiz.questions.length) * 100);
+    
+    // Calculate IQ Score
+    const iqData = calculateIQScore(quizScore, currentQuiz.questions.length, quizAnswerTimes);
+    
+    let message = '';
+    let emoji = '';
+    let showBalloons = false;
+    let showSpellingEncouragement = false;
+    
+    if (percentage >= 80) {
+        message = 'Excellent! You\'re a word master!';
+        emoji = '🏆';
+        showBalloons = true;
+        showSpellingEncouragement = true;
+    } else if (percentage >= 60) {
+        message = 'Great job! Keep practicing!';
+        emoji = '⭐';
+        showSpellingEncouragement = true;
+    } else {
+        message = 'Keep practicing! You\'ll get better!';
+        emoji = '📚';
+    }
+    
+    // Create balloons if score is high
+    if (showBalloons) {
+        createBalloons();
+        createConfetti();
+    }
+    
+    container.innerHTML = `
+        <div class="quiz-question-card" style="text-align: center;">
+            <div style="font-size: 4rem; margin: 20px 0;">${emoji}</div>
+            <h2>Quiz Complete!</h2>
+            <div class="quiz-score">Final Score: ${quizScore} / ${currentQuiz.questions.length}</div>
+            <p style="font-size: 1.5rem; margin: 20px 0; color: #0d3b66;">${percentage}%</p>
+            <p style="font-size: 1.2rem; margin: 20px 0;">${message}</p>
             
-            let message = '';
-            let emoji = '';
-            
-            if (percentage >= 80) {
-                message = 'Excellent! You\'re a word master!';
-                emoji = '🏆';
-            } else if (percentage >= 60) {
-                message = 'Great job! Keep practicing!';
-                emoji = '⭐';
-            } else {
-                message = 'Keep practicing! You\'ll get better!';
-                emoji = '📚';
-            }
-            
-            container.innerHTML = `
-                <div class="quiz-question-card" style="text-align: center;">
-                    <div style="font-size: 4rem; margin: 20px 0;">${emoji}</div>
-                    <h2>Quiz Complete!</h2>
-                    <div class="quiz-score">Final Score: ${quizScore} / ${currentQuiz.questions.length}</div>
-                    <p style="font-size: 1.5rem; margin: 20px 0; color: #0d3b66;">${percentage}%</p>
-                    <p style="font-size: 1.2rem; margin: 20px 0;">${message}</p>
-                    <div style="display: flex; gap: 10px; justify-content: center; margin-top: 30px;">
-                        <button class="practice-btn" onclick="startPracticeQuiz()">🔄 Try Again</button>
-                        <button class="practice-btn" onclick="navigateTo('home')">🏠 Home</button>
-                    </div>
+            <!-- IQ Score Display -->
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 20px; margin: 30px 0; box-shadow: 0 10px 30px rgba(0,0,0,0.2);">
+                <h3 style="color: white; margin-bottom: 15px; font-size: 1.5rem;">🧠 Your Vocabulary IQ</h3>
+                <div class="iq-badge">${iqData.iq}</div>
+                <p style="color: white; font-size: 1.3rem; margin: 15px 0;">
+                    ${iqData.category.emoji} <strong>${iqData.category.label}</strong>
+                </p>
+                <div style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 10px; margin-top: 20px;">
+                    <p style="color: white; margin: 8px 0;"><strong>📊 Accuracy:</strong> ${iqData.accuracy.toFixed(1)}%</p>
+                    <p style="color: white; margin: 8px 0;"><strong>⚡ Avg Response Time:</strong> ${iqData.avgTime}s</p>
+                    <p style="color: white; margin: 8px 0;"><strong>🎯 Speed Score:</strong> ${iqData.speedScore}/100</p>
                 </div>
-            `;
-        }
+            </div>
+            
+            ${showSpellingEncouragement ? `
+                <div style="background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%); padding: 25px; border-radius: 15px; margin: 20px 0; box-shadow: 0 5px 20px rgba(255,215,0,0.4); animation: pulse-glow 2s infinite;">
+                    <h3 style="color: #0d3b66; margin-bottom: 10px;">🏆 You Have Spelling Champion Potential!</h3>
+                    <p style="color: #0d3b66; margin: 10px 0; font-size: 1.1rem;">
+                        Your strong vocabulary skills show you could excel at spelling competitions!
+                    </p>
+                    <p style="color: #0d3b66; margin: 10px 0; font-weight: bold;">
+                        💰 Head to the Spelling section to practice and earn coins in upcoming live challenges!
+                    </p>
+                    <button class="practice-btn" onclick="navigateTo('spelling')" style="background: #0d3b66; color: white; margin-top: 15px; font-size: 1.1rem; padding: 15px 30px;">
+                        🔤 Go to Spelling Practice →
+                    </button>
+                </div>
+            ` : ''}
+            
+            <div style="display: flex; gap: 10px; justify-content: center; margin-top: 30px; flex-wrap: wrap;">
+                <button class="practice-btn" onclick="startPracticeQuiz()">🔄 Try Again</button>
+                <button class="practice-btn" onclick="navigateTo('home')">🏠 Home</button>
+            </div>
+        </div>
+    `;
+}
+
+function createBalloons() {
+    const balloons = ['🎈', '🎈', '🎈', '🎈', '🎈', '🎈'];
+    const colors = ['red', 'blue', 'green', 'yellow', 'purple', 'pink'];
+    
+    balloons.forEach((balloon, index) => {
+        const balloonEl = document.createElement('div');
+        balloonEl.className = 'balloon';
+        balloonEl.textContent = balloon;
+        balloonEl.style.color = colors[index];
+        document.body.appendChild(balloonEl);
+        
+        // Remove after animation
+        setTimeout(() => {
+            balloonEl.remove();
+        }, 8000);
+    });
+}
+
+function createConfetti() {
+    const colors = ['#FFD700', '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8'];
+    
+    for (let i = 0; i < 50; i++) {
+        setTimeout(() => {
+            const confetti = document.createElement('div');
+            confetti.className = 'confetti';
+            confetti.style.left = Math.random() * 100 + '%';
+            confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+            confetti.style.animationDelay = Math.random() * 2 + 's';
+            document.body.appendChild(confetti);
+            
+            setTimeout(() => confetti.remove(), 3000);
+        }, i * 50);
+    }
+}
 
         // ===== FAVORITES MANAGEMENT =====
      async function loadUserFavorites(userId) {
