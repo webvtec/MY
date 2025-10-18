@@ -2122,6 +2122,14 @@
         let currentSpellingWord = '';
         let spellingMistakes = [];
 
+
+        // ===== ADMIN CHECK =====
+const ADMIN_EMAIL = 'wordbizcoachingacademy@gmail.com';
+
+function isAdmin() {
+    return currentUser && currentUser.email === ADMIN_EMAIL;
+}
+
         
         // ===== INITIALIZE =====
         document.addEventListener('DOMContentLoaded', function() {
@@ -4617,17 +4625,30 @@ async function loadUserDashboard() {
             dashboardAvatar.textContent = displayName.charAt(0).toUpperCase();
         }
         
-        // Format join date
+        // Format join date - Add edit button ONLY if current user is admin
         if (userData?.createdAt) {
             const joinDate = userData.createdAt.toDate();
-            document.getElementById('dashboard-join-date').textContent = 
-                `Member since: ${joinDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`;
-            document.getElementById('display-joined').textContent = 
-                joinDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+            const formattedDate = joinDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+            
+            // Only show edit button if the logged-in user is the admin
+            if (isAdmin()) {
+                document.getElementById('dashboard-join-date').innerHTML = 
+                    `Member since: ${formattedDate} <button onclick="editMyJoinDate()" style="background: #ffd700; color: #0d3b66; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer; margin-left: 10px; font-size: 0.8rem;">✏️ Edit</button>`;
+            } else {
+                document.getElementById('dashboard-join-date').textContent = `Member since: ${formattedDate}`;
+            }
+            
+            document.getElementById('display-joined').textContent = formattedDate;
         } else {
             // Fallback for accounts without createdAt
-            document.getElementById('dashboard-join-date').textContent = 'Member since: Recently joined';
-            document.getElementById('display-joined').textContent = 'Recently joined';
+            const fallbackText = 'Recently joined';
+            if (isAdmin()) {
+                document.getElementById('dashboard-join-date').innerHTML = 
+                    `Member since: ${fallbackText} <button onclick="editMyJoinDate()" style="background: #ffd700; color: #0d3b66; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer; margin-left: 10px; font-size: 0.8rem;">✏️ Edit</button>`;
+            } else {
+                document.getElementById('dashboard-join-date').textContent = `Member since: ${fallbackText}`;
+            }
+            document.getElementById('display-joined').textContent = fallbackText;
         }
         
         // Update profile fields
@@ -4646,7 +4667,6 @@ async function loadUserDashboard() {
             userData?.userType ? userData.userType.charAt(0).toUpperCase() + userData.userType.slice(1) : 'Student';
         
         // Update stats (wait for them to be loaded)
-        // Give it a moment for the collections to load
         setTimeout(() => {
             document.getElementById('stat-quiz-favorites').textContent = userFavorites.length;
             document.getElementById('stat-quiz-incorrect').textContent = userIncorrect.length;
@@ -4656,9 +4676,68 @@ async function loadUserDashboard() {
         
     } catch (error) {
         console.error('Error loading dashboard:', error);
-        // Show error state
         document.getElementById('dashboard-name').textContent = 'Error loading profile';
         document.getElementById('dashboard-email').textContent = 'Please try refreshing';
+    }
+}
+
+        async function editMyJoinDate() {
+    if (!isAdmin()) {
+        alert('You do not have permission to edit the join date.');
+        return;
+    }
+    
+    const currentDate = await getMyCurrentJoinDate();
+    const newDateStr = prompt('Enter new join date (YYYY-MM-DD format):\nExample: 2024-01-15', currentDate);
+    
+    if (!newDateStr) return; // User cancelled
+    
+    // Validate date format
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(newDateStr)) {
+        alert('Invalid date format. Please use YYYY-MM-DD (e.g., 2024-01-15)');
+        return;
+    }
+    
+    const newDate = new Date(newDateStr);
+    if (isNaN(newDate.getTime())) {
+        alert('Invalid date. Please enter a valid date.');
+        return;
+    }
+    
+    if (confirm(`Change your join date to ${newDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}?`)) {
+        await updateMyJoinDate(newDate);
+    }
+}
+
+async function getMyCurrentJoinDate() {
+    try {
+        const userDoc = await db.collection('users').doc(currentUser.uid).get();
+        const userData = userDoc.data();
+        
+        if (userData?.createdAt) {
+            const date = userData.createdAt.toDate();
+            return date.toISOString().split('T')[0];
+        }
+        return new Date().toISOString().split('T')[0];
+    } catch (error) {
+        console.error('Error getting current date:', error);
+        return new Date().toISOString().split('T')[0];
+    }
+}
+
+async function updateMyJoinDate(newDate) {
+    try {
+        // Update only YOUR OWN account
+        await db.collection('users').doc(currentUser.uid).update({
+            createdAt: firebase.firestore.Timestamp.fromDate(newDate)
+        });
+        
+        alert('✅ Your join date has been updated successfully!');
+        await loadUserDashboard(); // Reload dashboard to show new date
+    } catch (error) {
+        console.error('Error updating join date:', error);
+        alert('❌ Failed to update join date: ' + error.message);
     }
 }
         
