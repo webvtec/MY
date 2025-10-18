@@ -3609,97 +3609,95 @@ function displayFavorites() {
         }
 
         async function speakWordInSentence() {
-            if (!currentSpellingWord) return;
-            
-            // Show loading state
-            const btn = event?.target;
-            if (btn) {
-                btn.disabled = true;
-                btn.textContent = '⏳ Loading...';
-            }
-            
-            try {
-                // Fetch word definition to get example sentence
-                const wordRef = db.collection('dictionary').doc(currentSpellingWord.toLowerCase());
-                const wordDoc = await wordRef.get();
-                
-                let exampleSentence = null;
-                
-                if (wordDoc.exists) {
-                    const data = wordDoc.data();
-                    if (data.meanings && data.meanings.length > 0) {
-                        for (let meaning of data.meanings) {
-                            if (meaning.example) {
-                                exampleSentence = meaning.example;
-                                break;
-                            }
-                        }
-                    }
-                }
-                
-                // If no cached example, fetch from API
-                if (!exampleSentence) {
-                    const response = await fetch(CLOUD_FUNCTION_URL, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ data: { word: currentSpellingWord } })
-                    });
-                    
-                    if (response.ok) {
-                        const data = await response.json();
-                        if (data.result && data.result.meanings && data.result.meanings.length > 0) {
-                            for (let meaning of data.result.meanings) {
-                                if (meaning.example) {
-                                    exampleSentence = meaning.example;
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                }
-                
-                // If still no example, create a simple sentence
-                if (!exampleSentence) {
-                    exampleSentence = `The word is ${currentSpellingWord}.`;
-                }
-                
-               
-               // Split sentence and emphasize the target word
-const words = exampleSentence.split(' ');
-const targetWordLower = currentSpellingWord.toLowerCase();
-
-// Speak each word, emphasizing the target
-for (let i = 0; i < words.length; i++) {
-    const word = words[i];
-    const cleanWord = word.replace(/[^\w]/g, '').toLowerCase();
+    if (!currentSpellingWord) return;
     
-    const utterance = new SpeechSynthesisUtterance(word);
-    utterance.rate = cleanWord === targetWordLower ? 0.6 : 0.8; // Slower for target word
-    utterance.volume = cleanWord === targetWordLower ? 1 : 0.9; // Louder for target word
-    utterance.pitch = cleanWord === targetWordLower ? 1.2 : 1; // Higher pitch for target word
+    // Show loading state
+    const btn = event?.target;
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = '⏳ Loading...';
+    }
     
-    // Add delay between words
-    setTimeout(() => {
-        window.speechSynthesis.speak(utterance);
-    }, i * 600); // 600ms between words
-}
-                
-            } catch (error) {
-                console.error('Error getting sentence:', error);
-                // Fallback: just say the word
-                const utterance = new SpeechSynthesisUtterance(`The word is ${currentSpellingWord}.`);
-                utterance.rate = 0.8;
-                window.speechSynthesis.speak(utterance);
-            } finally {
-                // Reset button
-                if (btn) {
-                    btn.disabled = false;
-                    btn.textContent = '💬 Use in Sentence';
+    try {
+        // Fetch word definition to get example sentence
+        const wordRef = db.collection('dictionary').doc(currentSpellingWord.toLowerCase());
+        const wordDoc = await wordRef.get();
+        
+        let exampleSentence = null;
+        
+        if (wordDoc.exists) {
+            const data = wordDoc.data();
+            if (data.meanings && data.meanings.length > 0) {
+                for (let meaning of data.meanings) {
+                    if (meaning.example) {
+                        exampleSentence = meaning.example;
+                        break;
+                    }
                 }
             }
         }
+        
+        // If no cached example, fetch from API
+        if (!exampleSentence) {
+            const response = await fetch(CLOUD_FUNCTION_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ data: { word: currentSpellingWord } })
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                if (data.result && data.result.meanings && data.result.meanings.length > 0) {
+                    for (let meaning of data.result.meanings) {
+                        if (meaning.example) {
+                            exampleSentence = meaning.example;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        
+        // If still no example, create a simple sentence
+        if (!exampleSentence) {
+            exampleSentence = `The word is ${currentSpellingWord}.`;
+        }
+        
+        // Split sentence and emphasize the target word
+        const words = exampleSentence.split(' ');
+        const targetWordLower = currentSpellingWord.toLowerCase();
 
-
+        // Speak each word, emphasizing the target
+        for (let i = 0; i < words.length; i++) {
+            const word = words[i];
+            const cleanWord = word.replace(/[^\w]/g, '').toLowerCase();
+            
+            const utterance = new SpeechSynthesisUtterance(word);
+            utterance.rate = 0.8; // Same speed for all words
+            utterance.volume = cleanWord === targetWordLower ? 1 : 0.7; // LOUDER for target word
+            utterance.pitch = cleanWord === targetWordLower ? 1.2 : 1; // Higher pitch for target word
+            
+            // Add delay between words
+            setTimeout(() => {
+                window.speechSynthesis.speak(utterance);
+            }, i * 600); // 600ms between words
+        }
+        
+    } catch (error) {
+        console.error('Error getting sentence:', error);
+        // Fallback: just say the word
+        const utterance = new SpeechSynthesisUtterance(`The word is ${currentSpellingWord}.`);
+        utterance.rate = 0.8;
+        window.speechSynthesis.speak(utterance);
+    } finally {
+        // Reset button
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = '💬 Use in Sentence';
+        }
+    }
+}
+        
         async function showSpellingWordDetails() {
     if (!currentSpellingWord) return;
     
