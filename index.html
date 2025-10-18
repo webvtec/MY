@@ -3663,25 +3663,21 @@ function displayFavorites() {
             exampleSentence = `The word is ${currentSpellingWord}.`;
         }
         
-        // Split sentence and emphasize the target word
-        const words = exampleSentence.split(' ');
-        const targetWordLower = currentSpellingWord.toLowerCase();
-
-        // Speak each word, emphasizing the target
-        for (let i = 0; i < words.length; i++) {
-            const word = words[i];
-            const cleanWord = word.replace(/[^\w]/g, '').toLowerCase();
-            
-            const utterance = new SpeechSynthesisUtterance(word);
-            utterance.rate = 0.8; // Same speed for all words
-            utterance.volume = cleanWord === targetWordLower ? 1 : 0.7; // LOUDER for target word
-            utterance.pitch = cleanWord === targetWordLower ? 1.2 : 1; // Higher pitch for target word
-            
-            // Add delay between words
-            setTimeout(() => {
-                window.speechSynthesis.speak(utterance);
-            }, i * 600); // 600ms between words
-        }
+        // Use SSML to emphasize the target word with volume
+        const targetWord = currentSpellingWord;
+        const emphasizedSentence = exampleSentence.replace(
+            new RegExp(`\\b${targetWord}\\b`, 'gi'),
+            `<emphasis level="strong">${targetWord}</emphasis>`
+        );
+        
+        // Speak the entire sentence at once
+        const utterance = new SpeechSynthesisUtterance(exampleSentence);
+        utterance.rate = 0.8;
+        utterance.pitch = 1;
+        utterance.volume = 1;
+        
+        window.speechSynthesis.cancel();
+        window.speechSynthesis.speak(utterance);
         
     } catch (error) {
         console.error('Error getting sentence:', error);
