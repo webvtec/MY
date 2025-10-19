@@ -1954,20 +1954,12 @@
 </div>
                 </div>
                             
-               <div class="form-group" style="margin: 30px 0;">
-    <label style="font-size: 1.2rem;">Type your answer:</label>
-    <input type="text" id="unscramble-input" 
-           placeholder="Type the unscrambled word..." 
-           style="width: 100%; padding: 15px; font-size: 1.3rem; text-align: center; border: 3px solid #0d3b66; border-radius: 8px; margin-top: 10px;"
-           onkeypress="if(event.key === 'Enter') submitUnscramble()">
-</div>
-
-<div style="display: flex; gap: 10px; justify-content: center; margin-top: 20px; flex-wrap: wrap;">
+              <div style="display: flex; gap: 10px; justify-content: center; margin-top: 20px; flex-wrap: wrap;">
     <button class="practice-btn" onclick="shuffleScrambledWord()" style="background: #ff9800; font-size: 1.1rem;">
         🔀 Shuffle Letters
     </button>
-    <button class="practice-btn" onclick="submitUnscramble()" style="background: #28a745; font-size: 1.1rem;">
-        ✓ Submit Answer
+    <button class="practice-btn" id="unscramble-submit-btn" onclick="checkUnscrambleCorrect()" style="background: #28a745; font-size: 1.1rem;">
+        ✓ I Got It!
     </button>
 </div>
                             
@@ -5374,22 +5366,25 @@ function clearUnscrambleInput() {
     input.value = '';
 }
 
-        function shuffleScrambledWord() {
-    let newScramble;
+        async function checkUnscrambleCorrect() {
+    const currentDisplay = currentScrambledWord.toLowerCase();
+    const correctWord = currentUnscrambleWord.toLowerCase();
+    const feedbackDiv = document.getElementById('unscramble-feedback');
     
-    // Keep shuffling until we get a different arrangement (can be the correct word or another scramble)
-    do {
-        newScramble = currentUnscrambleWord.split('').sort(() => Math.random() - 0.5).join('');
-    } while (newScramble === currentScrambledWord);
+    if (currentDisplay !== correctWord) {
+        feedbackDiv.innerHTML = '<div class="feedback error">❌ Not quite! Keep shuffling or use a hint.</div>';
+        setTimeout(() => {
+            feedbackDiv.innerHTML = '';
+        }, 2000);
+        return;
+    }
     
-    currentScrambledWord = newScramble;
-    document.getElementById('scrambled-letters').textContent = currentScrambledWord.toUpperCase();
-    
-    // Visual feedback
-    const letterDiv = document.getElementById('scrambled-letters');
-    letterDiv.style.transform = 'scale(1.1) rotate(5deg)';
-    setTimeout(() => letterDiv.style.transform = 'scale(1) rotate(0deg)', 300);
+    await submitUnscramble();
 }
+
+async function submitUnscramble() {
+    const correctWord = currentUnscrambleWord.toLowerCase();
+    const feedbackDiv = document.getElementById('unscramble-feedback');
     </script>
 </body>
 </html>
