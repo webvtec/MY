@@ -2079,68 +2079,7 @@
     </div>
 </div>
 
-  <!-- Consultancy Modal -->
-<div class="auth-modal" id="consultancyModal">
-    <div class="auth-content" style="max-width: 500px;">
-        <div class="auth-header">
-            <h2>📚 Book a Consultancy</h2>
-            <button class="modal-close" onclick="closeConsultancyModal()">×</button>
-        </div>
-        <div class="auth-body">
-            <p style="color: #666; margin-bottom: 20px; line-height: 1.6;">
-                Have questions? Need guidance? We're here to help!
-            </p>
-            
-            <form id="consultancy-form" onsubmit="handleConsultancySubmit(event)">
-                <div class="form-group">
-                    <label>Your Name *</label>
-                    <input type="text" id="consultancy-name" required placeholder="Your full name">
-                </div>
-                
-                <div class="form-group">
-                    <label>Your Message *</label>
-                    <textarea id="consultancy-message" required 
-                              placeholder="Type your inquiry here..."
-                              style="width: 100%; padding: 12px 15px; border: 2px solid #0d3b66; border-radius: 5px; font-size: 1rem; font-family: Georgia, serif; min-height: 150px; resize: vertical;"></textarea>
-                </div>
-                
-                <button type="submit" class="auth-submit" id="consultancy-submit-btn">
-                    📧 Continue
-                </button>
-            </form>
-            
-            <p style="margin-top: 15px; font-size: 0.9rem; color: #666; text-align: center;">
-                Your email app will open. Just hit send!
-            </p>
-        </div>
-    </div>
-</div>
-
-<!-- Success Modal -->
-<div class="auth-modal" id="consultancySuccessModal">
-    <div class="auth-content" style="max-width: 450px;">
-        <div class="auth-header" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
-            <h2>✅ Inquiry Delivered!</h2>
-        </div>
-        <div class="auth-body" style="text-align: center; padding: 40px 30px;">
-            <div style="font-size: 4rem; margin-bottom: 20px;">📬</div>
-            <h3 style="color: #0d3b66; margin-bottom: 15px;">Thank You!</h3>
-            <p style="color: #666; line-height: 1.8; margin-bottom: 20px; font-size: 1.1rem;">
-                Once you hit <strong>SEND</strong> in your email app, your inquiry will be delivered to our team.
-            </p>
-            <p style="color: #0d3b66; font-weight: bold; margin-bottom: 25px; font-size: 1.05rem;">
-                📧 We'll reply back to the same email you sent it from
-            </p>
-            <p style="color: #666; font-size: 0.95rem; margin-bottom: 30px;">
-                Expect a response within <strong>24-48 hours</strong>
-            </p>
-            <button class="auth-submit" onclick="closeSuccessModal()" style="background: #28a745;">
-                👍 Got it!
-            </button>
-        </div>
-    </div>
-</div>
-</div>
+ 
     <script>
         // ===== FIREBASE CONFIGURATION =====
         const firebaseConfig = {
@@ -4879,54 +4818,7 @@ function backspaceKey() {
     input.value = input.value.slice(0, -1);
 }  
 
-// ===== CONSULTANCY FUNCTIONS =====
-function showConsultancyModal() {
-    document.getElementById('consultancyModal').classList.add('active');
-    
-    // Pre-fill name if user is logged in
-    if (currentUser) {
-        db.collection('users').doc(currentUser.uid).get().then(doc => {
-            const userData = doc.data();
-            if (userData && userData.name) {
-                document.getElementById('consultancy-name').value = userData.name;
-            }
-        }).catch(err => console.log('Could not load user data'));
-    }
-    
-    toggleSidebar(true);
-}
 
-function closeConsultancyModal() {
-    document.getElementById('consultancyModal').classList.remove('active');
-    document.getElementById('consultancy-form').reset();
-}
-
-function closeSuccessModal() {
-    document.getElementById('consultancySuccessModal').classList.remove('active');
-}
-
-function handleConsultancySubmit(event) {
-    event.preventDefault();
-    
-    const name = document.getElementById('consultancy-name').value.trim();
-    const message = document.getElementById('consultancy-message').value.trim();
-    
-    // Prepare email
-    const subject = encodeURIComponent('Consultancy Inquiry - ' + name);
-    const body = encodeURIComponent(`Name: ${name}\n\nMessage:\n${message}`);
-    
-    // Open email client
-    const mailtoUrl = `mailto:carlanviroberts@gmail.com?subject=${subject}&body=${body}`;
-    window.location.href = mailtoUrl;
-    
-    // Close form and show success message
-    closeConsultancyModal();
-    
-    setTimeout(() => {
-        document.getElementById('consultancySuccessModal').classList.add('active');
-    }, 500);
-}
-    
     </script>
 </body>
 </html>
