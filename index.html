@@ -2079,7 +2079,7 @@
     </div>
 </div>
 
-   <!-- Consultancy Modal -->
+  <!-- Consultancy Modal -->
 <div class="auth-modal" id="consultancyModal">
     <div class="auth-content" style="max-width: 500px;">
         <div class="auth-header">
@@ -2088,7 +2088,7 @@
         </div>
         <div class="auth-body">
             <p style="color: #666; margin-bottom: 20px; line-height: 1.6;">
-                Have questions? Need guidance? Send us your inquiry and we'll get back to you!
+                Have questions? Need guidance? We're here to help!
             </p>
             
             <form id="consultancy-form" onsubmit="handleConsultancySubmit(event)">
@@ -2098,24 +2098,19 @@
                 </div>
                 
                 <div class="form-group">
-                    <label>Your Email *</label>
-                    <input type="email" id="consultancy-email" required placeholder="your.email@example.com">
-                </div>
-                
-                <div class="form-group">
-                    <label>Your Inquiry *</label>
+                    <label>Your Message *</label>
                     <textarea id="consultancy-message" required 
-                              placeholder="Type your message here..."
+                              placeholder="Type your inquiry here..."
                               style="width: 100%; padding: 12px 15px; border: 2px solid #0d3b66; border-radius: 5px; font-size: 1rem; font-family: Georgia, serif; min-height: 150px; resize: vertical;"></textarea>
                 </div>
                 
                 <button type="submit" class="auth-submit" id="consultancy-submit-btn">
-                    📧 Send Inquiry
+                    📧 Continue
                 </button>
             </form>
             
             <p style="margin-top: 15px; font-size: 0.9rem; color: #666; text-align: center;">
-                We typically respond within 24-48 hours
+                Your email app will open. Just hit send!
             </p>
         </div>
     </div>
@@ -2125,25 +2120,26 @@
 <div class="auth-modal" id="consultancySuccessModal">
     <div class="auth-content" style="max-width: 450px;">
         <div class="auth-header" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
-            <h2>✅ Almost Done!</h2>
+            <h2>✅ Inquiry Delivered!</h2>
         </div>
         <div class="auth-body" style="text-align: center; padding: 40px 30px;">
             <div style="font-size: 4rem; margin-bottom: 20px;">📬</div>
-            <h3 style="color: #0d3b66; margin-bottom: 15px;">Complete Your Inquiry</h3>
-            <p style="color: #666; line-height: 1.8; margin-bottom: 20px;">
-                A new email window has opened with your message pre-filled. <strong>Please click SEND</strong> in your email client to complete your inquiry.
+            <h3 style="color: #0d3b66; margin-bottom: 15px;">Thank You!</h3>
+            <p style="color: #666; line-height: 1.8; margin-bottom: 20px; font-size: 1.1rem;">
+                Once you hit <strong>SEND</strong> in your email app, your inquiry will be delivered to our team.
             </p>
-            <p style="color: #dc3545; font-size: 0.95rem; margin-bottom: 20px; padding: 15px; background: #fff3cd; border-radius: 8px; border-left: 4px solid #ffc107;">
-                ⚠️ <strong>Important:</strong> Make sure the email is sending from the address you entered. Don't modify the "From" field.
+            <p style="color: #0d3b66; font-weight: bold; margin-bottom: 25px; font-size: 1.05rem;">
+                📧 We'll reply back to the same email you sent it from
             </p>
             <p style="color: #666; font-size: 0.95rem; margin-bottom: 30px;">
-                Once you send the email, our expert coaches will get back to you within <strong>24-48 hours</strong> with a personalized response.
+                Expect a response within <strong>24-48 hours</strong>
             </p>
             <button class="auth-submit" onclick="closeSuccessModal()" style="background: #28a745;">
-                👍 Got it, Thanks!
+                👍 Got it!
             </button>
         </div>
     </div>
+</div>
 </div>
     <script>
         // ===== FIREBASE CONFIGURATION =====
@@ -4887,13 +4883,12 @@ function backspaceKey() {
 function showConsultancyModal() {
     document.getElementById('consultancyModal').classList.add('active');
     
-    // Pre-fill if user is logged in
+    // Pre-fill name if user is logged in
     if (currentUser) {
         db.collection('users').doc(currentUser.uid).get().then(doc => {
             const userData = doc.data();
-            if (userData) {
-                if (userData.name) document.getElementById('consultancy-name').value = userData.name;
-                if (userData.email) document.getElementById('consultancy-email').value = userData.email;
+            if (userData && userData.name) {
+                document.getElementById('consultancy-name').value = userData.name;
             }
         }).catch(err => console.log('Could not load user data'));
     }
@@ -4910,59 +4905,26 @@ function closeSuccessModal() {
     document.getElementById('consultancySuccessModal').classList.remove('active');
 }
 
-async function handleConsultancySubmit(event) {
+function handleConsultancySubmit(event) {
     event.preventDefault();
     
-    const submitBtn = document.getElementById('consultancy-submit-btn');
     const name = document.getElementById('consultancy-name').value.trim();
-    const email = document.getElementById('consultancy-email').value.trim();
     const message = document.getElementById('consultancy-message').value.trim();
     
-    submitBtn.disabled = true;
-    submitBtn.textContent = '⏳ Opening your email...';
+    // Prepare email
+    const subject = encodeURIComponent('Consultancy Inquiry - ' + name);
+    const body = encodeURIComponent(`Name: ${name}\n\nMessage:\n${message}`);
     
-    try {
-        // Detect email provider
-        const isGmail = email.toLowerCase().includes('@gmail.com');
-        const isOutlook = email.toLowerCase().includes('@outlook.com') || email.toLowerCase().includes('@hotmail.com');
-        const isYahoo = email.toLowerCase().includes('@yahoo.com');
-        
-        // Prepare the email content
-        const subject = encodeURIComponent('Consultancy Inquiry from ' + name);
-        const body = encodeURIComponent(`This email is being sent from: ${email}\n\nName: ${name}\n\nMessage:\n${message}\n\n---\nIMPORTANT: Please send this email to confirm your inquiry. Do not modify the "From" field.`);
-        
-        if (isGmail) {
-            // Open Gmail - user must be logged into THEIR account
-            const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=carlanviroberts@gmail.com&su=${subject}&body=${body}`;
-            window.open(gmailUrl, '_blank');
-        } else if (isOutlook) {
-            // Open Outlook - user must be logged into THEIR account
-            const outlookUrl = `https://outlook.live.com/mail/0/deeplink/compose?to=carlanviroberts@gmail.com&subject=${subject}&body=${body}`;
-            window.open(outlookUrl, '_blank');
-        } else if (isYahoo) {
-            // Open Yahoo - user must be logged into THEIR account
-            const yahooUrl = `https://compose.mail.yahoo.com/?to=carlanviroberts@gmail.com&subject=${subject}&body=${body}`;
-            window.open(yahooUrl, '_blank');
-        } else {
-            // Use mailto - opens their default email client with THEIR logged in account
-            const mailtoUrl = `mailto:carlanviroberts@gmail.com?subject=${subject}&body=${body}`;
-            window.location.href = mailtoUrl;
-        }
-        
-        // Close form and show success
-        closeConsultancyModal();
-        
-        setTimeout(() => {
-            document.getElementById('consultancySuccessModal').classList.add('active');
-        }, 800);
-        
-    } catch (error) {
-        console.error('Error:', error);
-        alert('Something went wrong. Please try again.');
-    } finally {
-        submitBtn.disabled = false;
-        submitBtn.textContent = '📧 Send Inquiry';
-    }
+    // Open email client
+    const mailtoUrl = `mailto:carlanviroberts@gmail.com?subject=${subject}&body=${body}`;
+    window.location.href = mailtoUrl;
+    
+    // Close form and show success message
+    closeConsultancyModal();
+    
+    setTimeout(() => {
+        document.getElementById('consultancySuccessModal').classList.add('active');
+    }, 500);
 }
     
     </script>
