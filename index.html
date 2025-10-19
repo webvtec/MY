@@ -1947,7 +1947,61 @@
             </div>
         </div>
 
+<!-- Unscramble Mode -->
+<div id="unscramble-mode" class="quiz-mode">
+    <div id="unscramble-container">
+        <div class="welcome-section">
+            <h2>🔀 Unscramble Words</h2>
+            <p>Drag and drop the letters to form the correct word!</p>
+            
+            <div style="margin: 20px 0;">
+                <label style="display: block; margin-bottom: 10px; font-weight: bold;">Difficulty Level:</label>
+                <select id="unscramble-difficulty" style="padding: 10px; font-size: 1rem; border: 2px solid #0d3b66; border-radius: 5px; width: 200px;">
+                    <option value="easy">Easy (3-5 letters)</option>
+                    <option value="medium" selected>Medium (6-8 letters)</option>
+                    <option value="hard">Hard (9+ letters)</option>
+                </select>
+            </div>
+            
+            <button class="practice-btn" onclick="startUnscramble()">Start Unscramble</button>
+        </div>
+        
+        <div id="unscramble-game" style="display: none;">
+            <div class="quiz-question-card">
+                <div class="quiz-score" id="unscramble-score">Score: 0 / 0</div>
+                <h3 id="unscramble-progress">Word 1 of 10</h3>
+                
+                <div style="text-align: center; margin: 30px 0;">
+                    <h2 style="color: #0d3b66; margin-bottom: 20px;">Drag the letters to form the word:</h2>
+                    
+                    <div id="letter-tiles" class="letter-tiles-container">
+                        <!-- Letter tiles will be inserted here -->
+                    </div>
+                    
+                    <div style="margin-top: 20px;">
+                        <button class="practice-btn" onclick="shuffleLetters()" style="font-size: 1.1rem; padding: 15px 30px; margin: 10px;">
+                            🔀 Shuffle
+                        </button>
+                        
+                        <button class="practice-btn" onclick="showUnscrambleHint()" style="font-size: 1.1rem; padding: 15px 30px; margin: 10px; background: #17a2b8;">
+                            💡 Hint
+                        </button>
+                        
+                        <button class="practice-btn" onclick="submitUnscramble()" style="font-size: 1.2rem; padding: 15px 40px; margin: 10px;">
+                            ✓ Submit Answer
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="unscramble-feedback" style="margin-top: 20px;"></div>
+            </div>
+        </div>
+        
+        <div id="unscramble-results" style="display: none;"></div>
+    </div>
+</div>
 
+    
     <!-- Spelling Favorites Section -->
 <div id="spelling-favorites-section" class="content-section">
     <div class="word-database">
@@ -2144,59 +2198,7 @@
     </div>
 </div>
 
-<!-- Unscramble Mode -->
-<div id="unscramble-mode" class="quiz-mode">
-    <div id="unscramble-container">
-        <div class="welcome-section">
-            <h2>🔀 Unscramble Words</h2>
-            <p>Drag and drop the letters to form the correct word!</p>
-            
-            <div style="margin: 20px 0;">
-                <label style="display: block; margin-bottom: 10px; font-weight: bold;">Difficulty Level:</label>
-                <select id="unscramble-difficulty" style="padding: 10px; font-size: 1rem; border: 2px solid #0d3b66; border-radius: 5px; width: 200px;">
-                    <option value="easy">Easy (3-5 letters)</option>
-                    <option value="medium" selected>Medium (6-8 letters)</option>
-                    <option value="hard">Hard (9+ letters)</option>
-                </select>
-            </div>
-            
-            <button class="practice-btn" onclick="startUnscramble()">Start Unscramble</button>
-        </div>
-        
-        <div id="unscramble-game" style="display: none;">
-            <div class="quiz-question-card">
-                <div class="quiz-score" id="unscramble-score">Score: 0 / 0</div>
-                <h3 id="unscramble-progress">Word 1 of 10</h3>
-                
-                <div style="text-align: center; margin: 30px 0;">
-                    <h2 style="color: #0d3b66; margin-bottom: 20px;">Drag the letters to form the word:</h2>
-                    
-                    <div id="letter-tiles" class="letter-tiles-container">
-                        <!-- Letter tiles will be inserted here -->
-                    </div>
-                    
-                    <div style="margin-top: 20px;">
-                        <button class="practice-btn" onclick="shuffleLetters()" style="font-size: 1.1rem; padding: 15px 30px; margin: 10px;">
-                            🔀 Shuffle
-                        </button>
-                        
-                        <button class="practice-btn" onclick="showUnscrambleHint()" style="font-size: 1.1rem; padding: 15px 30px; margin: 10px; background: #17a2b8;">
-                            💡 Hint
-                        </button>
-                        
-                        <button class="practice-btn" onclick="submitUnscramble()" style="font-size: 1.2rem; padding: 15px 40px; margin: 10px;">
-                            ✓ Submit Answer
-                        </button>
-                    </div>
-                </div>
-                
-                <div id="unscramble-feedback" style="margin-top: 20px;"></div>
-            </div>
-        </div>
-        
-        <div id="unscramble-results" style="display: none;"></div>
-    </div>
-</div>
+
     <script>
         // ===== FIREBASE CONFIGURATION =====
         const firebaseConfig = {
