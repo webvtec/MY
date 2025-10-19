@@ -2091,15 +2091,26 @@
                 Have questions? Need guidance? Send us your inquiry and we'll get back to you!
             </p>
             
-            <form id="consultancy-form" onsubmit="handleConsultancySubmit(event)">
+            <form id="consultancy-form" action="https://formsubmit.co/YOUR-EMAIL-HERE" method="POST">
+                <!-- FormSubmit Configuration -->
+                <input type="hidden" name="_subject" value="New Consultancy Inquiry - WordBiz">
+                <input type="hidden" name="_captcha" value="false">
+                <input type="hidden" name="_template" value="box">
+                <input type="text" name="_honey" style="display:none">
+                
+                <div class="form-group">
+                    <label>Your Name *</label>
+                    <input type="text" name="name" required placeholder="Your full name">
+                </div>
+                
                 <div class="form-group">
                     <label>Your Email *</label>
-                    <input type="email" id="consultancy-email" required placeholder="your.email@example.com">
+                    <input type="email" name="email" required placeholder="your.email@example.com">
                 </div>
                 
                 <div class="form-group">
                     <label>Your Inquiry *</label>
-                    <textarea id="consultancy-message" required 
+                    <textarea name="message" required 
                               placeholder="Type your message here..."
                               style="width: 100%; padding: 12px 15px; border: 2px solid #0d3b66; border-radius: 5px; font-size: 1rem; font-family: Georgia, serif; min-height: 150px; resize: vertical;"></textarea>
                 </div>
@@ -2107,9 +2118,11 @@
                 <button type="submit" class="auth-submit">
                     📧 Send Inquiry
                 </button>
-                
-                <div id="consultancy-feedback" class="feedback" style="display:none; margin-top:15px;"></div>
             </form>
+            
+            <p style="margin-top: 15px; font-size: 0.9rem; color: #666; text-align: center;">
+                We typically respond within 24-48 hours
+            </p>
         </div>
     </div>
 </div>
@@ -4852,7 +4865,7 @@ function backspaceKey() {
 }  
 
 
-       // ===== CONSULTANCY FUNCTIONS =====
+      // ===== CONSULTANCY FUNCTIONS =====
 function showConsultancyModal() {
     document.getElementById('consultancyModal').classList.add('active');
     toggleSidebar(true);
@@ -4861,49 +4874,6 @@ function showConsultancyModal() {
 function closeConsultancyModal() {
     document.getElementById('consultancyModal').classList.remove('active');
     document.getElementById('consultancy-form').reset();
-    const feedbackDiv = document.getElementById('consultancy-feedback');
-    if (feedbackDiv) {
-        feedbackDiv.style.display = 'none';
-    }
-}
-
-function handleConsultancySubmit(event) {
-    event.preventDefault();
-    
-    const email = document.getElementById('consultancy-email').value.trim();
-    const message = document.getElementById('consultancy-message').value.trim();
-    const feedbackDiv = document.getElementById('consultancy-feedback');
-    
-    if (!email || !message) {
-        feedbackDiv.className = 'feedback error';
-        feedbackDiv.textContent = '❌ Please fill in all fields';
-        feedbackDiv.style.display = 'block';
-        return;
-    }
-    
-    // Replace with YOUR email address
-    const yourEmail = 'carlanviroberts4@gmail.com';
-    
-    // Create mailto link
-    const subject = 'Consultancy Inquiry - WordBiz Coaching Academy';
-    const body = `From: ${email}\n\nMessage:\n${message}`;
-    
-    const mailtoLink = `mailto:${yourEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    
-    // Show message first
-    feedbackDiv.className = 'feedback success';
-    feedbackDiv.textContent = '✅ Opening your email client...';
-    feedbackDiv.style.display = 'block';
-    
-    // Open email client
-    setTimeout(() => {
-        window.open(mailtoLink, '_self');
-    }, 500);
-    
-    // Close modal after delay
-    setTimeout(() => {
-        closeConsultancyModal();
-    }, 2000);
 }
     </script>
 </body>
