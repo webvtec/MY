@@ -1945,16 +1945,13 @@
                     </div>
                     
                     <div style="display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin: 20px 0;">
-                        <button class="practice-btn" onclick="speakUnscrambleWord()" style="font-size: 0.9rem; padding: 10px 15px;">
-                            🔊 Hear the Word
-                        </button>
-                        <button class="practice-btn" onclick="giveUnscrambleHint()" style="font-size: 0.9rem; padding: 10px 15px; background: #ff9800;">
-                            💡 Get Hint
-                        </button>
-                        <button class="practice-btn" id="show-unscramble-details-btn" onclick="showUnscrambleWordDetails()" style="font-size: 0.9rem; padding: 10px 15px; display: none;">
-                            📖 Word Details
-                        </button>
-                    </div>
+    <button class="practice-btn" onclick="giveUnscrambleHint()" style="font-size: 0.9rem; padding: 10px 15px; background: #ff9800;">
+        💡 Get Hint
+    </button>
+    <button class="practice-btn" id="show-unscramble-details-btn" onclick="showUnscrambleWordDetails()" style="font-size: 0.9rem; padding: 10px 15px; display: none;">
+        📖 Word Details
+    </button>
+</div>
                 </div>
                             
                <div class="form-group" style="margin: 30px 0;">
@@ -5378,13 +5375,20 @@ function clearUnscrambleInput() {
 }
 
         function shuffleScrambledWord() {
-    currentScrambledWord = scrambleWord(currentUnscrambleWord);
+    let newScramble;
+    
+    // Keep shuffling until we get a different arrangement (can be the correct word or another scramble)
+    do {
+        newScramble = currentUnscrambleWord.split('').sort(() => Math.random() - 0.5).join('');
+    } while (newScramble === currentScrambledWord);
+    
+    currentScrambledWord = newScramble;
     document.getElementById('scrambled-letters').textContent = currentScrambledWord.toUpperCase();
     
     // Visual feedback
     const letterDiv = document.getElementById('scrambled-letters');
-    letterDiv.style.transform = 'scale(1.1)';
-    setTimeout(() => letterDiv.style.transform = 'scale(1)', 200);
+    letterDiv.style.transform = 'scale(1.1) rotate(5deg)';
+    setTimeout(() => letterDiv.style.transform = 'scale(1) rotate(0deg)', 300);
 }
     </script>
 </body>
