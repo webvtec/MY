@@ -2089,7 +2089,7 @@
     </div>
 </div>
 
- <!-- Unscramble Mode -->
+<!-- Unscramble Mode -->
 <div id="unscramble-mode" class="quiz-mode">
     <div id="unscramble-container">
         <div class="welcome-section">
@@ -2126,17 +2126,8 @@
                     <button class="practice-btn" onclick="showUnscrambleHint()" style="font-size: 1.1rem; padding: 15px 30px; margin: 10px; background: #17a2b8;">
                         💡 Hint
                     </button>
-                </div>
-                
-                <div class="form-group" style="margin: 30px 0;">
-                    <label style="font-size: 1.2rem;">Your Answer:</label>
-                    <input type="text" id="unscramble-input" 
-                           placeholder="Type the unscrambled word..." 
-                           style="width: 100%; padding: 15px; font-size: 1.3rem; text-align: center; border: 3px solid #0d3b66; border-radius: 8px; margin-top: 10px;">
-                </div>
-                
-                <div style="text-align: center; margin-top: 20px;">
-                    <button class="practice-btn" onclick="submitUnscramble()" style="font-size: 1.2rem; padding: 15px 40px;">
+                    
+                    <button class="practice-btn" onclick="submitUnscramble()" style="font-size: 1.2rem; padding: 15px 40px; margin: 10px;">
                         ✓ Submit Answer
                     </button>
                 </div>
@@ -2200,7 +2191,6 @@ let unscrambleScore = 0;
 let currentUnscrambleWord = '';
 let currentScrambledWord = '';
 let hintsUsed = 0;
-
         
         // ===== INITIALIZE =====
         document.addEventListener('DOMContentLoaded', function() {
@@ -4973,12 +4963,7 @@ function loadUnscrambleWord() {
     document.getElementById('unscramble-score').textContent = 
         `Score: ${unscrambleScore} / ${currentUnscrambleIndex}`;
     document.getElementById('scrambled-word').textContent = currentScrambledWord.toUpperCase();
-    document.getElementById('unscramble-input').value = '';
     document.getElementById('unscramble-feedback').innerHTML = '';
-    
-    // Enable input
-    document.getElementById('unscramble-input').disabled = false;
-    document.getElementById('unscramble-input').focus();
 }
 
 function scrambleWord(word) {
@@ -5052,19 +5037,11 @@ async function showUnscrambleHint() {
 }
 
 async function submitUnscramble() {
-    const userAnswer = document.getElementById('unscramble-input').value.trim().toLowerCase();
+    const displayedWord = document.getElementById('scrambled-word').textContent.trim().toLowerCase();
     const correctWord = currentUnscrambleWord.toLowerCase();
     const feedbackDiv = document.getElementById('unscramble-feedback');
     
-    if (!userAnswer) {
-        feedbackDiv.innerHTML = '<div class="feedback error">⚠️ Please type a word before submitting</div>';
-        return;
-    }
-    
-    // Disable input while processing
-    document.getElementById('unscramble-input').disabled = true;
-    
-    if (userAnswer === correctWord) {
+    if (displayedWord === correctWord) {
         unscrambleScore++;
         
         feedbackDiv.innerHTML = '<div class="loading">✅ Correct! Loading word details...</div>';
@@ -5103,7 +5080,7 @@ async function submitUnscramble() {
         } catch (error) {
             feedbackDiv.innerHTML = `
                 <div class="feedback success">
-                    ✅ Correct! The word is: <strong>${currentUnscrambleWord}</strong>
+                    ✅ <strong>Correct!</strong> The word is: <strong>${currentUnscrambleWord}</strong>
                     
                     <button class="practice-btn" onclick="nextUnscrambleWord()" style="margin-top: 15px; font-size: 1.1rem;">
                         ➡️ Next Word
@@ -5114,14 +5091,11 @@ async function submitUnscramble() {
     } else {
         feedbackDiv.innerHTML = `
             <div class="feedback error">
-                ❌ <strong>Incorrect.</strong> Try again or use a hint!
-                <p style="margin-top: 10px;">You wrote: <strong>${userAnswer}</strong></p>
+                ❌ <strong>Incorrect.</strong> Keep shuffling or use a hint!
+                <p style="margin-top: 10px;">Current word: <strong>${displayedWord.toUpperCase()}</strong></p>
+                <p style="margin-top: 5px;">Correct spelling: <strong>${correctWord.toUpperCase()}</strong></p>
             </div>
         `;
-        
-        // Re-enable input
-        document.getElementById('unscramble-input').disabled = false;
-        document.getElementById('unscramble-input').focus();
     }
 }
 
