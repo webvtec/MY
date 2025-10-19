@@ -1500,11 +1500,12 @@
         <!-- Quiz Section -->
         <div id="quiz-section" class="content-section">
             <div class="word-database">
-        <div class="quiz-tabs">
-            <button class="quiz-tab active" onclick="switchQuizMode('practice')">PRACTICE QUIZ</button>
-            <button class="quiz-tab" onclick="switchQuizMode('live')">LIVE QUIZ</button>
-            <button class="quiz-tab" onclick="switchQuizMode('leaderboard')">QUIZ LEADERBOARD</button>
-        </div>
+       <div class="quiz-tabs">
+    <button class="quiz-tab active" onclick="switchSpellingMode('practice')">Practice Spelling</button>
+    <button class="quiz-tab" onclick="switchSpellingMode('unscramble')">Unscramble</button>
+    <button class="quiz-tab" onclick="switchSpellingMode('live')">Live Spelling</button>
+    <button class="quiz-tab" onclick="switchSpellingMode('leaderboard')">Spelling Leaderboard</button>
+</div>
 
                 <div id="practice-quiz-mode" class="quiz-mode active">
                     <div class="welcome-section">
@@ -1913,6 +1914,114 @@
 </div>
 
 
+    <!-- Unscramble Mode -->
+<div id="unscramble-spelling-mode" class="quiz-mode">
+    <div id="unscramble-container">
+        <div class="welcome-section">
+            <h2>🔀 Word Unscramble</h2>
+            <p>Unscramble the letters to form the correct word. Test your word recognition skills!</p>
+            
+            <div style="margin: 20px 0;">
+                <label style="display: block; margin-bottom: 10px; font-weight: bold;">Difficulty Level:</label>
+                <select id="unscramble-difficulty" style="padding: 10px; font-size: 1rem; border: 2px solid #0d3b66; border-radius: 5px; width: 200px;">
+                    <option value="easy">Easy (3-5 letters)</option>
+                    <option value="medium" selected>Medium (6-8 letters)</option>
+                    <option value="hard">Hard (9+ letters)</option>
+                </select>
+            </div>
+            
+            <button class="practice-btn" onclick="startUnscramblePractice()">Start Unscramble Practice</button>
+        </div>
+        
+        <div id="unscramble-game" style="display: none;">
+            <div class="quiz-question-card">
+                <div class="quiz-score" id="unscramble-score">Score: 0 / 0</div>
+                <h3 id="unscramble-progress">Word 1 of 10</h3>
+                
+                <div style="text-align: center; margin: 30px 0;">
+                    <h2 style="color: #0d3b66; margin-bottom: 20px;">Unscramble these letters:</h2>
+                    <div id="scrambled-letters" style="font-size: 2.5rem; font-weight: bold; color: #0d3b66; letter-spacing: 10px; margin: 30px 0; padding: 20px; background: #e3f2fd; border-radius: 10px; font-family: monospace;">
+                        LOADING
+                    </div>
+                    
+                    <div style="display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin: 20px 0;">
+                        <button class="practice-btn" onclick="speakUnscrambleWord()" style="font-size: 0.9rem; padding: 10px 15px;">
+                            🔊 Hear the Word
+                        </button>
+                        <button class="practice-btn" onclick="giveUnscrambleHint()" style="font-size: 0.9rem; padding: 10px 15px; background: #ff9800;">
+                            💡 Get Hint
+                        </button>
+                        <button class="practice-btn" id="show-unscramble-details-btn" onclick="showUnscrambleWordDetails()" style="font-size: 0.9rem; padding: 10px 15px; display: none;">
+                            📖 Word Details
+                        </button>
+                    </div>
+                </div>
+                            
+                <div class="form-group" style="margin: 30px 0;">
+                    <label style="font-size: 1.2rem;">Type your answer:</label>
+                    <input type="text" id="unscramble-input" 
+                           placeholder="Use the keyboard below..." 
+                           style="width: 100%; padding: 15px; font-size: 1.3rem; text-align: center; border: 3px solid #0d3b66; border-radius: 8px; margin-top: 10px;"
+                           readonly>
+                </div>
+                
+                <!-- Virtual Keyboard -->
+                <div class="virtual-keyboard">
+                    <div class="keyboard-row">
+                        <button class="keyboard-key" onclick="typeUnscrambleKey('Q')">Q</button>
+                        <button class="keyboard-key" onclick="typeUnscrambleKey('W')">W</button>
+                        <button class="keyboard-key" onclick="typeUnscrambleKey('E')">E</button>
+                        <button class="keyboard-key" onclick="typeUnscrambleKey('R')">R</button>
+                        <button class="keyboard-key" onclick="typeUnscrambleKey('T')">T</button>
+                        <button class="keyboard-key" onclick="typeUnscrambleKey('Y')">Y</button>
+                        <button class="keyboard-key" onclick="typeUnscrambleKey('U')">U</button>
+                        <button class="keyboard-key" onclick="typeUnscrambleKey('I')">I</button>
+                        <button class="keyboard-key" onclick="typeUnscrambleKey('O')">O</button>
+                        <button class="keyboard-key" onclick="typeUnscrambleKey('P')">P</button>
+                    </div>
+                    <div class="keyboard-row">
+                        <button class="keyboard-key" onclick="typeUnscrambleKey('A')">A</button>
+                        <button class="keyboard-key" onclick="typeUnscrambleKey('S')">S</button>
+                        <button class="keyboard-key" onclick="typeUnscrambleKey('D')">D</button>
+                        <button class="keyboard-key" onclick="typeUnscrambleKey('F')">F</button>
+                        <button class="keyboard-key" onclick="typeUnscrambleKey('G')">G</button>
+                        <button class="keyboard-key" onclick="typeUnscrambleKey('H')">H</button>
+                        <button class="keyboard-key" onclick="typeUnscrambleKey('J')">J</button>
+                        <button class="keyboard-key" onclick="typeUnscrambleKey('K')">K</button>
+                        <button class="keyboard-key" onclick="typeUnscrambleKey('L')">L</button>
+                    </div>
+                    <div class="keyboard-row">
+                        <button class="keyboard-key" onclick="typeUnscrambleKey('Z')">Z</button>
+                        <button class="keyboard-key" onclick="typeUnscrambleKey('X')">X</button>
+                        <button class="keyboard-key" onclick="typeUnscrambleKey('C')">C</button>
+                        <button class="keyboard-key" onclick="typeUnscrambleKey('V')">V</button>
+                        <button class="keyboard-key" onclick="typeUnscrambleKey('B')">B</button>
+                        <button class="keyboard-key" onclick="typeUnscrambleKey('N')">N</button>
+                        <button class="keyboard-key" onclick="typeUnscrambleKey('M')">M</button>
+                    </div>
+                    <div class="keyboard-row">
+                        <button class="keyboard-key backspace" onclick="backspaceUnscrambleKey()">⌫ Delete</button>
+                        <button class="keyboard-key space" onclick="clearUnscrambleInput()">🔄 Clear</button>
+                        <button class="keyboard-key enter" onclick="submitUnscramble()">✓ Enter</button>
+                    </div>
+                </div>
+                            
+                <div style="text-align: center; margin-top: 20px;">
+                    <button class="practice-btn" onclick="skipUnscrambleWord()" style="background: #666;">
+                        ⏭️ Skip
+                    </button>
+                </div>
+                            
+                <div id="unscramble-feedback" style="margin-top: 20px;"></div>
+                <div id="unscramble-hint" style="margin-top: 15px; padding: 12px; background: #fff3cd; border-left: 3px solid #ffc107; border-radius: 5px; display: none;"></div>
+            </div>
+        </div>
+                    
+        <div id="unscramble-results" style="display: none;"></div>
+    </div>
+</div>
+
+    
    <!-- Student Dashboard Section -->
 <div id="student-dashboard-section" class="content-section">
     <div class="dashboard-container">
@@ -2113,14 +2222,19 @@
         let quizAnswerTimes = [];
         let quizDifficulty = 'medium'; // track difficulty
         let questionStartTime = null;
-
-
-         // ===== SPELLING PRACTICE FUNCTIONS =====
         let spellingWords = [];
         let currentSpellingIndex = 0;
         let spellingScore = 0;
         let currentSpellingWord = '';
         let spellingMistakes = [];
+        let unscrambleWords = [];
+let currentUnscrambleIndex = 0;
+let unscrambleScore = 0;
+let currentUnscrambleWord = '';
+let currentScrambledWord = '';
+let unscrambleMistakes = [];
+let hintsUsed = 0;
+
 
 
         // ===== ADMIN CHECK =====
@@ -4286,32 +4400,35 @@ function displayFavorites() {
             document.querySelector('#spelling-container .welcome-section').style.display = 'block';
         }
 
-        function switchSpellingMode(mode) {
-            // Update active tab
-            const tabs = document.querySelectorAll('#spelling-section .quiz-tab');
-            tabs.forEach((tab, index) => {
-                tab.classList.remove('active');
-                if ((mode === 'practice' && index === 0) ||
-                    (mode === 'live' && index === 1) ||
-                    (mode === 'leaderboard' && index === 2)) {
-                    tab.classList.add('active');
-                }
-            });
-
-            // Update active mode
-            document.querySelectorAll('#spelling-section .quiz-mode').forEach(m => {
-                m.classList.remove('active');
-            });
-
-            if (mode === 'practice') {
-                document.getElementById('practice-spelling-mode').classList.add('active');
-            } else if (mode === 'live') {
-                document.getElementById('live-spelling-mode').classList.add('active');
-            } else if (mode === 'leaderboard') {
-                document.getElementById('leaderboard-spelling-mode').classList.add('active');
-            }
+       function switchSpellingMode(mode) {
+    // Update active tab
+    const tabs = document.querySelectorAll('#spelling-section .quiz-tab');
+    tabs.forEach((tab, index) => {
+        tab.classList.remove('active');
+        if ((mode === 'practice' && index === 0) ||
+            (mode === 'unscramble' && index === 1) ||
+            (mode === 'live' && index === 2) ||
+            (mode === 'leaderboard' && index === 3)) {
+            tab.classList.add('active');
         }
+    });
 
+    // Update active mode
+    document.querySelectorAll('#spelling-section .quiz-mode').forEach(m => {
+        m.classList.remove('active');
+    });
+
+    if (mode === 'practice') {
+        document.getElementById('practice-spelling-mode').classList.add('active');
+    } else if (mode === 'unscramble') {
+        document.getElementById('unscramble-spelling-mode').classList.add('active');
+    } else if (mode === 'live') {
+        document.getElementById('live-spelling-mode').classList.add('active');
+    } else if (mode === 'leaderboard') {
+        document.getElementById('leaderboard-spelling-mode').classList.add('active');
+    }
+}
+        
         // ===== SPELLING FAVORITES FUNCTIONS =====
 async function loadUserSpellingFavorites(userId) {
     try {
@@ -4873,6 +4990,422 @@ function backspaceKey() {
     if (input.disabled) return;
     input.value = input.value.slice(0, -1);
 }   
+
+        // ===== UNSCRAMBLE PRACTICE FUNCTIONS =====
+function startUnscramblePractice() {
+    const difficulty = document.getElementById('unscramble-difficulty').value;
+    
+    let filteredWords = [];
+    if (difficulty === 'easy') {
+        filteredWords = allWords.filter(word => word.length >= 3 && word.length <= 5);
+    } else if (difficulty === 'medium') {
+        filteredWords = allWords.filter(word => word.length >= 6 && word.length <= 8);
+    } else {
+        filteredWords = allWords.filter(word => word.length >= 9);
+    }
+    
+    if (filteredWords.length < 10) {
+        alert('Not enough words in this difficulty level. Try another difficulty.');
+        return;
+    }
+    
+    const shuffled = [...filteredWords].sort(() => 0.5 - Math.random());
+    unscrambleWords = shuffled.slice(0, 10);
+    
+    currentUnscrambleIndex = 0;
+    unscrambleScore = 0;
+    unscrambleMistakes = [];
+    hintsUsed = 0;
+    
+    document.querySelector('#unscramble-container .welcome-section').style.display = 'none';
+    document.getElementById('unscramble-game').style.display = 'block';
+    document.getElementById('unscramble-results').style.display = 'none';
+    
+    loadUnscrambleWord();
+}
+
+function loadUnscrambleWord() {
+    currentUnscrambleWord = unscrambleWords[currentUnscrambleIndex];
+    currentScrambledWord = scrambleWord(currentUnscrambleWord);
+    
+    document.getElementById('unscramble-progress').textContent = 
+        `Word ${currentUnscrambleIndex + 1} of ${unscrambleWords.length}`;
+    document.getElementById('unscramble-score').textContent = 
+        `Score: ${unscrambleScore} / ${currentUnscrambleIndex}`;
+    document.getElementById('unscramble-input').value = '';
+    document.getElementById('unscramble-feedback').innerHTML = '';
+    document.getElementById('unscramble-hint').style.display = 'none';
+    document.getElementById('unscramble-hint').innerHTML = '';
+    
+    document.getElementById('scrambled-letters').textContent = currentScrambledWord.toUpperCase();
+    
+    const detailsBtn = document.getElementById('show-unscramble-details-btn');
+    if (detailsBtn) {
+        detailsBtn.style.display = 'none';
+    }
+    
+    document.getElementById('unscramble-input').disabled = false;
+    document.getElementById('unscramble-input').focus();
+}
+
+function scrambleWord(word) {
+    let scrambled;
+    do {
+        scrambled = word.split('').sort(() => Math.random() - 0.5).join('');
+    } while (scrambled === word && word.length > 1);
+    return scrambled;
+}
+
+function speakUnscrambleWord() {
+    if (!currentUnscrambleWord) return;
+    
+    const utterance = new SpeechSynthesisUtterance(currentUnscrambleWord);
+    utterance.rate = 0.7;
+    utterance.pitch = 1;
+    utterance.volume = 1;
+    
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utterance);
+    
+    const btn = event?.target;
+    if (btn) {
+        btn.style.transform = 'scale(0.95)';
+        setTimeout(() => btn.style.transform = 'scale(1)', 200);
+    }
+}
+
+function giveUnscrambleHint() {
+    const hintDiv = document.getElementById('unscramble-hint');
+    hintsUsed++;
+    
+    const hintLevel = Math.min(hintsUsed, 3);
+    
+    if (hintLevel === 1) {
+        hintDiv.innerHTML = `<strong>💡 Hint 1:</strong> The word starts with "<strong>${currentUnscrambleWord.charAt(0).toUpperCase()}</strong>"`;
+    } else if (hintLevel === 2) {
+        hintDiv.innerHTML = `<strong>💡 Hint 2:</strong> The word is <strong>${currentUnscrambleWord.length}</strong> letters long and starts with "<strong>${currentUnscrambleWord.charAt(0).toUpperCase()}</strong>"`;
+    } else {
+        const revealed = currentUnscrambleWord.substring(0, Math.ceil(currentUnscrambleWord.length / 2));
+        const hidden = '_'.repeat(currentUnscrambleWord.length - revealed.length);
+        hintDiv.innerHTML = `<strong>💡 Hint 3:</strong> The word is: <strong style="font-family: monospace; font-size: 1.2rem;">${revealed.toUpperCase()}${hidden}</strong>`;
+    }
+    
+    hintDiv.style.display = 'block';
+}
+
+async function showUnscrambleWordDetails() {
+    if (!currentUnscrambleWord) return;
+    
+    const feedbackDiv = document.getElementById('unscramble-feedback');
+    feedbackDiv.innerHTML = '<div class="loading">📚 Loading word details...</div>';
+    
+    try {
+        const wordDetails = await fetchWordDetails(currentUnscrambleWord);
+        
+        feedbackDiv.innerHTML = `
+            <div style="background: white; padding: 20px; border-radius: 8px; border: 2px solid #17a2b8; margin-top: 15px;">
+                <h3 style="color: #17a2b8; margin-bottom: 15px;">📖 Word Information</h3>
+                
+                ${wordDetails.phonetic ? `
+                    <div style="margin-bottom: 15px;">
+                        <strong style="color: #0d3b66;">🔊 Pronunciation:</strong>
+                        <span style="font-style: italic; color: #666; margin-left: 8px;">${wordDetails.phonetic}</span>
+                    </div>
+                ` : ''}
+                
+                ${wordDetails.origin ? `
+                    <div style="margin-bottom: 15px; padding: 12px; background: #fff3cd; border-left: 3px solid #ffc107; border-radius: 5px;">
+                        <strong style="color: #856404;">📜 Origin:</strong>
+                        <p style="color: #856404; margin-top: 8px; line-height: 1.6; font-size: 0.95rem;">${wordDetails.origin}</p>
+                    </div>
+                ` : ''}
+                
+                ${wordDetails.definition ? `
+                    <div style="margin-bottom: 10px;">
+                        <strong style="color: #0d3b66;">📝 Definition:</strong>
+                        <p style="color: #333; margin-top: 8px; line-height: 1.6;">${wordDetails.definition}</p>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    } catch (error) {
+        console.error('Error fetching word details:', error);
+        feedbackDiv.innerHTML = `
+            <div class="feedback error">
+                ❌ Unable to load word details. Please try again.
+            </div>
+        `;
+    }
+}
+
+async function submitUnscramble() {
+    const userAnswer = document.getElementById('unscramble-input').value.trim().toLowerCase();
+    const correctWord = currentUnscrambleWord.toLowerCase();
+    const feedbackDiv = document.getElementById('unscramble-feedback');
+    
+    if (!userAnswer) {
+        feedbackDiv.innerHTML = '<div class="feedback error">⚠️ Please type a word before submitting</div>';
+        return;
+    }
+    
+    document.getElementById('unscramble-input').disabled = true;
+    
+    if (userAnswer === correctWord) {
+        unscrambleScore++;
+        
+        feedbackDiv.innerHTML = '<div class="loading">✅ Correct! Loading word details...</div>';
+        
+        try {
+            const wordDetails = await fetchWordDetails(currentUnscrambleWord);
+            
+            feedbackDiv.innerHTML = `
+                <div class="feedback success">
+                    ✅ <strong>Correct!</strong> The word is: <strong>${currentUnscrambleWord}</strong>
+                    
+                    ${wordDetails.phonetic ? `
+                        <div style="margin-top: 10px; font-style: italic; color: #666;">
+                            Pronunciation: ${wordDetails.phonetic}
+                        </div>
+                    ` : ''}
+                    
+                    ${wordDetails.origin ? `
+                        <div style="margin-top: 15px; padding: 12px; background: #fff3cd; border-left: 3px solid #ffc107; border-radius: 5px;">
+                            <strong style="color: #856404;">📜 Origin:</strong>
+                            <p style="color: #856404; margin-top: 5px; font-size: 0.95rem;">${wordDetails.origin}</p>
+                        </div>
+                    ` : ''}
+                    
+                    ${wordDetails.definition ? `
+                        <div style="margin-top: 10px; color: #0d3b66;">
+                            <strong>Definition:</strong> ${wordDetails.definition}
+                        </div>
+                    ` : ''}
+                    
+                    <button class="practice-btn" onclick="nextUnscrambleWord()" style="margin-top: 15px; font-size: 1.1rem;">
+                        ➡️ Next Word
+                    </button>
+                </div>
+            `;
+        } catch (error) {
+            feedbackDiv.innerHTML = `
+                <div class="feedback success">
+                    ✅ Correct! The word is: <strong>${currentUnscrambleWord}</strong>
+                    
+                    <button class="practice-btn" onclick="nextUnscrambleWord()" style="margin-top: 15px; font-size: 1.1rem;">
+                        ➡️ Next Word
+                    </button>
+                </div>
+            `;
+        }
+    } else {
+        unscrambleMistakes.push({
+            word: currentUnscrambleWord,
+            userAnswer: userAnswer,
+            scrambled: currentScrambledWord
+        });
+        
+        feedbackDiv.innerHTML = '<div class="loading">❌ Incorrect. Loading word details...</div>';
+        
+        try {
+            const wordDetails = await fetchWordDetails(currentUnscrambleWord);
+            
+            feedbackDiv.innerHTML = `
+                <div class="feedback error">
+                    ❌ <strong>Incorrect.</strong> You wrote: <strong>${userAnswer}</strong><br>
+                    Correct word: <strong>${currentUnscrambleWord}</strong>
+                    
+                    ${wordDetails.phonetic ? `
+                        <div style="margin-top: 10px; font-style: italic; color: #333;">
+                            Pronunciation: ${wordDetails.phonetic}
+                        </div>
+                    ` : ''}
+                    
+                    ${wordDetails.origin ? `
+                        <div style="margin-top: 15px; padding: 12px; background: #fff3cd; border-left: 3px solid #ffc107; border-radius: 5px;">
+                            <strong style="color: #856404;">📜 Origin:</strong>
+                            <p style="color: #856404; margin-top: 5px; font-size: 0.95rem;">${wordDetails.origin}</p>
+                        </div>
+                    ` : ''}
+                    
+                    ${wordDetails.definition ? `
+                        <div style="margin-top: 10px; color: #333;">
+                            <strong>Definition:</strong> ${wordDetails.definition}
+                        </div>
+                    ` : ''}
+                    
+                    <button class="practice-btn" onclick="nextUnscrambleWord()" style="margin-top: 15px; font-size: 1.1rem;">
+                        ➡️ Next Word
+                    </button>
+                </div>
+            `;
+        } catch (error) {
+            feedbackDiv.innerHTML = `
+                <div class="feedback error">
+                    ❌ Incorrect. You wrote: <strong>${userAnswer}</strong><br>
+                    Correct word: <strong>${currentUnscrambleWord}</strong>
+                    
+                    <button class="practice-btn" onclick="nextUnscrambleWord()" style="margin-top: 15px; font-size: 1.1rem;">
+                        ➡️ Next Word
+                    </button>
+                </div>
+            `;
+        }
+        
+        setTimeout(() => speakUnscrambleWord(), 1000);
+    }
+    
+    document.getElementById('show-unscramble-details-btn').style.display = 'inline-block';
+}
+
+async function skipUnscrambleWord() {
+    unscrambleMistakes.push({
+        word: currentUnscrambleWord,
+        userAnswer: '(skipped)',
+        scrambled: currentScrambledWord
+    });
+    
+    document.getElementById('unscramble-input').disabled = true;
+    
+    const feedbackDiv = document.getElementById('unscramble-feedback');
+    feedbackDiv.innerHTML = '<div class="loading">⏭️ Loading word details...</div>';
+    
+    try {
+        const wordDetails = await fetchWordDetails(currentUnscrambleWord);
+        
+        feedbackDiv.innerHTML = `
+            <div class="feedback" style="background: #fff3cd; border-color: #ffc107; color: #856404;">
+                ⏭️ <strong>Skipped.</strong> The word was: <strong>${currentUnscrambleWord}</strong>
+                
+                ${wordDetails.phonetic ? `
+                    <div style="margin-top: 10px; font-style: italic;">
+                        Pronunciation: ${wordDetails.phonetic}
+                    </div>
+                ` : ''}
+                
+                ${wordDetails.origin ? `
+                    <div style="margin-top: 15px; padding: 12px; background: #ffe8a1; border-left: 3px solid #ff9800; border-radius: 5px;">
+                        <strong>📜 Origin:</strong>
+                        <p style="margin-top: 5px; font-size: 0.95rem;">${wordDetails.origin}</p>
+                    </div>
+                ` : ''}
+                
+                ${wordDetails.definition ? `
+                    <div style="margin-top: 10px;">
+                        <strong>Definition:</strong> ${wordDetails.definition}
+                    </div>
+                ` : ''}
+                
+                <button class="practice-btn" onclick="nextUnscrambleWord()" style="margin-top: 15px; font-size: 1.1rem;">
+                    ➡️ Next Word
+                </button>
+            </div>
+        `;
+    } catch (error) {
+        feedbackDiv.innerHTML = `
+            <div class="feedback" style="background: #fff3cd; border-color: #ffc107; color: #856404;">
+                ⏭️ Skipped. The word was: <strong>${currentUnscrambleWord}</strong>
+                
+                <button class="practice-btn" onclick="nextUnscrambleWord()" style="margin-top: 15px; font-size: 1.1rem;">
+                    ➡️ Next Word
+                </button>
+            </div>
+        `;
+    }
+    
+    speakUnscrambleWord();
+    document.getElementById('show-unscramble-details-btn').style.display = 'inline-block';
+}
+
+function nextUnscrambleWord() {
+    document.getElementById('unscramble-input').disabled = false;
+    hintsUsed = 0;
+    currentUnscrambleIndex++;
+    if (currentUnscrambleIndex < unscrambleWords.length) {
+        loadUnscrambleWord();
+    } else {
+        showUnscrambleResults();
+    }
+}
+
+function showUnscrambleResults() {
+    document.getElementById('unscramble-game').style.display = 'none';
+    const resultsDiv = document.getElementById('unscramble-results');
+    resultsDiv.style.display = 'block';
+    
+    const percentage = Math.round((unscrambleScore / unscrambleWords.length) * 100);
+    
+    let message = '';
+    let emoji = '';
+    
+    if (percentage >= 90) {
+        message = 'Outstanding! You\'re an unscramble master!';
+        emoji = '🏆';
+    } else if (percentage >= 70) {
+        message = 'Great job! Keep practicing!';
+        emoji = '⭐';
+    } else if (percentage >= 50) {
+        message = 'Good effort! Practice makes perfect!';
+        emoji = '👍';
+    } else {
+        message = 'Keep practicing! You\'ll improve!';
+        emoji = '📚';
+    }
+    
+    resultsDiv.innerHTML = `
+        <div class="quiz-question-card" style="text-align: center;">
+            <div style="font-size: 4rem; margin: 20px 0;">${emoji}</div>
+            <h2>Unscramble Practice Complete!</h2>
+            <div class="quiz-score">Final Score: ${unscrambleScore} / ${unscrambleWords.length}</div>
+            <p style="font-size: 1.5rem; margin: 20px 0; color: #0d3b66;">${percentage}%</p>
+            <p style="font-size: 1.2rem; margin: 20px 0;">${message}</p>
+            
+            ${unscrambleMistakes.length > 0 ? `
+                <div style="margin: 30px 0; text-align: left; max-width: 600px; margin-left: auto; margin-right: auto;">
+                    <h3 style="color: #0d3b66; margin-bottom: 15px;">📝 Words to Review:</h3>
+                    <div style="background: #f9f9f9; padding: 20px; border-radius: 8px;">
+                        ${unscrambleMistakes.map(mistake => `
+                            <div style="padding: 10px; margin: 5px 0; background: white; border-left: 3px solid #dc3545; border-radius: 5px;">
+                                <strong>${mistake.word}</strong> 
+                                <span style="color: #666;">- Scrambled: ${mistake.scrambled}</span><br>
+                                <span style="color: #999; font-size: 0.9rem;">Your answer: ${mistake.userAnswer}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            ` : ''}
+            
+            <div style="display: flex; gap: 10px; justify-content: center; margin-top: 30px; flex-wrap: wrap;">
+                <button class="practice-btn" onclick="startUnscramblePractice()">🔄 Practice Again</button>
+                <button class="practice-btn" onclick="restartUnscrambleSection()">📚 Change Difficulty</button>
+                <button class="practice-btn" onclick="navigateTo('home')">🏠 Home</button>
+            </div>
+        </div>
+    `;
+}
+
+function restartUnscrambleSection() {
+    document.getElementById('unscramble-game').style.display = 'none';
+    document.getElementById('unscramble-results').style.display = 'none';
+    document.querySelector('#unscramble-container .welcome-section').style.display = 'block';
+}
+
+function typeUnscrambleKey(letter) {
+    const input = document.getElementById('unscramble-input');
+    if (input.disabled) return;
+    input.value += letter.toLowerCase();
+}
+
+function backspaceUnscrambleKey() {
+    const input = document.getElementById('unscramble-input');
+    if (input.disabled) return;
+    input.value = input.value.slice(0, -1);
+}
+
+function clearUnscrambleInput() {
+    const input = document.getElementById('unscramble-input');
+    if (input.disabled) return;
+    input.value = '';
+}
     </script>
 </body>
 </html>
