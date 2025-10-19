@@ -1957,54 +1957,22 @@
                     </div>
                 </div>
                             
-                <div class="form-group" style="margin: 30px 0;">
-                    <label style="font-size: 1.2rem;">Type your answer:</label>
-                    <input type="text" id="unscramble-input" 
-                           placeholder="Use the keyboard below..." 
-                           style="width: 100%; padding: 15px; font-size: 1.3rem; text-align: center; border: 3px solid #0d3b66; border-radius: 8px; margin-top: 10px;"
-                           readonly>
-                </div>
-                
-                <!-- Virtual Keyboard -->
-                <div class="virtual-keyboard">
-                    <div class="keyboard-row">
-                        <button class="keyboard-key" onclick="typeUnscrambleKey('Q')">Q</button>
-                        <button class="keyboard-key" onclick="typeUnscrambleKey('W')">W</button>
-                        <button class="keyboard-key" onclick="typeUnscrambleKey('E')">E</button>
-                        <button class="keyboard-key" onclick="typeUnscrambleKey('R')">R</button>
-                        <button class="keyboard-key" onclick="typeUnscrambleKey('T')">T</button>
-                        <button class="keyboard-key" onclick="typeUnscrambleKey('Y')">Y</button>
-                        <button class="keyboard-key" onclick="typeUnscrambleKey('U')">U</button>
-                        <button class="keyboard-key" onclick="typeUnscrambleKey('I')">I</button>
-                        <button class="keyboard-key" onclick="typeUnscrambleKey('O')">O</button>
-                        <button class="keyboard-key" onclick="typeUnscrambleKey('P')">P</button>
-                    </div>
-                    <div class="keyboard-row">
-                        <button class="keyboard-key" onclick="typeUnscrambleKey('A')">A</button>
-                        <button class="keyboard-key" onclick="typeUnscrambleKey('S')">S</button>
-                        <button class="keyboard-key" onclick="typeUnscrambleKey('D')">D</button>
-                        <button class="keyboard-key" onclick="typeUnscrambleKey('F')">F</button>
-                        <button class="keyboard-key" onclick="typeUnscrambleKey('G')">G</button>
-                        <button class="keyboard-key" onclick="typeUnscrambleKey('H')">H</button>
-                        <button class="keyboard-key" onclick="typeUnscrambleKey('J')">J</button>
-                        <button class="keyboard-key" onclick="typeUnscrambleKey('K')">K</button>
-                        <button class="keyboard-key" onclick="typeUnscrambleKey('L')">L</button>
-                    </div>
-                    <div class="keyboard-row">
-                        <button class="keyboard-key" onclick="typeUnscrambleKey('Z')">Z</button>
-                        <button class="keyboard-key" onclick="typeUnscrambleKey('X')">X</button>
-                        <button class="keyboard-key" onclick="typeUnscrambleKey('C')">C</button>
-                        <button class="keyboard-key" onclick="typeUnscrambleKey('V')">V</button>
-                        <button class="keyboard-key" onclick="typeUnscrambleKey('B')">B</button>
-                        <button class="keyboard-key" onclick="typeUnscrambleKey('N')">N</button>
-                        <button class="keyboard-key" onclick="typeUnscrambleKey('M')">M</button>
-                    </div>
-                    <div class="keyboard-row">
-                        <button class="keyboard-key backspace" onclick="backspaceUnscrambleKey()">⌫ Delete</button>
-                        <button class="keyboard-key space" onclick="clearUnscrambleInput()">🔄 Clear</button>
-                        <button class="keyboard-key enter" onclick="submitUnscramble()">✓ Enter</button>
-                    </div>
-                </div>
+               <div class="form-group" style="margin: 30px 0;">
+    <label style="font-size: 1.2rem;">Type your answer:</label>
+    <input type="text" id="unscramble-input" 
+           placeholder="Type the unscrambled word..." 
+           style="width: 100%; padding: 15px; font-size: 1.3rem; text-align: center; border: 3px solid #0d3b66; border-radius: 8px; margin-top: 10px;"
+           onkeypress="if(event.key === 'Enter') submitUnscramble()">
+</div>
+
+<div style="display: flex; gap: 10px; justify-content: center; margin-top: 20px; flex-wrap: wrap;">
+    <button class="practice-btn" onclick="shuffleScrambledWord()" style="background: #ff9800; font-size: 1.1rem;">
+        🔀 Shuffle Letters
+    </button>
+    <button class="practice-btn" onclick="submitUnscramble()" style="background: #28a745; font-size: 1.1rem;">
+        ✓ Submit Answer
+    </button>
+</div>
                             
                 <div style="text-align: center; margin-top: 20px;">
                     <button class="practice-btn" onclick="skipUnscrambleWord()" style="background: #666;">
@@ -5407,6 +5375,16 @@ function clearUnscrambleInput() {
     const input = document.getElementById('unscramble-input');
     if (input.disabled) return;
     input.value = '';
+}
+
+        function shuffleScrambledWord() {
+    currentScrambledWord = scrambleWord(currentUnscrambleWord);
+    document.getElementById('scrambled-letters').textContent = currentScrambledWord.toUpperCase();
+    
+    // Visual feedback
+    const letterDiv = document.getElementById('scrambled-letters');
+    letterDiv.style.transform = 'scale(1.1)';
+    setTimeout(() => letterDiv.style.transform = 'scale(1)', 200);
 }
     </script>
 </body>
