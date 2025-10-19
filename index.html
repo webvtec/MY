@@ -2098,19 +2098,8 @@
                 </div>
                 
                 <div class="form-group">
-                    <label>Select Your Email Account *</label>
-                    <select id="consultancy-email-select" required style="width: 100%; padding: 12px 15px; border: 2px solid #0d3b66; border-radius: 5px; font-size: 1rem; font-family: Georgia, serif;">
-                        <option value="">Choose your email provider...</option>
-                        <option value="gmail">Gmail</option>
-                        <option value="outlook">Outlook/Hotmail</option>
-                        <option value="yahoo">Yahoo Mail</option>
-                        <option value="custom">Other Email</option>
-                    </select>
-                </div>
-                
-                <div class="form-group" id="custom-email-group" style="display: none;">
-                    <label>Enter Your Email *</label>
-                    <input type="email" id="consultancy-email-custom" placeholder="your.email@example.com">
+                    <label>Your Email *</label>
+                    <input type="email" id="consultancy-email" required placeholder="your.email@example.com">
                 </div>
                 
                 <div class="form-group">
@@ -2136,19 +2125,19 @@
 <div class="auth-modal" id="consultancySuccessModal">
     <div class="auth-content" style="max-width: 450px;">
         <div class="auth-header" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
-            <h2>✅ Inquiry Sent Successfully!</h2>
+            <h2>✅ Almost Done!</h2>
         </div>
         <div class="auth-body" style="text-align: center; padding: 40px 30px;">
             <div style="font-size: 4rem; margin-bottom: 20px;">📬</div>
-            <h3 style="color: #0d3b66; margin-bottom: 15px;">Thank You for Reaching Out!</h3>
+            <h3 style="color: #0d3b66; margin-bottom: 15px;">Complete Your Inquiry</h3>
             <p style="color: #666; line-height: 1.8; margin-bottom: 20px;">
-                Your inquiry has been successfully submitted to our team. We've received your message and will review it carefully.
+                A new email window has opened with your message pre-filled. <strong>Please click SEND</strong> in your email client to complete your inquiry.
             </p>
-            <p style="color: #0d3b66; font-weight: bold; margin-bottom: 25px;">
-                📧 You should receive a confirmation email shortly.
+            <p style="color: #dc3545; font-size: 0.95rem; margin-bottom: 20px; padding: 15px; background: #fff3cd; border-radius: 8px; border-left: 4px solid #ffc107;">
+                ⚠️ <strong>Important:</strong> Make sure the email is sending from the address you entered. Don't modify the "From" field.
             </p>
             <p style="color: #666; font-size: 0.95rem; margin-bottom: 30px;">
-                Our expert coaches will get back to you within <strong>24-48 hours</strong> with a personalized response.
+                Once you send the email, our expert coaches will get back to you within <strong>24-48 hours</strong> with a personalized response.
             </p>
             <button class="auth-submit" onclick="closeSuccessModal()" style="background: #28a745;">
                 👍 Got it, Thanks!
@@ -4898,12 +4887,13 @@ function backspaceKey() {
 function showConsultancyModal() {
     document.getElementById('consultancyModal').classList.add('active');
     
-    // Pre-fill name if user is logged in
+    // Pre-fill if user is logged in
     if (currentUser) {
         db.collection('users').doc(currentUser.uid).get().then(doc => {
             const userData = doc.data();
-            if (userData && userData.name) {
-                document.getElementById('consultancy-name').value = userData.name;
+            if (userData) {
+                if (userData.name) document.getElementById('consultancy-name').value = userData.name;
+                if (userData.email) document.getElementById('consultancy-email').value = userData.email;
             }
         }).catch(err => console.log('Could not load user data'));
     }
@@ -4914,74 +4904,57 @@ function showConsultancyModal() {
 function closeConsultancyModal() {
     document.getElementById('consultancyModal').classList.remove('active');
     document.getElementById('consultancy-form').reset();
-    document.getElementById('custom-email-group').style.display = 'none';
 }
 
 function closeSuccessModal() {
     document.getElementById('consultancySuccessModal').classList.remove('active');
 }
 
-// Show custom email input when "Other Email" is selected
-document.addEventListener('DOMContentLoaded', function() {
-    const emailSelect = document.getElementById('consultancy-email-select');
-    if (emailSelect) {
-        emailSelect.addEventListener('change', function() {
-            const customEmailGroup = document.getElementById('custom-email-group');
-            const customEmailInput = document.getElementById('consultancy-email-custom');
-            
-            if (this.value === 'custom') {
-                customEmailGroup.style.display = 'block';
-                customEmailInput.required = true;
-            } else {
-                customEmailGroup.style.display = 'none';
-                customEmailInput.required = false;
-            }
-        });
-    }
-});
-
 async function handleConsultancySubmit(event) {
     event.preventDefault();
     
     const submitBtn = document.getElementById('consultancy-submit-btn');
     const name = document.getElementById('consultancy-name').value.trim();
-    const emailProvider = document.getElementById('consultancy-email-select').value;
-    const customEmail = document.getElementById('consultancy-email-custom').value.trim();
+    const email = document.getElementById('consultancy-email').value.trim();
     const message = document.getElementById('consultancy-message').value.trim();
     
-    // Validate custom email if needed
-    if (emailProvider === 'custom' && !customEmail) {
-        alert('Please enter your email address');
-        return;
-    }
-    
-    // Disable button
     submitBtn.disabled = true;
-    submitBtn.textContent = '⏳ Sending...';
+    submitBtn.textContent = '⏳ Opening your email...';
     
     try {
-        // Open email client based on provider
-        if (emailProvider === 'gmail') {
-            const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=carlanviroberts@gmail.com&su=${encodeURIComponent('Consultancy Inquiry from ' + name)}&body=${encodeURIComponent('Name: ' + name + '\n\nMessage:\n' + message + '\n\n---\nPlease reply to this email to respond.')}`;
+        // Detect email provider
+        const isGmail = email.toLowerCase().includes('@gmail.com');
+        const isOutlook = email.toLowerCase().includes('@outlook.com') || email.toLowerCase().includes('@hotmail.com');
+        const isYahoo = email.toLowerCase().includes('@yahoo.com');
+        
+        // Prepare the email content
+        const subject = encodeURIComponent('Consultancy Inquiry from ' + name);
+        const body = encodeURIComponent(`This email is being sent from: ${email}\n\nName: ${name}\n\nMessage:\n${message}\n\n---\nIMPORTANT: Please send this email to confirm your inquiry. Do not modify the "From" field.`);
+        
+        if (isGmail) {
+            // Open Gmail - user must be logged into THEIR account
+            const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=carlanviroberts@gmail.com&su=${subject}&body=${body}`;
             window.open(gmailUrl, '_blank');
-        } else if (emailProvider === 'outlook') {
-            const outlookUrl = `https://outlook.live.com/mail/0/deeplink/compose?to=carlanviroberts@gmail.com&subject=${encodeURIComponent('Consultancy Inquiry from ' + name)}&body=${encodeURIComponent('Name: ' + name + '\n\nMessage:\n' + message + '\n\n---\nPlease reply to this email to respond.')}`;
+        } else if (isOutlook) {
+            // Open Outlook - user must be logged into THEIR account
+            const outlookUrl = `https://outlook.live.com/mail/0/deeplink/compose?to=carlanviroberts@gmail.com&subject=${subject}&body=${body}`;
             window.open(outlookUrl, '_blank');
-        } else if (emailProvider === 'yahoo') {
-            const yahooUrl = `https://compose.mail.yahoo.com/?to=carlanviroberts@gmail.com&subject=${encodeURIComponent('Consultancy Inquiry from ' + name)}&body=${encodeURIComponent('Name: ' + name + '\n\nMessage:\n' + message + '\n\n---\nPlease reply to this email to respond.')}`;
+        } else if (isYahoo) {
+            // Open Yahoo - user must be logged into THEIR account
+            const yahooUrl = `https://compose.mail.yahoo.com/?to=carlanviroberts@gmail.com&subject=${subject}&body=${body}`;
             window.open(yahooUrl, '_blank');
-        } else if (emailProvider === 'custom') {
-            const mailtoUrl = `mailto:carlanviroberts@gmail.com?subject=${encodeURIComponent('Consultancy Inquiry from ' + name)}&body=${encodeURIComponent('Name: ' + name + '\nEmail: ' + customEmail + '\n\nMessage:\n' + message)}`;
+        } else {
+            // Use mailto - opens their default email client with THEIR logged in account
+            const mailtoUrl = `mailto:carlanviroberts@gmail.com?subject=${subject}&body=${body}`;
             window.location.href = mailtoUrl;
         }
         
-        // Close consultancy modal
+        // Close form and show success
         closeConsultancyModal();
         
-        // Show success modal after a short delay
         setTimeout(() => {
             document.getElementById('consultancySuccessModal').classList.add('active');
-        }, 500);
+        }, 800);
         
     } catch (error) {
         console.error('Error:', error);
