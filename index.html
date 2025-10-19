@@ -1431,7 +1431,8 @@
     justify-content: center;
     gap: 10px;
     margin: 30px 0;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;  /* Changed from wrap */
+    overflow-x: auto;    /* Added this */
     min-height: 80px;
     padding: 20px;
     background: #f5f5f5;
@@ -5313,14 +5314,17 @@ async function submitUnscramble() {
             `;
         }
     } else {
-        feedbackDiv.innerHTML = `
-            <div class="feedback error">
-                ❌ <strong>Incorrect.</strong> Keep trying or use a hint!
-                <p style="margin-top: 10px;">Your word: <strong>${userWord.toUpperCase()}</strong></p>
-                <p style="margin-top: 5px;">Correct spelling: <strong>${correctWord.toUpperCase()}</strong></p>
-            </div>
-        `;
-    }
+    feedbackDiv.innerHTML = `
+        <div class="feedback error">
+            ❌ <strong>Incorrect.</strong> The correct word is: <strong>${correctWord.toUpperCase()}</strong>
+            <p style="margin-top: 10px;">Your answer: <strong>${userWord.toUpperCase()}</strong></p>
+            
+            <button class="practice-btn" onclick="nextUnscrambleWord()" style="margin-top: 15px; font-size: 1.1rem;">
+                ➡️ Next Word
+            </button>
+        </div>
+    `;
+}
 }
 
 function nextUnscrambleWord() {
