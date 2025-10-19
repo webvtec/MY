@@ -2739,16 +2739,29 @@ function displayWordDetails(wordData) {
 
     let html = '';
 
-    // ⭐ ADD ORIGIN SECTION
+    // ✅ ADD ORIGIN SECTION - WITH SHORTENED VERSION
     if (wordData.origin) {
+        // Clean and shorten the origin text
+        let cleanOrigin = wordData.origin;
+        
+        // Remove common prefixes
+        cleanOrigin = cleanOrigin.replace(/^(The word comes from|Derived from|From|Origin:|Etymology:)\s*/i, '');
+        
+        // Limit to first sentence or 150 characters
+        const firstSentence = cleanOrigin.split(/[.!?]\s/)[0];
+        cleanOrigin = firstSentence.length > 150 
+            ? firstSentence.substring(0, 150) + '...' 
+            : firstSentence;
+        
         html += `
             <div style="margin-bottom: 25px; padding: 15px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 5px;">
                 <strong style="color: #856404; font-size: 1.1rem;">📜 Origin:</strong>
-                <p style="color: #856404; margin-top: 8px; line-height: 1.6;">${wordData.origin}</p>
+                <p style="color: #856404; margin-top: 8px; line-height: 1.6;">${cleanOrigin}</p>
             </div>
         `;
     }
 
+    // Rest of the function stays the same...
     if (wordData.meanings && wordData.meanings.length > 0) {
         wordData.meanings.forEach((meaning, index) => {
             html += `
@@ -2813,6 +2826,28 @@ function displayWordDetails(wordData) {
     document.getElementById('modalContent').innerHTML = html;
 }
 
+        // Helper function to clean and shorten origin text
+function cleanOriginText(origin) {
+    if (!origin) return '';
+    
+    let cleaned = origin;
+    
+    // Remove common prefixes
+    cleaned = cleaned.replace(/^(The word comes from|Derived from|From|Origin:|Etymology:)\s*/i, '');
+    
+    // Remove extra whitespace
+    cleaned = cleaned.replace(/\s+/g, ' ').trim();
+    
+    // Limit to first sentence or 150 characters
+    const sentences = cleaned.split(/[.!?]\s+/);
+    const firstSentence = sentences[0];
+    
+    if (firstSentence.length > 150) {
+        return firstSentence.substring(0, 150).trim() + '...';
+    }
+    
+    return firstSentence + (firstSentence.endsWith('.') ? '' : '.');
+}
 // ⭐ NEW HELPER FUNCTION - Fetch word details with origin
 async function fetchWordDetails(word) {
     try {
@@ -2822,9 +2857,19 @@ async function fetchWordDetails(word) {
 
         if (wordDoc.exists) {
             const data = wordDoc.data();
+            
+            // Clean the origin if it exists and is too long
+            let cleanedOrigin = data.origin;
+            if (cleanedOrigin && cleanedOrigin.length > 150) {
+                cleanedOrigin = cleanOriginText(cleanedOrigin);
+                
+                // Update Firestore with cleaned origin
+                await wordRef.update({ origin: cleanedOrigin });
+            }
+            
             return {
                 phonetic: data.phonetic || '',
-                origin: data.origin || null,
+                origin: cleanedOrigin || null,
                 definition: data.meanings?.[0]?.definition || ''
             };
         }
@@ -2843,16 +2888,23 @@ async function fetchWordDetails(word) {
         const data = await response.json();
         
         if (data.result) {
-            // Cache it for future use
+            // Clean the origin before caching
+            let cleanedOrigin = data.result.origin;
+            if (cleanedOrigin) {
+                cleanedOrigin = cleanOriginText(cleanedOrigin);
+            }
+            
+            // Cache it with cleaned origin
             await wordRef.set({
                 ...data.result,
+                origin: cleanedOrigin,
                 word: word.toLowerCase(),
                 cachedAt: firebase.firestore.FieldValue.serverTimestamp()
             });
 
             return {
                 phonetic: data.result.phonetic || '',
-                origin: data.result.origin || null,
+                origin: cleanedOrigin || null,
                 definition: data.result.meanings?.[0]?.definition || ''
             };
         }
@@ -4137,7 +4189,7 @@ function displayFavorites() {
     }
 }
         
-        async function showSpellingWordDetails() {
+       async function showSpellingWordDetails() {
     if (!currentSpellingWord) return;
     
     const feedbackDiv = document.getElementById('spelling-feedback');
@@ -4185,7 +4237,6 @@ function displayFavorites() {
         `;
     }
 }
-
         function nextSpellingWord() {
     document.getElementById('spelling-input').disabled = false;
     currentSpellingIndex++;
@@ -4196,7 +4247,7 @@ function displayFavorites() {
     }
 }
         
-     async function submitSpelling() {
+    async function submitSpelling() {
     const userAnswer = document.getElementById('spelling-input').value.trim().toLowerCase();
     const correctWord = currentSpellingWord.toLowerCase();
     const feedbackDiv = document.getElementById('spelling-feedback');
@@ -5314,17 +5365,17 @@ async function submitUnscramble() {
             `;
         }
     } else {
-    feedbackDiv.innerHTML = `
-        <div class="feedback error">
-            ❌ <strong>Incorrect.</strong> The correct word is: <strong>${correctWord.toUpperCase()}</strong>
-            <p style="margin-top: 10px;">Your answer: <strong>${userWord.toUpperCase()}</strong></p>
-            
-            <button class="practice-btn" onclick="nextUnscrambleWord()" style="margin-top: 15px; font-size: 1.1rem;">
-                ➡️ Next Word
-            </button>
-        </div>
-    `;
-}
+        feedbackDiv.innerHTML = `
+            <div class="feedback error">
+                ❌ <strong>Incorrect.</strong> The correct word is: <strong>${correctWord.toUpperCase()}</strong>
+                <p style="margin-top: 10px;">Your answer: <strong>${userWord.toUpperCase()}</strong></p>
+                
+                <button class="practice-btn" onclick="nextUnscrambleWord()" style="margin-top: 15px; font-size: 1.1rem;">
+                    ➡️ Next Word
+                </button>
+            </div>
+        `;
+    }
 }
 
 function nextUnscrambleWord() {
