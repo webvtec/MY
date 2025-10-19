@@ -1424,6 +1424,61 @@
     letter-spacing: 1.5px;
     margin-top: 10px;
 }
+
+        /* Draggable Letter Tiles */
+.letter-tiles-container {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin: 30px 0;
+    flex-wrap: wrap;
+    min-height: 80px;
+    padding: 20px;
+    background: #f5f5f5;
+    border-radius: 10px;
+}
+
+.letter-tile {
+    width: 60px;
+    height: 60px;
+    background: linear-gradient(135deg, #0d3b66, #1a5490);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    font-weight: bold;
+    border-radius: 10px;
+    cursor: move;
+    user-select: none;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    transition: all 0.3s;
+    touch-action: none;
+}
+
+.letter-tile:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+}
+
+.letter-tile.dragging {
+    opacity: 0.5;
+    transform: rotate(5deg);
+}
+
+.letter-tile.drag-over {
+    transform: scale(1.1);
+    background: linear-gradient(135deg, #ffd700, #ffed4e);
+    color: #0d3b66;
+}
+
+@media (max-width: 768px) {
+    .letter-tile {
+        width: 50px;
+        height: 50px;
+        font-size: 1.5rem;
+    }
+}
     </style>
 </head>
 <body>
@@ -2094,7 +2149,7 @@
     <div id="unscramble-container">
         <div class="welcome-section">
             <h2>🔀 Unscramble Words</h2>
-            <p>Shuffle the letters until you form the correct word!</p>
+            <p>Drag and drop the letters to form the correct word!</p>
             
             <div style="margin: 20px 0;">
                 <label style="display: block; margin-bottom: 10px; font-weight: bold;">Difficulty Level:</label>
@@ -2114,22 +2169,25 @@
                 <h3 id="unscramble-progress">Word 1 of 10</h3>
                 
                 <div style="text-align: center; margin: 30px 0;">
-                    <h2 style="color: #0d3b66; margin-bottom: 20px;">Unscramble this word:</h2>
-                    <div id="scrambled-word" style="font-size: 2.5rem; font-weight: bold; color: #0d3b66; letter-spacing: 8px; margin: 30px 0;">
-                        WORD
+                    <h2 style="color: #0d3b66; margin-bottom: 20px;">Drag the letters to form the word:</h2>
+                    
+                    <div id="letter-tiles" class="letter-tiles-container">
+                        <!-- Letter tiles will be inserted here -->
                     </div>
                     
-                    <button class="practice-btn" onclick="shuffleWord()" style="font-size: 1.1rem; padding: 15px 30px; margin: 10px;">
-                        🔀 Shuffle
-                    </button>
-                    
-                    <button class="practice-btn" onclick="showUnscrambleHint()" style="font-size: 1.1rem; padding: 15px 30px; margin: 10px; background: #17a2b8;">
-                        💡 Hint
-                    </button>
-                    
-                    <button class="practice-btn" onclick="submitUnscramble()" style="font-size: 1.2rem; padding: 15px 40px; margin: 10px;">
-                        ✓ Submit Answer
-                    </button>
+                    <div style="margin-top: 20px;">
+                        <button class="practice-btn" onclick="shuffleLetters()" style="font-size: 1.1rem; padding: 15px 30px; margin: 10px;">
+                            🔀 Shuffle
+                        </button>
+                        
+                        <button class="practice-btn" onclick="showUnscrambleHint()" style="font-size: 1.1rem; padding: 15px 30px; margin: 10px; background: #17a2b8;">
+                            💡 Hint
+                        </button>
+                        
+                        <button class="practice-btn" onclick="submitUnscramble()" style="font-size: 1.2rem; padding: 15px 40px; margin: 10px;">
+                            ✓ Submit Answer
+                        </button>
+                    </div>
                 </div>
                 
                 <div id="unscramble-feedback" style="margin-top: 20px;"></div>
@@ -2184,13 +2242,14 @@
         let currentSpellingWord = '';
         let spellingMistakes = [];
 
-        // ===== UNSCRAMBLE FUNCTIONS =====
+      // ===== UNSCRAMBLE FUNCTIONS =====
 let unscrambleWords = [];
 let currentUnscrambleIndex = 0;
 let unscrambleScore = 0;
 let currentUnscrambleWord = '';
-let currentScrambledWord = '';
+let currentLetterOrder = [];
 let hintsUsed = 0;
+let draggedElement = null;
         
         // ===== INITIALIZE =====
         document.addEventListener('DOMContentLoaded', function() {
@@ -4955,20 +5014,23 @@ function startUnscramble() {
 
 function loadUnscrambleWord() {
     currentUnscrambleWord = unscrambleWords[currentUnscrambleIndex];
-    currentScrambledWord = scrambleWord(currentUnscrambleWord);
     hintsUsed = 0;
     
     document.getElementById('unscramble-progress').textContent = 
         `Word ${currentUnscrambleIndex + 1} of ${unscrambleWords.length}`;
     document.getElementById('unscramble-score').textContent = 
         `Score: ${unscrambleScore} / ${currentUnscrambleIndex}`;
-    document.getElementById('scrambled-word').textContent = currentScrambledWord.toUpperCase();
     document.getElementById('unscramble-feedback').innerHTML = '';
+    
+    // Scramble and display letters
+    shuffleLetters();
 }
 
-function scrambleWord(word) {
-    let scrambled = word.split('');
-    // Make sure it's actually scrambled (not the same as original)
+function shuffleLetters() {
+    const letters = currentUnscrambleWord.split('');
+    let scrambled = [...letters];
+    
+    // Shuffle the array
     let attempts = 0;
     do {
         for (let i = scrambled.length - 1; i > 0; i--) {
@@ -4976,19 +5038,178 @@ function scrambleWord(word) {
             [scrambled[i], scrambled[j]] = [scrambled[j], scrambled[i]];
         }
         attempts++;
-    } while (scrambled.join('') === word && attempts < 10);
+    } while (scrambled.join('') === currentUnscrambleWord && attempts < 10);
     
-    return scrambled.join('');
+    currentLetterOrder = scrambled;
+    renderLetterTiles();
 }
 
-function shuffleWord() {
-    currentScrambledWord = scrambleWord(currentUnscrambleWord);
-    document.getElementById('scrambled-word').textContent = currentScrambledWord.toUpperCase();
+function renderLetterTiles() {
+    const container = document.getElementById('letter-tiles');
+    container.innerHTML = '';
     
-    // Visual feedback
-    const scrambledDiv = document.getElementById('scrambled-word');
-    scrambledDiv.style.transform = 'scale(0.9)';
-    setTimeout(() => scrambledDiv.style.transform = 'scale(1)', 200);
+    currentLetterOrder.forEach((letter, index) => {
+        const tile = document.createElement('div');
+        tile.className = 'letter-tile';
+        tile.textContent = letter.toUpperCase();
+        tile.draggable = true;
+        tile.dataset.index = index;
+        
+        // Drag events
+        tile.addEventListener('dragstart', handleDragStart);
+        tile.addEventListener('dragend', handleDragEnd);
+        tile.addEventListener('dragover', handleDragOver);
+        tile.addEventListener('drop', handleDrop);
+        tile.addEventListener('dragenter', handleDragEnter);
+        tile.addEventListener('dragleave', handleDragLeave);
+        
+        // Touch events for mobile
+        tile.addEventListener('touchstart', handleTouchStart, { passive: false });
+        tile.addEventListener('touchmove', handleTouchMove, { passive: false });
+        tile.addEventListener('touchend', handleTouchEnd);
+        
+        container.appendChild(tile);
+    });
+}
+
+function handleDragStart(e) {
+    draggedElement = this;
+    this.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/html', this.innerHTML);
+}
+
+function handleDragEnd(e) {
+    this.classList.remove('dragging');
+    
+    // Remove drag-over class from all tiles
+    document.querySelectorAll('.letter-tile').forEach(tile => {
+        tile.classList.remove('drag-over');
+    });
+}
+
+function handleDragOver(e) {
+    if (e.preventDefault) {
+        e.preventDefault();
+    }
+    e.dataTransfer.dropEffect = 'move';
+    return false;
+}
+
+function handleDragEnter(e) {
+    if (this !== draggedElement) {
+        this.classList.add('drag-over');
+    }
+}
+
+function handleDragLeave(e) {
+    this.classList.remove('drag-over');
+}
+
+function handleDrop(e) {
+    if (e.stopPropagation) {
+        e.stopPropagation();
+    }
+    
+    this.classList.remove('drag-over');
+    
+    if (draggedElement !== this) {
+        const draggedIndex = parseInt(draggedElement.dataset.index);
+        const targetIndex = parseInt(this.dataset.index);
+        
+        // Swap letters in the array
+        [currentLetterOrder[draggedIndex], currentLetterOrder[targetIndex]] = 
+        [currentLetterOrder[targetIndex], currentLetterOrder[draggedIndex]];
+        
+        // Re-render
+        renderLetterTiles();
+    }
+    
+    return false;
+}
+
+// Touch support for mobile
+let touchTarget = null;
+let touchClone = null;
+
+function handleTouchStart(e) {
+    e.preventDefault();
+    touchTarget = this;
+    this.classList.add('dragging');
+    
+    // Create a clone for visual feedback
+    touchClone = this.cloneNode(true);
+    touchClone.style.position = 'fixed';
+    touchClone.style.zIndex = '10000';
+    touchClone.style.pointerEvents = 'none';
+    touchClone.style.opacity = '0.8';
+    document.body.appendChild(touchClone);
+    
+    updateTouchClonePosition(e.touches[0]);
+}
+
+function handleTouchMove(e) {
+    e.preventDefault();
+    if (!touchTarget) return;
+    
+    updateTouchClonePosition(e.touches[0]);
+    
+    // Find element under touch
+    const touch = e.touches[0];
+    const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+    
+    // Remove drag-over from all
+    document.querySelectorAll('.letter-tile').forEach(tile => {
+        tile.classList.remove('drag-over');
+    });
+    
+    // Add drag-over to element below
+    if (elementBelow && elementBelow.classList.contains('letter-tile') && elementBelow !== touchTarget) {
+        elementBelow.classList.add('drag-over');
+    }
+}
+
+function handleTouchEnd(e) {
+    e.preventDefault();
+    if (!touchTarget) return;
+    
+    touchTarget.classList.remove('dragging');
+    
+    // Remove clone
+    if (touchClone) {
+        touchClone.remove();
+        touchClone = null;
+    }
+    
+    // Find element under touch
+    const touch = e.changedTouches[0];
+    const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+    
+    if (elementBelow && elementBelow.classList.contains('letter-tile') && elementBelow !== touchTarget) {
+        const draggedIndex = parseInt(touchTarget.dataset.index);
+        const targetIndex = parseInt(elementBelow.dataset.index);
+        
+        // Swap letters
+        [currentLetterOrder[draggedIndex], currentLetterOrder[targetIndex]] = 
+        [currentLetterOrder[targetIndex], currentLetterOrder[draggedIndex]];
+        
+        // Re-render
+        renderLetterTiles();
+    }
+    
+    // Remove drag-over from all
+    document.querySelectorAll('.letter-tile').forEach(tile => {
+        tile.classList.remove('drag-over');
+    });
+    
+    touchTarget = null;
+}
+
+function updateTouchClonePosition(touch) {
+    if (touchClone) {
+        touchClone.style.left = (touch.clientX - 30) + 'px';
+        touchClone.style.top = (touch.clientY - 30) + 'px';
+    }
 }
 
 async function showUnscrambleHint() {
@@ -5037,11 +5258,11 @@ async function showUnscrambleHint() {
 }
 
 async function submitUnscramble() {
-    const displayedWord = document.getElementById('scrambled-word').textContent.trim().toLowerCase();
+    const userWord = currentLetterOrder.join('').toLowerCase();
     const correctWord = currentUnscrambleWord.toLowerCase();
     const feedbackDiv = document.getElementById('unscramble-feedback');
     
-    if (displayedWord === correctWord) {
+    if (userWord === correctWord) {
         unscrambleScore++;
         
         feedbackDiv.innerHTML = '<div class="loading">✅ Correct! Loading word details...</div>';
@@ -5091,8 +5312,8 @@ async function submitUnscramble() {
     } else {
         feedbackDiv.innerHTML = `
             <div class="feedback error">
-                ❌ <strong>Incorrect.</strong> Keep shuffling or use a hint!
-                <p style="margin-top: 10px;">Current word: <strong>${displayedWord.toUpperCase()}</strong></p>
+                ❌ <strong>Incorrect.</strong> Keep trying or use a hint!
+                <p style="margin-top: 10px;">Your word: <strong>${userWord.toUpperCase()}</strong></p>
                 <p style="margin-top: 5px;">Correct spelling: <strong>${correctWord.toUpperCase()}</strong></p>
             </div>
         `;
