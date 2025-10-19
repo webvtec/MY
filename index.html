@@ -2335,17 +2335,72 @@ auth.onAuthStateChanged(async user => {
             }
 
             wordList.innerHTML = words.map(word => `
-                <div class="word-card" onclick="showWordDetail('${word}')">
-                    <div class="word-title">
-                        <span>${word}</span>
-                        <div class="word-actions">
-                            <button class="icon-btn" onclick="event.stopPropagation(); speakWordQuick('${word}')">🔊</button>
-                        </div>
-                    </div>
-                    <div class="word-definition">Click to see AI-powered definition with synonyms & antonyms</div>
-                </div>
-            `).join('');
+    <div class="word-card" onclick="loadPhoneticAndShowDetail('${word}', this)">
+        <div class="word-title">
+            <span>${word}</span>
+            <div class="word-actions">
+                <button class="icon-btn" onclick="event.stopPropagation(); speakWordQuick('${word}')">🔊</button>
+            </div>
+        </div>
+        <div class="word-phonetic-preview" style="color: #666; font-style: italic; margin: 5px 0; min-height: 20px;"></div>
+        <div class="word-definition">Click to see AI-powered definition with synonyms & antonyms</div>
+    </div>
+`).join('');
         }
+
+        async function loadPhoneticAndShowDetail(word, cardElement) {
+    const phoneticDiv = cardElement.querySelector('.word-phonetic-preview');
+    
+    // Check if phonetic is already loaded
+    if (phoneticDiv.textContent && phoneticDiv.textContent !== '') {
+        showWordDetail(word);
+        return;
+    }
+    
+    // Show loading state
+    phoneticDiv.textContent = 'Loading pronunciation...';
+    phoneticDiv.style.color = '#999';
+    
+    try {
+        // Check Firestore cache first
+        const wordRef = db.collection('dictionary').doc(word.toLowerCase());
+        const wordDoc = await wordRef.get();
+        
+        let phonetic = '';
+        
+        if (wordDoc.exists && wordDoc.data().phonetic) {
+            phonetic = wordDoc.data().phonetic;
+        } else {
+            // Fetch from API
+            const response = await fetch(CLOUD_FUNCTION_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ data: { word: word } })
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                if (data.result && data.result.phonetic) {
+                    phonetic = data.result.phonetic;
+                }
+            }
+        }
+        
+        // Update the phonetic display
+        if (phonetic) {
+            phoneticDiv.textContent = phonetic;
+            phoneticDiv.style.color = '#666';
+        } else {
+            phoneticDiv.textContent = ''; // Hide if no phonetic available
+        }
+    } catch (error) {
+        console.error('Error loading phonetic:', error);
+        phoneticDiv.textContent = ''; // Hide on error
+    }
+    
+    // Now show the full detail modal
+    showWordDetail(word);
+}
 
         // ===== SHOW WORD DETAIL (CALL CLOUD FUNCTION) =====
        async function showWordDetail(word) {
