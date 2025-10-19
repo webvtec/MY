@@ -4413,11 +4413,13 @@ function displayFavorites() {
         }
     });
 
-    // Update active mode
-    document.querySelectorAll('#spelling-section .quiz-mode').forEach(m => {
-        m.classList.remove('active');
-    });
+    // Hide ALL spelling modes first
+    document.getElementById('practice-spelling-mode').classList.remove('active');
+    document.getElementById('unscramble-spelling-mode').classList.remove('active');
+    document.getElementById('live-spelling-mode').classList.remove('active');
+    document.getElementById('leaderboard-spelling-mode').classList.remove('active');
 
+    // Then show only the selected mode
     if (mode === 'practice') {
         document.getElementById('practice-spelling-mode').classList.add('active');
     } else if (mode === 'unscramble') {
