@@ -2447,7 +2447,7 @@ auth.onAuthStateChanged(async user => {
             }
         }
 
-       // ===== DISPLAY WORDS =====
+      // ===== DISPLAY WORDS =====
 async function displayWords(words) {
     const wordList = document.getElementById('wordList');
     
@@ -2456,7 +2456,7 @@ async function displayWords(words) {
         return;
     }
 
-    // Show loading state first
+    // Show cards immediately with loading state
     wordList.innerHTML = words.map(word => `
         <div class="word-card" onclick="showWordDetail('${word}')">
             <div class="word-title">
@@ -2465,47 +2465,73 @@ async function displayWords(words) {
                     <button class="icon-btn" onclick="event.stopPropagation(); speakWordQuick('${word}')">🔊</button>
                 </div>
             </div>
-            <div class="word-definition" id="phonetic-${word}">Loading pronunciation...</div>
+            <div class="word-definition" id="phonetic-${word}">
+                <span style="color: #999; font-size: 0.9rem;">Click to see definition...</span>
+            </div>
         </div>
     `).join('');
     
-    // Fetch phonetics for each word
-    words.forEach(async (word) => {
-        const phoneticEl = document.getElementById(`phonetic-${word}`);
-        if (!phoneticEl) return;
+    // Fetch phonetics in batches (10 at a time to avoid overwhelming the API)
+    const batchSize = 10;
+    for (let i = 0; i < Math.min(words.length, 50); i += batchSize) {
+        const batch = words.slice(i, i + batchSize);
         
-        try {
-            const wordRef = db.collection('dictionary').doc(word.toLowerCase());
-            const wordDoc = await wordRef.get();
+        await Promise.all(batch.map(async (word) => {
+            const phoneticEl = document.getElementById(`phonetic-${word}`);
+            if (!phoneticEl) return;
             
-            if (wordDoc.exists && wordDoc.data().phonetic) {
-                phoneticEl.textContent = wordDoc.data().phonetic;
-            } else {
-                // Fetch from API if not in cache
+            try {
+                // Check Firestore cache first
+                const wordRef = db.collection('dictionary').doc(word.toLowerCase());
+                const wordDoc = await wordRef.get();
+                
+                if (wordDoc.exists && wordDoc.data().phonetic) {
+                    phoneticEl.innerHTML = `<span style="font-style: italic; color: #666;">${wordDoc.data().phonetic}</span>`;
+                    return;
+                }
+                
+                // If not cached, fetch from API
                 const response = await fetch(CLOUD_FUNCTION_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ data: { word: word } })
                 });
                 
-                if (response.ok) {
-                    const data = await response.json();
-                    if (data.result && data.result.phonetic) {
-                        phoneticEl.textContent = data.result.phonetic;
-                    } else {
-                        phoneticEl.textContent = 'Click to see full definition';
-                    }
-                } else {
-                    phoneticEl.textContent = 'Click to see full definition';
+                if (!response.ok) {
+                    phoneticEl.innerHTML = '<span style="color: #999; font-size: 0.9rem;">Click for details</span>';
+                    return;
                 }
+                
+                const data = await response.json();
+                
+                if (data.result && data.result.phonetic) {
+                    phoneticEl.innerHTML = `<span style="font-style: italic; color: #666;">${data.result.phonetic}</span>`;
+                    
+                    // Cache it for future use (fire and forget - don't wait)
+                    wordRef.set({
+                        word: word.toLowerCase(),
+                        phonetic: data.result.phonetic,
+                        meanings: data.result.meanings || [],
+                        origin: data.result.origin || null,
+                        cachedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    }).catch(err => console.log('Cache error (non-critical):', err));
+                } else {
+                    phoneticEl.innerHTML = '<span style="color: #999; font-size: 0.9rem;">Click for details</span>';
+                }
+            } catch (error) {
+                console.error(`Error fetching ${word}:`, error);
+                phoneticEl.innerHTML = '<span style="color: #999; font-size: 0.9rem;">Click for details</span>';
             }
-        } catch (error) {
-            phoneticEl.textContent = 'Click to see full definition';
+        }));
+        
+        // Small delay between batches to avoid rate limiting
+        if (i + batchSize < Math.min(words.length, 50)) {
+            await new Promise(resolve => setTimeout(resolve, 100));
         }
-    });
+    }
 }
-        // ===== SHOW WORD DETAIL (CALL CLOUD FUNCTION) =====
-       async function showWordDetail(word) {
+       // ===== SHOW WORD DETAIL (CALL CLOUD FUNCTION) =====
+async function showWordDetail(word) {
     currentWord = word;
     
     const modal = document.getElementById('wordModal');
@@ -2519,46 +2545,26 @@ async function displayWords(words) {
         // Step 1: Check if word exists in Firestore cache
         const wordRef = db.collection('dictionary').doc(word.toLowerCase());
         const wordDoc = await wordRef.get();
-       if (wordDoc.exists) {
-    // Word found in cache - use it (NO API CALL = FREE!)
-    console.log('✅ Found in cache - no API call needed!');
-    const cachedData = wordDoc.data();
-    
-    // Check if origin is missing and fetch it
-    if (!cachedData.origin) {
-        console.log('⚠️ Origin missing - fetching from API...');
-        try {
-            const response = await fetch(CLOUD_FUNCTION_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ data: { word: word } })
-            });
+        
+        if (wordDoc.exists) {
+            // Word found in cache - use it immediately
+            console.log('✅ Found in cache - no API call needed!');
+            const cachedData = wordDoc.data();
             
-            if (response.ok) {
-                const data = await response.json();
-                if (data.result && data.result.origin) {
-                    // Update Firestore with origin
-                    await wordRef.update({
-                        origin: data.result.origin
-                    });
-                    cachedData.origin = data.result.origin;
-                    console.log('✅ Origin fetched and saved!');
-                }
+            // Display what we have
+            displayWordDetails(cachedData);
+            
+            // If origin is missing, fetch it in the background
+            if (!cachedData.origin) {
+                console.log('⚠️ Origin missing - fetching from API in background...');
+                fetchAndUpdateOrigin(word, wordRef).catch(err => 
+                    console.log('Background origin fetch failed (non-critical):', err)
+                );
             }
-        } catch (error) {
-            console.error('Error fetching origin:', error);
-        }
-    }
-    
-    displayWordDetails(cachedData);
-}
-       else {
-            // Step 2: Word NOT in cache - fetch from API (COSTS MONEY)
-            console.log('⚠️ Not in cache - calling paid API...');
-            console.log('API URL:', CLOUD_FUNCTION_URL);
-            console.log('Request payload:', { data: { word: word } });
-            
-            document.getElementById('modalContent').innerHTML = '<div class="loading">🤖 Fetching from paid API (first time)...</div>';
+        } else {
+            // Step 2: Word NOT in cache - fetch from API
+            console.log('⚠️ Not in cache - calling API...');
+            document.getElementById('modalContent').innerHTML = '<div class="loading">🤖 Fetching from dictionary API...</div>';
             
             const response = await fetch(CLOUD_FUNCTION_URL, {
                 method: 'POST',
@@ -2569,108 +2575,190 @@ async function displayWords(words) {
             });
 
             console.log('Response Status:', response.status);
-            console.log('Response OK:', response.ok);
-            console.log('Response Headers:', [...response.headers.entries()]);
 
             if (!response.ok) {
                 const errorText = await response.text();
-                console.error('Error Response Body:', errorText);
-                throw new Error(`API Error (${response.status}): ${errorText || response.statusText}`);
+                console.error('Error Response:', errorText);
+                throw new Error(`API returned status ${response.status}`);
             }
 
             const data = await response.json();
-            console.log('Response Data:', data);
+            console.log('API Response received');
             
             if (data.result) {
-                // Step 3: Store in Firestore for future use
+                // Save to Firestore cache
                 await wordRef.set({
-                    ...data.result,
                     word: word.toLowerCase(),
+                    phonetic: data.result.phonetic || '',
+                    meanings: data.result.meanings || [],
+                    origin: data.result.origin || null,
                     cachedAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
                 console.log('✅ Saved to Firestore cache!');
                 
                 displayWordDetails(data.result);
             } else {
-                throw new Error('No definition found in API response');
+                throw new Error('No definition data in API response');
             }
         }
     } catch (error) {
-        console.error('❌ FULL ERROR:', error);
-        console.error('Error Type:', error.constructor.name);
-        console.error('Error Stack:', error.stack);
+        console.error('❌ Error fetching word:', error);
         
-        let errorDetails = '';
+        let errorMessage = '';
         
-        // Detailed error categorization
         if (error.message.includes('Failed to fetch') || error.name === 'TypeError') {
-            errorDetails = `
-                <strong>🔴 Network/CORS Error:</strong><br><br>
-                <strong>Possible causes:</strong><br>
-                1. Cloud Function not deployed or not accessible<br>
-                2. CORS not configured on Cloud Function<br>
-                3. Function URL incorrect<br>
-                4. Network connectivity issue<br><br>
-                
-                <strong>Your Function URL:</strong><br>
-                <code style="background: #f0f0f0; padding: 5px; display: block; word-break: break-all;">
-                    ${CLOUD_FUNCTION_URL}
-                </code><br>
-                
-                <strong>To fix:</strong><br>
-                • Go to Google Cloud Console<br>
-                • Find your Cloud Function<br>
-                • Add CORS headers in your function code:<br>
-                <code style="background: #f0f0f0; padding: 10px; display: block; margin-top: 5px;">
-                res.set('Access-Control-Allow-Origin', '*');<br>
-                res.set('Access-Control-Allow-Methods', 'POST');<br>
-                res.set('Access-Control-Allow-Headers', 'Content-Type');
-                </code>
+            errorMessage = `
+                <strong>🔴 Network/Connection Error</strong><br><br>
+                Unable to connect to the dictionary API. This could be due to:<br><br>
+                • Internet connection issue<br>
+                • Cloud Function is not accessible<br>
+                • CORS configuration problem<br><br>
+                <strong>What you can do:</strong><br>
+                • Check your internet connection<br>
+                • Try refreshing the page<br>
+                • Try another word<br><br>
             `;
-        } else if (error.message.includes('API Error')) {
-            errorDetails = `
-                <strong>🔴 API Response Error:</strong><br><br>
-                ${error.message}<br><br>
-                <strong>What this means:</strong><br>
-                The Cloud Function responded but with an error status.<br>
-                Check the Cloud Function logs in Google Cloud Console.
-            `;
-        } else if (error.message.includes('No definition found')) {
-            errorDetails = `
-                <strong>🔴 Definition Not Available:</strong><br><br>
-                The API returned successfully but didn't include a definition.<br>
-                The word "${word}" might not be in the dictionary API.
+        } else if (error.message.includes('API returned status')) {
+            errorMessage = `
+                <strong>🔴 API Error</strong><br><br>
+                The dictionary API returned an error.<br><br>
+                <strong>Details:</strong> ${error.message}<br><br>
+                <strong>What you can do:</strong><br>
+                • Try another word<br>
+                • This word might not be in the dictionary<br>
+                • Try again in a moment<br><br>
             `;
         } else {
-            errorDetails = `
-                <strong>🔴 Unexpected Error:</strong><br><br>
-                <strong>Error Message:</strong><br>
+            errorMessage = `
+                <strong>🔴 Unexpected Error</strong><br><br>
                 ${error.message}<br><br>
-                <strong>Error Type:</strong> ${error.constructor.name}
+                Please try refreshing the page or selecting another word.
             `;
         }
         
         document.getElementById('modalContent').innerHTML = `
             <div class="word-definition">
                 <strong>Word:</strong> ${word}<br><br>
-                ❌ <strong>Unable to fetch definition</strong><br><br>
-                ${errorDetails}<br><br>
-                <details style="margin-top: 20px; background: #f9f9f9; padding: 10px; border-radius: 5px;">
-                    <summary style="cursor: pointer; font-weight: bold;">🔧 Technical Details (for debugging)</summary>
-                    <pre style="overflow-x: auto; font-size: 0.85rem; margin-top: 10px;">${JSON.stringify({
-                        errorMessage: error.message,
-                        errorType: error.constructor.name,
-                        stack: error.stack
-                    }, null, 2)}</pre>
-                </details>
+                ❌ <strong>Unable to load definition</strong><br><br>
+                ${errorMessage}
                 <hr style="margin: 20px 0; border: 1px solid #ddd;">
-                You can still practice pronunciation using the buttons below.
+                <p style="color: #666; font-style: italic;">
+                    You can still practice pronunciation using the buttons below.
+                </p>
             </div>
         `;
         document.getElementById('modalPhonetic').textContent = '';
     }
 }
 
+// Helper function to fetch origin in background
+async function fetchAndUpdateOrigin(word, wordRef) {
+    try {
+        const response = await fetch(CLOUD_FUNCTION_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ data: { word: word } })
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data.result && data.result.origin) {
+                await wordRef.update({
+                    origin: data.result.origin
+                });
+                console.log('✅ Origin updated in background');
+                
+                // If modal is still open for this word, refresh the display
+                if (currentWord === word && document.getElementById('wordModal').classList.contains('active')) {
+                    const updatedDoc = await wordRef.get();
+                    displayWordDetails(updatedDoc.data());
+                }
+            }
+        }
+    } catch (error) {
+        console.log('Background origin fetch failed (non-critical):', error);
+    }
+}
+
+function displayWordDetails(wordData) {
+    const phonetic = wordData.phonetic || '';
+    document.getElementById('modalPhonetic').textContent = phonetic;
+
+    let html = '';
+
+    // Add origin section if available
+    if (wordData.origin) {
+        html += `
+            <div style="margin-bottom: 25px; padding: 15px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 5px;">
+                <strong style="color: #856404; font-size: 1.1rem;">📜 Origin:</strong>
+                <p style="color: #856404; margin-top: 8px; line-height: 1.6;">${wordData.origin}</p>
+            </div>
+        `;
+    }
+
+    if (wordData.meanings && wordData.meanings.length > 0) {
+        wordData.meanings.forEach((meaning, index) => {
+            html += `
+                <div style="margin-bottom: 30px; padding: 20px; background: #f9f9f9; border-radius: 8px;">
+                    <span class="word-pos">${meaning.partOfSpeech}</span>
+                    
+                    <div class="word-definition" style="margin-top: 15px;">
+                        <strong>Definition:</strong> ${meaning.definition}
+                    </div>
+            `;
+
+            if (meaning.example) {
+                html += `
+                    <div class="word-example">
+                        <strong>Example:</strong> "${meaning.example}"
+                    </div>
+                `;
+            }
+
+            if (meaning.synonyms && meaning.synonyms.length > 0) {
+                html += `
+                    <div style="margin-top: 15px;">
+                        <strong style="color: #0d3b66;">📚 Synonyms:</strong>
+                        <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px;">
+                            ${meaning.synonyms.map(syn => `
+                                <span style="background: #e3f2fd; padding: 5px 12px; border-radius: 15px; font-size: 0.9rem;">
+                                    ${syn}
+                                </span>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            if (meaning.antonyms && meaning.antonyms.length > 0) {
+                html += `
+                    <div style="margin-top: 15px;">
+                        <strong style="color: #0d3b66;">🔄 Antonyms:</strong>
+                        <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px;">
+                            ${meaning.antonyms.map(ant => `
+                                <span style="background: #ffebee; padding: 5px 12px; border-radius: 15px; font-size: 0.9rem;">
+                                    ${ant}
+                                </span>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            html += '</div>';
+        });
+    } else {
+        html = `
+            <div class="word-definition">
+                <strong>Word:</strong> ${currentWord}<br><br>
+                <p style="color: #666;">No detailed definition available yet.</p><br>
+                You can still practice pronunciation using the buttons below.
+            </div>
+        `;
+    }
+
+    document.getElementById('modalContent').innerHTML = html;
+}
 function displayWordDetails(wordData) {
     const phonetic = wordData.phonetic || '';
     document.getElementById('modalPhonetic').textContent = phonetic;
