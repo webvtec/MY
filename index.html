@@ -226,6 +226,7 @@
 }
 
 /* Outer glowing border - blue, pink, purple theme */
+/* Outer glowing border - blue, pink, purple theme */
 .welcome-section::before {
     content: '';
     position: absolute;
@@ -234,15 +235,18 @@
     right: -4px;
     bottom: -4px;
     background: linear-gradient(45deg, 
-        #0d3b66, #667eea, #764ba2, #f093fb, 
-        #4facfe, #00f2fe, #667eea, #0d3b66);
-    background-size: 400% 400%;
+        #0d3b66 0%, 
+        #667eea 14%, 
+        #764ba2 28%, 
+        #f093fb 42%, 
+        #4facfe 57%, 
+        #00f2fe 71%, 
+        #667eea 85%, 
+        #0d3b66 100%);
     border-radius: 15px;
     z-index: -1;
-    animation: rainbow-flow 8s linear infinite; /* Changed from 4s to 8s - twice as slow */
     filter: blur(8px);
 }
-
 /* Inner chasing border */
 .welcome-section::after {
     content: '';
@@ -1528,77 +1532,7 @@
     }
 }
 
-      @keyframes rainbow-flow {
-    0% {
-        background-position: 0% 50%;
-        filter: blur(8px) hue-rotate(0deg);
-    }
-    25% {
-        background-position: 100% 50%;
-        filter: blur(10px) hue-rotate(30deg);
-    }
-    50% {
-        background-position: 200% 50%;
-        filter: blur(12px) hue-rotate(60deg);
-    }
-    75% {
-        background-position: 300% 50%;
-        filter: blur(10px) hue-rotate(30deg);
-    }
-    100% {
-        background-position: 400% 50%;
-        filter: blur(8px) hue-rotate(0deg);
-    }
-}
-@keyframes border-chase {
-    0% {
-        background-position: 0% 50%;
-        transform: rotate(0deg);
-    }
-    50% {
-        background-position: 100% 50%;
-        transform: rotate(180deg);
-    }
-    100% {
-        background-position: 200% 50%;
-        transform: rotate(360deg);
-    }
-}
-
-@keyframes mega-pulse {
-    0%, 100% {
-        box-shadow: 
-            0 0 20px rgba(255, 215, 0, 0.4),
-            0 0 40px rgba(13, 59, 102, 0.3),
-            0 0 60px rgba(255, 107, 107, 0.2),
-            0 5px 15px rgba(0, 0, 0, 0.1),
-            inset 0 0 30px rgba(255, 215, 0, 0.1);
-    }
-    25% {
-        box-shadow: 
-            0 0 30px rgba(255, 107, 107, 0.6),
-            0 0 60px rgba(78, 205, 196, 0.5),
-            0 0 90px rgba(255, 215, 0, 0.4),
-            0 8px 25px rgba(0, 0, 0, 0.15),
-            inset 0 0 40px rgba(255, 107, 107, 0.2);
-    }
-    50% {
-        box-shadow: 
-            0 0 40px rgba(13, 59, 102, 0.8),
-            0 0 80px rgba(255, 215, 0, 0.7),
-            0 0 120px rgba(255, 107, 107, 0.5),
-            0 10px 30px rgba(0, 0, 0, 0.2),
-            inset 0 0 50px rgba(13, 59, 102, 0.3);
-    }
-    75% {
-        box-shadow: 
-            0 0 30px rgba(78, 205, 196, 0.6),
-            0 0 60px rgba(69, 183, 209, 0.5),
-            0 0 90px rgba(13, 59, 102, 0.4),
-            0 8px 25px rgba(0, 0, 0, 0.15),
-            inset 0 0 40px rgba(78, 205, 196, 0.2);
-    }
-}
+    
     </style>
 </head>
 <body>
