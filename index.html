@@ -4367,7 +4367,7 @@ async function speakWordInSentence() {
     if (!currentSpellingWord) return;
     
     // Find the button that was clicked
-    const btn = document.querySelector('button:focus') || event?.target;
+    const btn = document.querySelector('button:focus');
     if (btn) {
         btn.disabled = true;
         btn.textContent = '⏳ Loading...';
