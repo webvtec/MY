@@ -3171,6 +3171,9 @@ function showAuthModal() {
 }
 
 function closeAuthModal() {
+    // Clear pending Google user
+    window.pendingGoogleUser = null;
+    
     document.getElementById('authModal').classList.remove('active');
     document.getElementById('signin-error').style.display = 'none';
     
@@ -3182,6 +3185,15 @@ function closeAuthModal() {
     
     // Clear all error messages
     document.querySelectorAll('.feedback.error').forEach(el => el.style.display = 'none');
+    
+    // Re-enable password fields and reset button text
+    ['student', 'coach', 'organization'].forEach(type => {
+        const passwordField = document.getElementById(`signup-${type}-password`);
+        if (passwordField) {
+            passwordField.disabled = false;
+            passwordField.placeholder = '';
+        }
+    });
 }
 
 function switchAuthTab(tab) {
@@ -3274,6 +3286,13 @@ async function handleSignIn(event) {
 async function handleSignUp(event, userType) {
     event.preventDefault();
     
+    // Check if this is a Google sign-up completion
+    if (window.pendingGoogleUser) {
+        await completeGoogleSignUp(userType);
+        return;
+    }
+    
+    // Regular email/password sign up
     let name, email, password, errorDiv;
     let additionalData = { userType: userType };
     
@@ -3331,7 +3350,7 @@ async function handleSignUp(event, userType) {
         errorDiv.style.display = 'block';
     }
 }
-
+        
 function signOut() {
     auth.signOut();
     navigateTo('home');
@@ -3364,50 +3383,6 @@ async function signInWithGoogle() {
 }
         
 async function signUpWithGoogle(userType) {
-    // Validate form fields are filled BEFORE Google sign-up
-    let name, additionalData = {};
-    
-    if (userType === 'student') {
-        name = document.getElementById('signup-student-name').value.trim();
-        const age = document.getElementById('signup-student-age').value;
-        const country = document.getElementById('signup-student-country').value;
-        
-        if (!name || !age || !country) {
-            const errorDiv = document.getElementById('signup-student-error');
-            errorDiv.textContent = 'Please fill in all required fields before signing up with Google.';
-            errorDiv.style.display = 'block';
-            return;
-        }
-        
-        additionalData = { age: age, country: country };
-        
-    } else if (userType === 'coach') {
-        name = document.getElementById('signup-coach-name').value.trim();
-        
-        if (!name) {
-            const errorDiv = document.getElementById('signup-coach-error');
-            errorDiv.textContent = 'Please enter your name before signing up with Google.';
-            errorDiv.style.display = 'block';
-            return;
-        }
-        
-        additionalData.organization = document.getElementById('signup-coach-organization').value;
-        
-    } else if (userType === 'organization') {
-        name = document.getElementById('signup-org-name').value.trim();
-        const phone = document.getElementById('signup-org-phone').value;
-        const address = document.getElementById('signup-org-address').value;
-        
-        if (!name || !phone || !address) {
-            const errorDiv = document.getElementById('signup-org-error');
-            errorDiv.textContent = 'Please fill in all required fields before signing up with Google.';
-            errorDiv.style.display = 'block';
-            return;
-        }
-        
-        additionalData = { phone: phone, address: address };
-    }
-    
     const provider = new firebase.auth.GoogleAuthProvider();
     try {
         const result = await auth.signInWithPopup(provider);
@@ -3425,8 +3400,119 @@ async function signUpWithGoogle(userType) {
             return;
         }
         
-        // Create user document with form data
-        await userRef.set({
+        // Pre-fill form with Google data
+        if (userType === 'student') {
+            document.getElementById('signup-student-name').value = user.displayName || '';
+            document.getElementById('signup-student-email').value = user.email || '';
+            document.getElementById('signup-student-password').value = ''; // Leave password empty
+            document.getElementById('signup-student-password').disabled = true; // Disable password field
+            document.getElementById('signup-student-password').placeholder = 'Using Google Sign-In';
+            
+            // Show success message
+            const errorDiv = document.getElementById('signup-student-error');
+            errorDiv.textContent = '✅ Google account connected! Please complete the remaining fields.';
+            errorDiv.style.display = 'block';
+            errorDiv.style.background = '#d4edda';
+            errorDiv.style.color = '#155724';
+            errorDiv.style.borderColor = '#c3e6cb';
+            
+        } else if (userType === 'coach') {
+            document.getElementById('signup-coach-name').value = user.displayName || '';
+            document.getElementById('signup-coach-email').value = user.email || '';
+            document.getElementById('signup-coach-password').value = '';
+            document.getElementById('signup-coach-password').disabled = true;
+            document.getElementById('signup-coach-password').placeholder = 'Using Google Sign-In';
+            
+            const errorDiv = document.getElementById('signup-coach-error');
+            errorDiv.textContent = '✅ Google account connected! Please complete the remaining fields.';
+            errorDiv.style.display = 'block';
+            errorDiv.style.background = '#d4edda';
+            errorDiv.style.color = '#155724';
+            errorDiv.style.borderColor = '#c3e6cb';
+            
+        } else if (userType === 'organization') {
+            document.getElementById('signup-org-name').value = user.displayName || '';
+            document.getElementById('signup-org-email').value = user.email || '';
+            document.getElementById('signup-org-password').value = '';
+            document.getElementById('signup-org-password').disabled = true;
+            document.getElementById('signup-org-password').placeholder = 'Using Google Sign-In';
+            
+            const errorDiv = document.getElementById('signup-org-error');
+            errorDiv.textContent = '✅ Google account connected! Please complete the remaining fields.';
+            errorDiv.style.display = 'block';
+            errorDiv.style.background = '#d4edda';
+            errorDiv.style.color = '#155724';
+            errorDiv.style.borderColor = '#c3e6cb';
+        }
+        
+        // Store Google user temporarily (don't sign out yet)
+        window.pendingGoogleUser = user;
+        
+        // Change button text to "Complete Sign Up"
+        const googleBtn = event.target;
+        googleBtn.textContent = 'COMPLETE SIGN UP';
+        googleBtn.onclick = () => completeGoogleSignUp(userType);
+        
+    } catch (error) {
+        console.error('Google sign-up error:', error);
+        const errorDiv = document.getElementById(`signup-${userType}-error`);
+        errorDiv.textContent = error.message;
+        errorDiv.style.display = 'block';
+    }
+}
+
+        async function completeGoogleSignUp(userType) {
+    if (!window.pendingGoogleUser) {
+        alert('Session expired. Please try again.');
+        return;
+    }
+    
+    const user = window.pendingGoogleUser;
+    let additionalData = { userType: userType };
+    
+    // Validate and collect additional data
+    if (userType === 'student') {
+        const age = document.getElementById('signup-student-age').value;
+        const country = document.getElementById('signup-student-country').value;
+        
+        if (!age || !country) {
+            const errorDiv = document.getElementById('signup-student-error');
+            errorDiv.textContent = 'Please fill in Age and Country to complete sign up.';
+            errorDiv.style.display = 'block';
+            errorDiv.style.background = '#f8d7da';
+            errorDiv.style.color = '#721c24';
+            errorDiv.style.borderColor = '#f5c6cb';
+            return;
+        }
+        
+        additionalData.age = age;
+        additionalData.country = country;
+        
+    } else if (userType === 'coach') {
+        additionalData.organization = document.getElementById('signup-coach-organization').value;
+        
+    } else if (userType === 'organization') {
+        const phone = document.getElementById('signup-org-phone').value;
+        const address = document.getElementById('signup-org-address').value;
+        
+        if (!phone || !address) {
+            const errorDiv = document.getElementById('signup-org-error');
+            errorDiv.textContent = 'Please fill in Phone and Address to complete sign up.';
+            errorDiv.style.display = 'block';
+            errorDiv.style.background = '#f8d7da';
+            errorDiv.style.color = '#721c24';
+            errorDiv.style.borderColor = '#f5c6cb';
+            return;
+        }
+        
+        additionalData.phone = phone;
+        additionalData.address = address;
+    }
+    
+    try {
+        // Create user document in Firestore
+        const name = document.getElementById(`signup-${userType}-name`).value;
+        await db.collection('users').doc(user.uid).set({
             name: name,
             email: user.email,
             userType: userType,
@@ -3435,13 +3521,20 @@ async function signUpWithGoogle(userType) {
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
         
+        // Clear pending user
+        window.pendingGoogleUser = null;
+        
         closeAuthModal();
         alert(`Welcome, ${name}! Your ${userType} account has been created successfully.`);
+        
     } catch (error) {
-        console.error('Google sign-up error:', error);
+        console.error('Error completing sign up:', error);
         const errorDiv = document.getElementById(`signup-${userType}-error`);
         errorDiv.textContent = error.message;
         errorDiv.style.display = 'block';
+        errorDiv.style.background = '#f8d7da';
+        errorDiv.style.color = '#721c24';
+        errorDiv.style.borderColor = '#f5c6cb';
     }
 }
         
