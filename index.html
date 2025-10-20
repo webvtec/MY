@@ -2268,6 +2268,73 @@
 </div>
 
 
+    <!-- Word Database Section -->
+<div id="word-database-section" class="content-section">
+    <div class="word-database">
+        <!-- Level Selection Screen -->
+        <div id="level-selection" class="welcome-section">
+            <h2>📚 CHOOSE YOUR LEVEL</h2>
+            <p style="margin: 20px 0;">Select a difficulty level to access words:</p>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-top: 30px;">
+                <button class="user-type-btn" onclick="loadLevel('foundation')">
+                    <div style="font-size: 2rem; margin-bottom: 10px;">🌱</div>
+                    <div style="font-size: 1.3rem; font-weight: bold;">LEVEL 1</div>
+                    <div style="font-size: 1.1rem; margin: 5px 0;">FOUNDATION</div>
+                    <div style="font-size: 0.9rem; color: #666; margin-top: 5px;">Basic vocabulary building</div>
+                </button>
+                
+                <button class="user-type-btn" onclick="loadLevel('challenge')">
+                    <div style="font-size: 2rem; margin-bottom: 10px;">🎯</div>
+                    <div style="font-size: 1.3rem; font-weight: bold;">LEVEL 2</div>
+                    <div style="font-size: 1.1rem; margin: 5px 0;">CHALLENGE</div>
+                    <div style="font-size: 0.9rem; color: #666; margin-top: 5px;">Intermediate vocabulary</div>
+                </button>
+                
+                <button class="user-type-btn" onclick="loadLevel('advanced')">
+                    <div style="font-size: 2rem; margin-bottom: 10px;">🚀</div>
+                    <div style="font-size: 1.3rem; font-weight: bold;">LEVEL 3</div>
+                    <div style="font-size: 1.1rem; margin: 5px 0;">ADVANCED</div>
+                    <div style="font-size: 0.9rem; color: #666; margin-top: 5px;">Complex vocabulary</div>
+                </button>
+                
+                <button class="user-type-btn" onclick="loadLevel('championship')">
+                    <div style="font-size: 2rem; margin-bottom: 10px;">🏆</div>
+                    <div style="font-size: 1.3rem; font-weight: bold;">LEVEL 4</div>
+                    <div style="font-size: 1.1rem; margin: 5px 0;">CHAMPIONSHIP</div>
+                    <div style="font-size: 0.9rem; color: #666; margin-top: 5px;">Expert vocabulary</div>
+                </button>
+            </div>
+        </div>
+        
+        <!-- Word Database Display (Hidden Initially) -->
+        <div id="word-database-display" style="display: none;">
+            <div class="database-header">
+                <button class="practice-btn" onclick="backToLevelSelection()" style="background: #6c757d; padding: 10px 20px; font-size: 0.9rem;">
+                    ← Back to Levels
+                </button>
+                <h2 id="current-level-title">📚 WORD DATABASE</h2>
+                <div class="search-box">
+                    <input type="text" id="searchInput" placeholder="Search for any word..." />
+                    <button onclick="searchWord()">Search</button>
+                </div>
+            </div>
+
+            <div class="status-message" id="statusMessage">
+                Select a level to load words...
+            </div>
+
+            <!-- Alphabet Navigation -->
+            <div class="alphabet-nav" id="alphabetNav"></div>
+
+            <!-- Word List -->
+            <div class="word-list" id="wordList">
+                <div class="loading">Select a letter or search for a word to begin</div>
+            </div>
+        </div>
+    </div>
+</div>
+
     <script>
         // ===== FIREBASE CONFIGURATION =====
         const firebaseConfig = {
@@ -2287,33 +2354,49 @@
         const CLOUD_FUNCTION_URL = 'https://getworddefinition-998744778737.us-central1.run.app';
         
         // ===== GLOBAL VARIABLES =====
-        let allWords = [];
-        let currentLetter = '';
-        let currentWord = null;
-        let isListening = false;
-        let recognition = null;
-        let currentUser = null;
-        let currentQuiz = null;
-        let currentQuestionIndex = 0;
-        let quizScore = 0;
-        let userFavorites = [];
-        let userIncorrect = [];
-        let userSpellingFavorites = [];
-        let userSpellingIncorrect = [];
-        let quizStartTime = null;
-        let quizAnswerTimes = [];
-        let quizDifficulty = 'medium'; // track difficulty
-        let questionStartTime = null;
+let allWords = [];
+let currentLetter = '';
+let currentWord = null;
+let isListening = false;
+let recognition = null;
+let currentUser = null;
+let currentQuiz = null;
+let currentQuestionIndex = 0;
+let quizScore = 0;
+let userFavorites = [];
+let userIncorrect = [];
+let userSpellingFavorites = [];
+let userSpellingIncorrect = [];
+let quizStartTime = null;
+let quizAnswerTimes = [];
+let quizDifficulty = 'medium'; // track difficulty
+let questionStartTime = null;
 
+// ===== LEVEL-BASED WORD LOADING =====
+let currentLevel = '';
+let levelWords = {
+    foundation: [],
+    challenge: [],
+    advanced: [],
+    championship: []
+};
 
-         // ===== SPELLING PRACTICE FUNCTIONS =====
-        let spellingWords = [];
-        let currentSpellingIndex = 0;
-        let spellingScore = 0;
-        let currentSpellingWord = '';
-        let spellingMistakes = [];
+// Google Docs URLs for each level - REPLACE WITH YOUR ACTUAL GOOGLE DOCS IDs
+const LEVEL_DOCS = {
+    foundation: 'https://docs.google.com/document/d/YOUR_FOUNDATION_DOC_ID/export?format=txt',
+    challenge: 'https://docs.google.com/document/d/YOUR_CHALLENGE_DOC_ID/export?format=txt',
+    advanced: 'https://docs.google.com/document/d/YOUR_ADVANCED_DOC_ID/export?format=txt',
+    championship: 'https://docs.google.com/document/d/YOUR_CHAMPIONSHIP_DOC_ID/export?format=txt'
+};
 
-      // ===== UNSCRAMBLE FUNCTIONS =====
+// ===== SPELLING PRACTICE FUNCTIONS =====
+let spellingWords = [];
+let currentSpellingIndex = 0;
+let spellingScore = 0;
+let currentSpellingWord = '';
+let spellingMistakes = [];
+
+// ===== UNSCRAMBLE FUNCTIONS =====
 let unscrambleWords = [];
 let currentUnscrambleIndex = 0;
 let unscrambleScore = 0;
@@ -2361,7 +2444,7 @@ auth.onAuthStateChanged(async user => {
 });
         });
         
-        // ===== NAVIGATION =====
+       // ===== NAVIGATION =====
         async function navigateTo(section, skipSidebarClose = false) {
     // Check if user needs to be logged in
     if ((section === 'favorites' || section === 'incorrect-quiz' || 
@@ -2381,18 +2464,15 @@ auth.onAuthStateChanged(async user => {
     if (targetSection) {
         targetSection.classList.add('active');
     }
-    
     if (section === 'word-database') {
-        if (allWords.length === 0) {
-            loadWords().then(() => {
-                displayWords(allWords.slice(0, 100));
-                document.getElementById('statusMessage').innerHTML = 
-                    `✅ ${allWords.length.toLocaleString()} WORDS LOADED! SELECT A LETTER TO FILTER OR SEARCH FOR SPECIFIC WORDS.`;
-            });
-        } else {
+    // Always show level selection first
+    document.getElementById('level-selection').style.display = 'block';
+    document.getElementById('word-database-display').style.display = 'none';
+}
+     else {
             displayWords(allWords.slice(0, 100));
             document.getElementById('statusMessage').innerHTML = 
-                `✅ ${allWords.length.toLocaleString()} WORDS LOADED! SELECT A LETTER TO FILTER OR SEARCH FOR SPECIFIC WORDS.`;
+                `âœ… ${allWords.length.toLocaleString()} WORDS LOADED! SELECT A LETTER TO FILTER OR SEARCH FOR SPECIFIC WORDS.`;
         }
     }
     
@@ -2450,36 +2530,117 @@ auth.onAuthStateChanged(async user => {
         }
 
         // ===== LOAD WORDS =====
-        async function loadWords() {
-            try {
-                document.getElementById('statusMessage').innerHTML = 
-                    `⏳ Loading word list from Google Docs... Please wait.`;
-                
-                const googleDocsUrl = 'https://docs.google.com/document/d/1HmLbNiT0KA8djBm9c2xKMlPUXw-ciTmlTm9dFCFP-nc/export?format=txt';
-                const response = await fetch(googleDocsUrl);
+       async function loadWords() {
+    try {
+        document.getElementById('statusMessage').innerHTML = 
+            `⏳ Loading word list from Google Docs... Please wait.`;
+        
+        const googleDocsUrl = 'https://docs.google.com/document/d/1HmLbNiT0KA8djBm9c2xKMlPUXw-ciTmlTm9dFCFP-nc/export?format=txt';
+        const response = await fetch(googleDocsUrl);
 
-                if (!response.ok) throw new Error('Failed to load words');
-                
-                const text = await response.text();
-                allWords = text.split(/[\n\r\s,]+/)
-                    .map(word => word.trim().toLowerCase())
-                    .filter(word => word.length > 0 && /^[a-z]+$/.test(word))
-                    .sort();
-                
-                console.log(`Loaded ${allWords.length} words`);
-                
-                document.getElementById('statusMessage').innerHTML = 
-                    `✅ ${allWords.length.toLocaleString()} words loaded! Select a letter to filter or search for specific words.`;
-                
-                return Promise.resolve();
-            } catch (error) {
-                console.error('Error loading words:', error);
-                document.getElementById('statusMessage').innerHTML = 
-                    `❌ Error loading words. Please refresh the page to try again.`;
-                return Promise.reject(error);
-            }
+        if (!response.ok) throw new Error('Failed to load words');
+        
+        const text = await response.text();
+        allWords = text.split(/[\n\r\s,]+/)
+            .map(word => word.trim().toLowerCase())
+            .filter(word => word.length > 0 && /^[a-z]+$/.test(word))
+            .sort();
+        
+        console.log(`Loaded ${allWords.length} words`);
+        
+        document.getElementById('statusMessage').innerHTML = 
+            `✅ ${allWords.length.toLocaleString()} words loaded! Select a letter to filter or search for specific words.`;
+        
+        return Promise.resolve();
+    } catch (error) {
+        console.error('Error loading words:', error);
+        document.getElementById('statusMessage').innerHTML = 
+            `❌ Error loading words. Please refresh the page to try again.`;
+        return Promise.reject(error);
+    }
+}
+
+// New function to load level-specific words
+async function loadLevelWords(level) {
+    try {
+        document.getElementById('statusMessage').innerHTML = 
+            `⏳ Loading ${level.toUpperCase()} level words... Please wait.`;
+        
+        // Check if already loaded
+        if (levelWords[level].length > 0) {
+            allWords = levelWords[level];
+            document.getElementById('statusMessage').innerHTML = 
+                `✅ ${allWords.length.toLocaleString()} ${level.toUpperCase()} words loaded! Select a letter to filter or search for specific words.`;
+            return Promise.resolve();
         }
+        
+        const googleDocsUrl = LEVEL_DOCS[level];
+        const response = await fetch(googleDocsUrl);
 
+        if (!response.ok) throw new Error('Failed to load words');
+        
+        const text = await response.text();
+        const words = text.split(/[\n\r\s,]+/)
+            .map(word => word.trim().toLowerCase())
+            .filter(word => word.length > 0 && /^[a-z]+$/.test(word))
+            .sort(); // Sort alphabetically
+        
+        // Cache the words
+        levelWords[level] = words;
+        allWords = words;
+        
+        console.log(`Loaded ${words.length} ${level} words`);
+        
+        document.getElementById('statusMessage').innerHTML = 
+            `✅ ${words.length.toLocaleString()} ${level.toUpperCase()} words loaded! Select a letter to filter or search for specific words.`;
+        
+        return Promise.resolve();
+    } catch (error) {
+        console.error(`Error loading ${level} words:`, error);
+        document.getElementById('statusMessage').innerHTML = 
+            `❌ Error loading ${level} words. Please try again.`;
+        return Promise.reject(error);
+    }
+}
+
+        // Load a specific level
+async function loadLevel(level) {
+    currentLevel = level;
+    
+    // Hide level selection
+    document.getElementById('level-selection').style.display = 'none';
+    document.getElementById('word-database-display').style.display = 'block';
+    
+    // Update title
+    const levelNames = {
+        foundation: 'LEVEL 1: FOUNDATION',
+        challenge: 'LEVEL 2: CHALLENGE',
+        advanced: 'LEVEL 3: ADVANCED',
+        championship: 'LEVEL 4: CHAMPIONSHIP'
+    };
+    document.getElementById('current-level-title').textContent = `📚 ${levelNames[level]}`;
+    
+    // Load words for this level
+    await loadLevelWords(level);
+    
+    // Display first 100 words
+    displayWords(allWords.slice(0, 100));
+}
+
+// Back to level selection
+function backToLevelSelection() {
+    document.getElementById('level-selection').style.display = 'block';
+    document.getElementById('word-database-display').style.display = 'none';
+    document.getElementById('wordList').innerHTML = '<div class="loading">Select a level to load words</div>';
+    
+    // Clear active letter
+    document.querySelectorAll('.letter-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    currentLetter = '';
+}
+
+        
         // ===== FILTER BY LETTER =====
         function filterByLetter(letter) {
             currentLetter = letter;
@@ -2524,7 +2685,6 @@ auth.onAuthStateChanged(async user => {
             }
         }
 
-        // ===== DISPLAY WORDS =====
         // ===== DISPLAY WORDS =====
 function displayWords(words) {
     const wordList = document.getElementById('wordList');
