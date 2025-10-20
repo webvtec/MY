@@ -215,13 +215,32 @@
             display: block;
         }
 
-        .welcome-section {
+       .welcome-section {
     background: white;
     padding: 30px 20px; 
     border-radius: 10px;
     box-shadow: 0 2px 10px rgba(0,0,0,0.1);
     margin-bottom: 30px;
-    text-align: left;  /* Changed from center to left */
+    text-align: left;
+    position: relative;
+    overflow: hidden;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+    animation: glow-border 3s ease-in-out infinite;
+}
+
+.welcome-section::before {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    background: linear-gradient(45deg, #0d3b66, #1a5490, #ffd700, #ffed4e, #0d3b66, #1a5490);
+    background-size: 400% 400%;
+    border-radius: 10px;
+    z-index: -1;
+    animation: gradient-flow 4s ease infinite;
 }
         .welcome-section h1 {
     color: #0d3b66;
@@ -1495,6 +1514,31 @@
         font-size: 1.5rem;
     }
 }
+
+       @keyframes gradient-flow {
+    0% {
+        background-position: 0% 50%;
+    }
+    50% {
+        background-position: 100% 50%;
+    }
+    100% {
+        background-position: 0% 50%;
+    }
+}
+
+@keyframes glow-border {
+    0%, 100% {
+        box-shadow: 0 0 5px rgba(13, 59, 102, 0.3), 
+                    0 0 10px rgba(13, 59, 102, 0.2),
+                    0 2px 10px rgba(0,0,0,0.1);
+    }
+    50% {
+        box-shadow: 0 0 20px rgba(13, 59, 102, 0.6), 
+                    0 0 30px rgba(255, 215, 0, 0.4),
+                    0 2px 10px rgba(0,0,0,0.1);
+    }
+} 
     </style>
 </head>
 <body>
