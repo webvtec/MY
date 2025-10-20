@@ -2739,24 +2739,14 @@ function displayWordDetails(wordData) {
 
     let html = '';
 
-    // ✅ ADD ORIGIN SECTION - WITH SHORTENED VERSION
+    // ✅ SHOW SIMPLE ORIGIN
     if (wordData.origin) {
-        // Clean and shorten the origin text
-        let cleanOrigin = wordData.origin;
-        
-        // Remove common prefixes
-        cleanOrigin = cleanOrigin.replace(/^(The word comes from|Derived from|From|Origin:|Etymology:)\s*/i, '');
-        
-        // Limit to first sentence or 150 characters
-        const firstSentence = cleanOrigin.split(/[.!?]\s/)[0];
-        cleanOrigin = firstSentence.length > 150 
-            ? firstSentence.substring(0, 150) + '...' 
-            : firstSentence;
+        const simpleOrigin = cleanOriginText(wordData.origin);
         
         html += `
-            <div style="margin-bottom: 25px; padding: 15px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 5px;">
-                <strong style="color: #856404; font-size: 1.1rem;">📜 Origin:</strong>
-                <p style="color: #856404; margin-top: 8px; line-height: 1.6;">${cleanOrigin}</p>
+            <div style="margin-bottom: 25px; padding: 12px 20px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 5px;">
+                <strong style="color: #856404; font-size: 1rem;">📜 Origin:</strong>
+                <span style="color: #856404; margin-left: 10px; font-size: 1rem;">${simpleOrigin}</span>
             </div>
         `;
     }
@@ -2830,24 +2820,53 @@ function displayWordDetails(wordData) {
 function cleanOriginText(origin) {
     if (!origin) return '';
     
-    let cleaned = origin;
+    let cleaned = origin.toLowerCase();
     
-    // Remove common prefixes
-    cleaned = cleaned.replace(/^(The word comes from|Derived from|From|Origin:|Etymology:)\s*/i, '');
+    // Extract common language origins
+    const languagePatterns = [
+        /\b(old english|middle english|modern english|english)\b/i,
+        /\b(latin|classical latin|late latin|medieval latin)\b/i,
+        /\b(greek|ancient greek|classical greek)\b/i,
+        /\b(french|old french|middle french|anglo-french)\b/i,
+        /\b(german|old german|middle high german)\b/i,
+        /\b(spanish|old spanish)\b/i,
+        /\b(italian)\b/i,
+        /\b(dutch|old dutch)\b/i,
+        /\b(norse|old norse)\b/i,
+        /\b(sanskrit)\b/i,
+        /\b(hebrew|ancient hebrew)\b/i,
+        /\b(arabic|classical arabic)\b/i,
+        /\b(persian)\b/i,
+        /\b(chinese|mandarin)\b/i,
+        /\b(japanese)\b/i,
+        /\b(portuguese)\b/i,
+        /\b(russian)\b/i,
+        /\b(celtic|gaelic|irish)\b/i,
+        /\b(proto-germanic|proto-indo-european)\b/i
+    ];
     
-    // Remove extra whitespace
-    cleaned = cleaned.replace(/\s+/g, ' ').trim();
-    
-    // Limit to first sentence or 150 characters
-    const sentences = cleaned.split(/[.!?]\s+/);
-    const firstSentence = sentences[0];
-    
-    if (firstSentence.length > 150) {
-        return firstSentence.substring(0, 150).trim() + '...';
+    // Try to find a language match
+    for (let pattern of languagePatterns) {
+        const match = cleaned.match(pattern);
+        if (match) {
+            // Capitalize first letter of each word
+            return match[0].split(' ')
+                .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                .join(' ');
+        }
     }
     
-    return firstSentence + (firstSentence.endsWith('.') ? '' : '.');
+    // If no specific language found, extract first few words before comma or period
+    const shortOrigin = origin.split(/[,.(]/)[0].trim();
+    if (shortOrigin.length < 50) {
+        return shortOrigin.charAt(0).toUpperCase() + shortOrigin.slice(1);
+    }
+    
+    // Fallback: return first 30 characters
+    return origin.substring(0, 30).trim() + '...';
 }
+
+        
 // ⭐ NEW HELPER FUNCTION - Fetch word details with origin
 async function fetchWordDetails(word) {
     try {
@@ -4210,9 +4229,9 @@ function displayFavorites() {
                 ` : ''}
                 
                 ${wordDetails.origin ? `
-                    <div style="margin-bottom: 15px; padding: 12px; background: #fff3cd; border-left: 3px solid #ffc107; border-radius: 5px;">
-                        <strong style="color: #856404;">📜 Origin:</strong>
-                        <p style="color: #856404; margin-top: 8px; line-height: 1.6; font-size: 0.95rem;">${wordDetails.origin}</p>
+                    <div style="margin-bottom: 15px;">
+                        <strong style="color: #0d3b66;">📜 Origin:</strong>
+                        <span style="color: #666; margin-left: 8px;">${wordDetails.origin}</span>
                     </div>
                 ` : ''}
                 
@@ -4247,7 +4266,7 @@ function displayFavorites() {
     }
 }
         
-    async function submitSpelling() {
+   async function submitSpelling() {
     const userAnswer = document.getElementById('spelling-input').value.trim().toLowerCase();
     const correctWord = currentSpellingWord.toLowerCase();
     const feedbackDiv = document.getElementById('spelling-feedback');
@@ -4280,24 +4299,28 @@ function displayFavorites() {
                         </button>
                     ` : ''}
                     
-                    ${wordDetails.phonetic ? `
-                        <div style="margin-top: 10px; font-style: italic; color: #666;">
-                            Pronunciation: ${wordDetails.phonetic}
-                        </div>
-                    ` : ''}
-                    
-                    ${wordDetails.origin ? `
-                        <div style="margin-top: 15px; padding: 12px; background: #fff3cd; border-left: 3px solid #ffc107; border-radius: 5px;">
-                            <strong style="color: #856404;">📜 Origin:</strong>
-                            <p style="color: #856404; margin-top: 5px; font-size: 0.95rem;">${wordDetails.origin}</p>
-                        </div>
-                    ` : ''}
-                    
-                    ${wordDetails.definition ? `
-                        <div style="margin-top: 10px; color: #0d3b66;">
-                            <strong>Definition:</strong> ${wordDetails.definition}
-                        </div>
-                    ` : ''}
+                    <div style="margin-top: 15px; padding: 15px; background: #f9f9f9; border-radius: 8px;">
+                        ${wordDetails.phonetic ? `
+                            <div style="margin-bottom: 10px;">
+                                <strong style="color: #0d3b66;">🔊 Pronunciation:</strong>
+                                <span style="font-style: italic; color: #666; margin-left: 8px;">${wordDetails.phonetic}</span>
+                            </div>
+                        ` : ''}
+                        
+                        ${wordDetails.origin ? `
+                            <div style="margin-bottom: 10px;">
+                                <strong style="color: #0d3b66;">📜 Origin:</strong>
+                                <span style="color: #666; margin-left: 8px;">${wordDetails.origin}</span>
+                            </div>
+                        ` : ''}
+                        
+                        ${wordDetails.definition ? `
+                            <div>
+                                <strong style="color: #0d3b66;">📝 Definition:</strong>
+                                <span style="color: #666; margin-left: 8px;">${wordDetails.definition}</span>
+                            </div>
+                        ` : ''}
+                    </div>
                     
                     <button class="practice-btn" onclick="nextSpellingWord()" style="margin-top: 15px; font-size: 1.1rem;">
                         ➡️ Next Word
@@ -4345,24 +4368,28 @@ function displayFavorites() {
                     
                     ${currentUser ? '<p style="margin-top: 10px; color: #721c24; font-style: italic;">✅ Automatically saved to Spelling Mistakes</p>' : ''}
                     
-                    ${wordDetails.phonetic ? `
-                        <div style="margin-top: 10px; font-style: italic; color: #333;">
-                            Pronunciation: ${wordDetails.phonetic}
-                        </div>
-                    ` : ''}
-                    
-                    ${wordDetails.origin ? `
-                        <div style="margin-top: 15px; padding: 12px; background: #fff3cd; border-left: 3px solid #ffc107; border-radius: 5px;">
-                            <strong style="color: #856404;">📜 Origin:</strong>
-                            <p style="color: #856404; margin-top: 5px; font-size: 0.95rem;">${wordDetails.origin}</p>
-                        </div>
-                    ` : ''}
-                    
-                    ${wordDetails.definition ? `
-                        <div style="margin-top: 10px; color: #333;">
-                            <strong>Definition:</strong> ${wordDetails.definition}
-                        </div>
-                    ` : ''}
+                    <div style="margin-top: 15px; padding: 15px; background: #f9f9f9; border-radius: 8px;">
+                        ${wordDetails.phonetic ? `
+                            <div style="margin-bottom: 10px;">
+                                <strong style="color: #0d3b66;">🔊 Pronunciation:</strong>
+                                <span style="font-style: italic; color: #666; margin-left: 8px;">${wordDetails.phonetic}</span>
+                            </div>
+                        ` : ''}
+                        
+                        ${wordDetails.origin ? `
+                            <div style="margin-bottom: 10px;">
+                                <strong style="color: #0d3b66;">📜 Origin:</strong>
+                                <span style="color: #666; margin-left: 8px;">${wordDetails.origin}</span>
+                            </div>
+                        ` : ''}
+                        
+                        ${wordDetails.definition ? `
+                            <div>
+                                <strong style="color: #0d3b66;">📝 Definition:</strong>
+                                <span style="color: #666; margin-left: 8px;">${wordDetails.definition}</span>
+                            </div>
+                        ` : ''}
+                    </div>
                     
                     <button class="practice-btn" onclick="nextSpellingWord()" style="margin-top: 15px; font-size: 1.1rem;">
                         ➡️ Next Word
@@ -4390,6 +4417,7 @@ function displayFavorites() {
     // Show the word details button after attempt
     document.getElementById('show-details-btn').style.display = 'inline-block';
 }
+
         
         async function skipSpellingWord() {
     spellingMistakes.push({
@@ -4410,24 +4438,28 @@ function displayFavorites() {
             <div class="feedback" style="background: #fff3cd; border-color: #ffc107; color: #856404;">
                 ⏭️ <strong>Skipped.</strong> The word was: <strong>${currentSpellingWord}</strong>
                 
-                ${wordDetails.phonetic ? `
-                    <div style="margin-top: 10px; font-style: italic;">
-                        Pronunciation: ${wordDetails.phonetic}
-                    </div>
-                ` : ''}
-                
-                ${wordDetails.origin ? `
-                    <div style="margin-top: 15px; padding: 12px; background: #ffe8a1; border-left: 3px solid #ff9800; border-radius: 5px;">
-                        <strong>📜 Origin:</strong>
-                        <p style="margin-top: 5px; font-size: 0.95rem;">${wordDetails.origin}</p>
-                    </div>
-                ` : ''}
-                
-                ${wordDetails.definition ? `
-                    <div style="margin-top: 10px;">
-                        <strong>Definition:</strong> ${wordDetails.definition}
-                    </div>
-                ` : ''}
+                <div style="margin-top: 15px; padding: 15px; background: #ffe8a1; border-radius: 8px;">
+                    ${wordDetails.phonetic ? `
+                        <div style="margin-bottom: 10px;">
+                            <strong>🔊 Pronunciation:</strong>
+                            <span style="font-style: italic; margin-left: 8px;">${wordDetails.phonetic}</span>
+                        </div>
+                    ` : ''}
+                    
+                    ${wordDetails.origin ? `
+                        <div style="margin-bottom: 10px;">
+                            <strong>📜 Origin:</strong>
+                            <span style="margin-left: 8px;">${wordDetails.origin}</span>
+                        </div>
+                    ` : ''}
+                    
+                    ${wordDetails.definition ? `
+                        <div>
+                            <strong>📝 Definition:</strong>
+                            <span style="margin-left: 8px;">${wordDetails.definition}</span>
+                        </div>
+                    ` : ''}
+                </div>
                 
                 <button class="practice-btn" onclick="nextSpellingWord()" style="margin-top: 15px; font-size: 1.1rem;">
                     ➡️ Next Word
@@ -4451,6 +4483,7 @@ function displayFavorites() {
     // Show the word details button after skip
     document.getElementById('show-details-btn').style.display = 'inline-block';
 }
+        
         
         function showSpellingResults() {
             document.getElementById('spelling-game').style.display = 'none';
@@ -5329,24 +5362,28 @@ async function submitUnscramble() {
                 <div class="feedback success">
                     ✅ <strong>Correct!</strong> The word is: <strong>${currentUnscrambleWord}</strong>
                     
-                    ${wordDetails.phonetic ? `
-                        <div style="margin-top: 10px; font-style: italic; color: #666;">
-                            Pronunciation: ${wordDetails.phonetic}
-                        </div>
-                    ` : ''}
-                    
-                    ${wordDetails.origin ? `
-                        <div style="margin-top: 15px; padding: 12px; background: #fff3cd; border-left: 3px solid #ffc107; border-radius: 5px;">
-                            <strong style="color: #856404;">📜 Origin:</strong>
-                            <p style="color: #856404; margin-top: 5px; font-size: 0.95rem;">${wordDetails.origin}</p>
-                        </div>
-                    ` : ''}
-                    
-                    ${wordDetails.definition ? `
-                        <div style="margin-top: 10px; color: #0d3b66;">
-                            <strong>Definition:</strong> ${wordDetails.definition}
-                        </div>
-                    ` : ''}
+                    <div style="margin-top: 15px; padding: 15px; background: #f9f9f9; border-radius: 8px;">
+                        ${wordDetails.phonetic ? `
+                            <div style="margin-bottom: 10px;">
+                                <strong style="color: #0d3b66;">🔊 Pronunciation:</strong>
+                                <span style="font-style: italic; color: #666; margin-left: 8px;">${wordDetails.phonetic}</span>
+                            </div>
+                        ` : ''}
+                        
+                        ${wordDetails.origin ? `
+                            <div style="margin-bottom: 10px;">
+                                <strong style="color: #0d3b66;">📜 Origin:</strong>
+                                <span style="color: #666; margin-left: 8px;">${wordDetails.origin}</span>
+                            </div>
+                        ` : ''}
+                        
+                        ${wordDetails.definition ? `
+                            <div>
+                                <strong style="color: #0d3b66;">📝 Definition:</strong>
+                                <span style="color: #666; margin-left: 8px;">${wordDetails.definition}</span>
+                            </div>
+                        ` : ''}
+                    </div>
                     
                     <button class="practice-btn" onclick="nextUnscrambleWord()" style="margin-top: 15px; font-size: 1.1rem;">
                         ➡️ Next Word
@@ -5378,6 +5415,7 @@ async function submitUnscramble() {
     }
 }
 
+        
 function nextUnscrambleWord() {
     currentUnscrambleIndex++;
     if (currentUnscrambleIndex < unscrambleWords.length) {
