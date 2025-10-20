@@ -2464,16 +2464,11 @@ auth.onAuthStateChanged(async user => {
     if (targetSection) {
         targetSection.classList.add('active');
     }
+    
     if (section === 'word-database') {
-    // Always show level selection first
-    document.getElementById('level-selection').style.display = 'block';
-    document.getElementById('word-database-display').style.display = 'none';
-}
-     else {
-            displayWords(allWords.slice(0, 100));
-            document.getElementById('statusMessage').innerHTML = 
-                `âœ… ${allWords.length.toLocaleString()} WORDS LOADED! SELECT A LETTER TO FILTER OR SEARCH FOR SPECIFIC WORDS.`;
-        }
+        // Always show level selection first
+        document.getElementById('level-selection').style.display = 'block';
+        document.getElementById('word-database-display').style.display = 'none';
     }
     
     if (section === 'favorites' && currentUser) {
@@ -2492,7 +2487,7 @@ auth.onAuthStateChanged(async user => {
         displaySpellingIncorrect();
     }
     
-    // ADD THIS: Load dashboard when navigating to it
+    // Load dashboard when navigating to it
     if (section === 'student-dashboard' && currentUser) {
         await loadUserDashboard();
     }
