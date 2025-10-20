@@ -3242,7 +3242,27 @@ async function handleSignIn(event) {
     const errorDiv = document.getElementById('signin-error');
 
     try {
-        await auth.signInWithEmailAndPassword(email, password);
+        const userCredential = await auth.signInWithEmailAndPassword(email, password);
+        const user = userCredential.user;
+        
+        // Check if user document exists in Firestore
+        const userDoc = await db.collection('users').doc(user.uid).get();
+        
+        if (!userDoc.exists) {
+            await auth.signOut();
+            errorDiv.textContent = 'Account not found. Please sign up first.';
+            errorDiv.style.display = 'block';
+            return;
+        }
+        
+        // Check if email is verified
+        if (!user.emailVerified) {
+            await auth.signOut();
+            errorDiv.textContent = 'Please verify your email before signing in. Check your inbox for the verification link.';
+            errorDiv.style.display = 'block';
+            return;
+        }
+        
         closeAuthModal();
         errorDiv.style.display = 'none';
     } catch (error) {
@@ -3250,20 +3270,21 @@ async function handleSignIn(event) {
         errorDiv.style.display = 'block';
     }
 }
-
+        
 async function handleSignUp(event, userType) {
     event.preventDefault();
     
     let name, email, password, errorDiv;
     let additionalData = { userType: userType };
+    
     if (userType === 'student') {
-    name = document.getElementById('signup-student-name').value;
-    email = document.getElementById('signup-student-email').value;
-    password = document.getElementById('signup-student-password').value;
-    errorDiv = document.getElementById('signup-student-error');
-    additionalData.age = document.getElementById('signup-student-age').value;
-    additionalData.country = document.getElementById('signup-student-country').value;
-}
+        name = document.getElementById('signup-student-name').value;
+        email = document.getElementById('signup-student-email').value;
+        password = document.getElementById('signup-student-password').value;
+        errorDiv = document.getElementById('signup-student-error');
+        additionalData.age = document.getElementById('signup-student-age').value;
+        additionalData.country = document.getElementById('signup-student-country').value;
+    }
     else if (userType === 'coach') {
         name = document.getElementById('signup-coach-name').value;
         email = document.getElementById('signup-coach-email').value;
@@ -3280,21 +3301,31 @@ async function handleSignUp(event, userType) {
     }
 
     try {
+        // Create account
         const userCredential = await auth.createUserWithEmailAndPassword(email, password);
         await userCredential.user.updateProfile({ displayName: name });
         
+        // Save to Firestore
         await db.collection('users').doc(userCredential.user.uid).set({
             name: name,
             email: email,
             ...additionalData,
+            emailVerified: false,
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
+        // Send email verification
+        await userCredential.user.sendEmailVerification();
+        
+        // Sign out immediately
+        await auth.signOut();
+        
         closeAuthModal();
         errorDiv.style.display = 'none';
         
         // Show success message
-        alert(`Welcome, ${name}! Your ${userType} account has been created successfully.`);
+        alert(`Account created successfully!\n\nA verification email has been sent to ${email}.\n\nPlease verify your email before signing in.`);
+        
     } catch (error) {
         errorDiv.textContent = error.message;
         errorDiv.style.display = 'block';
@@ -3312,18 +3343,16 @@ async function signInWithGoogle() {
         const result = await auth.signInWithPopup(provider);
         const user = result.user;
         
-        // Check if user document exists
+        // Check if user document exists in Firestore
         const userRef = db.collection('users').doc(user.uid);
         const userDoc = await userRef.get();
         
         if (!userDoc.exists) {
-            // New Google user - default to student
-            await userRef.set({
-                name: user.displayName,
-                email: user.email,
-                userType: 'student',
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
-            });
+            // No account found - sign them out
+            await auth.signOut();
+            document.getElementById('signin-error').textContent = 'No account found with this Google account. Please sign up first.';
+            document.getElementById('signin-error').style.display = 'block';
+            return;
         }
         
         closeAuthModal();
@@ -3333,24 +3362,81 @@ async function signInWithGoogle() {
         document.getElementById('signin-error').style.display = 'block';
     }
 }
-
+        
 async function signUpWithGoogle(userType) {
+    // Validate form fields are filled BEFORE Google sign-up
+    let name, additionalData = {};
+    
+    if (userType === 'student') {
+        name = document.getElementById('signup-student-name').value.trim();
+        const age = document.getElementById('signup-student-age').value;
+        const country = document.getElementById('signup-student-country').value;
+        
+        if (!name || !age || !country) {
+            const errorDiv = document.getElementById('signup-student-error');
+            errorDiv.textContent = 'Please fill in all required fields before signing up with Google.';
+            errorDiv.style.display = 'block';
+            return;
+        }
+        
+        additionalData = { age: age, country: country };
+        
+    } else if (userType === 'coach') {
+        name = document.getElementById('signup-coach-name').value.trim();
+        
+        if (!name) {
+            const errorDiv = document.getElementById('signup-coach-error');
+            errorDiv.textContent = 'Please enter your name before signing up with Google.';
+            errorDiv.style.display = 'block';
+            return;
+        }
+        
+        additionalData.organization = document.getElementById('signup-coach-organization').value;
+        
+    } else if (userType === 'organization') {
+        name = document.getElementById('signup-org-name').value.trim();
+        const phone = document.getElementById('signup-org-phone').value;
+        const address = document.getElementById('signup-org-address').value;
+        
+        if (!name || !phone || !address) {
+            const errorDiv = document.getElementById('signup-org-error');
+            errorDiv.textContent = 'Please fill in all required fields before signing up with Google.';
+            errorDiv.style.display = 'block';
+            return;
+        }
+        
+        additionalData = { phone: phone, address: address };
+    }
+    
     const provider = new firebase.auth.GoogleAuthProvider();
     try {
         const result = await auth.signInWithPopup(provider);
         const user = result.user;
         
-        // Create user document with specified type
+        // Check if account already exists
         const userRef = db.collection('users').doc(user.uid);
+        const userDoc = await userRef.get();
+        
+        if (userDoc.exists) {
+            await auth.signOut();
+            const errorDiv = document.getElementById(`signup-${userType}-error`);
+            errorDiv.textContent = 'An account with this Google account already exists. Please sign in instead.';
+            errorDiv.style.display = 'block';
+            return;
+        }
+        
+        // Create user document with form data
         await userRef.set({
-            name: user.displayName,
+            name: name,
             email: user.email,
             userType: userType,
+            emailVerified: true, // Google emails are pre-verified
+            ...additionalData,
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
         
         closeAuthModal();
-        alert(`Welcome, ${user.displayName}! Your ${userType} account has been created successfully.`);
+        alert(`Welcome, ${name}! Your ${userType} account has been created successfully.`);
     } catch (error) {
         console.error('Google sign-up error:', error);
         const errorDiv = document.getElementById(`signup-${userType}-error`);
@@ -3358,7 +3444,7 @@ async function signUpWithGoogle(userType) {
         errorDiv.style.display = 'block';
     }
 }
-
+        
         function updateUIForAuthenticatedUser(user) {
     const displayName = user.displayName || user.email.split('@')[0];
     const photoURL = user.photoURL;
