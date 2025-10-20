@@ -2665,10 +2665,14 @@ function displayWords(words) {
         return;
     }
 
-    wordList.innerHTML = words.map(word => `
+    wordList.innerHTML = words.map(word => {
+        // Capitalize first letter
+        const capitalizedWord = word.charAt(0).toUpperCase() + word.slice(1);
+        
+        return `
         <div class="word-card" onclick="loadPhoneticAndShowDetail('${word}', this)">
             <div class="word-title">
-                <span>${word}</span>
+                <span>${capitalizedWord}</span>
                 <div class="word-actions">
                     <button class="icon-btn" onclick="event.stopPropagation(); speakWordQuick('${word}')">🔊</button>
                 </div>
