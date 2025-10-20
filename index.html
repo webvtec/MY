@@ -3440,7 +3440,7 @@ async function signUpWithGoogle(userType) {
         const result = await auth.signInWithPopup(provider);
         const user = result.user;
         
-        // Check if account already exists
+        // Check if user document already exists in Firestore
         const userRef = db.collection('users').doc(user.uid);
         const userDoc = await userRef.get();
         
@@ -3449,11 +3449,14 @@ async function signUpWithGoogle(userType) {
             const errorDiv = document.getElementById(`signup-${userType}-error`);
             errorDiv.textContent = 'An account with this Google account already exists. Please sign in instead.';
             errorDiv.style.display = 'block';
+            errorDiv.style.background = '#f8d7da';
+            errorDiv.style.color = '#721c24';
+            errorDiv.style.borderColor = '#f5c6cb';
             return;
         }
         
-        // Sign out immediately - we'll sign them back in after form completion
-        await auth.signOut();
+        // If this is a NEW Google user (no Firestore doc), keep them signed in
+        // and just pre-fill the form
         
         // Pre-fill form with Google data
         if (userType === 'student') {
@@ -3523,12 +3526,13 @@ async function signUpWithGoogle(userType) {
             errorDiv.style.borderColor = '#c3e6cb';
         }
         
-        // Store Google user data temporarily
+        // Store the authenticated user (keep them signed in)
         window.pendingGoogleUser = {
             uid: user.uid,
             email: user.email,
             displayName: user.displayName,
-            photoURL: user.photoURL
+            photoURL: user.photoURL,
+            actualUser: user // Store the actual Firebase user object
         };
         
     } catch (error) {
@@ -3536,6 +3540,9 @@ async function signUpWithGoogle(userType) {
         const errorDiv = document.getElementById(`signup-${userType}-error`);
         errorDiv.textContent = error.message;
         errorDiv.style.display = 'block';
+        errorDiv.style.background = '#f8d7da';
+        errorDiv.style.color = '#721c24';
+        errorDiv.style.borderColor = '#f5c6cb';
     }
 }
 
@@ -3588,21 +3595,12 @@ async function signUpWithGoogle(userType) {
     }
     
     try {
-        // Sign in with Google again to create the auth account
-        const provider = new firebase.auth.GoogleAuthProvider();
-        const result = await auth.signInWithPopup(provider);
-        const user = result.user;
+        // User is already signed in from the Google popup
+        // Just create the Firestore document
+        const user = googleUserData.actualUser || auth.currentUser;
         
-        // Verify it's the same Google account
-        if (user.email !== googleUserData.email) {
-            await auth.signOut();
-            const errorDiv = document.getElementById(`signup-${userType}-error`);
-            errorDiv.textContent = 'Please use the same Google account you selected earlier.';
-            errorDiv.style.display = 'block';
-            errorDiv.style.background = '#f8d7da';
-            errorDiv.style.color = '#721c24';
-            errorDiv.style.borderColor = '#f5c6cb';
-            return;
+        if (!user) {
+            throw new Error('Authentication session expired. Please try again.');
         }
         
         // Create user document in Firestore
