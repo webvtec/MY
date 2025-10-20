@@ -261,10 +261,12 @@
 }
         .welcome-section h1 {
     color: #0d3b66;
-    font-size: 2.5rem;
+    font-size: clamp(1rem, 4vw, 2.5rem);
     margin-bottom: 15px;
-    text-align: center;  /* Added this line to keep heading centered */
+    text-align: center;
+    white-space: nowrap;
 }
+        
         .welcome-section p {
             color: #666;
             font-size: 1.2rem;
@@ -1587,7 +1589,7 @@
 <div id="home-section" class="content-section active">
     <div class="welcome-section">
         <img src="https://res.cloudinary.com/dqqr9udcs/image/upload/v1760911020/preview_2_u1bya5.webp" alt="WordBiz Logo" style="max-width: 150px; height: auto; margin: 0 auto 20px auto; display: block;">
-        <h1 style="white-space: nowrap; font-size: clamp(1.2rem, 5vw, 2.5rem);">WORD BIZ COACHING ACADEMY</h1>
+       <h1>WORD BIZ COACHING ACADEMY</h1>
         <p>Welcome to Word Biz Coaching Academy where children are committed to striving for the absolute best and coaches are committed to helping each and every child master over 15,000 English words with AI-Powered learning tools to ensure each child's knowledge is significantly boosted.</p>
     </div>
 </div>
