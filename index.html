@@ -1546,7 +1546,41 @@
     }
 }
         
-    
+   /* WhatsApp Channel Button */
+.whatsapp-channel-btn {
+    width: 100%;
+    padding: 18px 20px;
+    background: linear-gradient(135deg, #25D366 0%, #128C7E 100%);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 1.2rem;
+    font-weight: bold;
+    font-family: Georgia, serif;
+    cursor: pointer;
+    margin-top: 25px;
+    transition: all 0.3s;
+    box-shadow: 0 4px 15px rgba(37, 211, 102, 0.3);
+    letter-spacing: 0.5px;
+}
+
+.whatsapp-channel-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(37, 211, 102, 0.5);
+    background: linear-gradient(135deg, #128C7E 0%, #25D366 100%);
+}
+
+.whatsapp-channel-btn:active {
+    transform: translateY(-1px);
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+    .whatsapp-channel-btn {
+        font-size: 1rem;
+        padding: 15px 18px;
+    }
+} 
     </style>
 </head>
 <body>
@@ -1603,7 +1637,15 @@
         <img src="https://res.cloudinary.com/dqqr9udcs/image/upload/v1760911020/preview_2_u1bya5.webp" alt="WordBiz Logo" style="max-width: 150px; height: auto; margin: 0 auto 20px auto; display: block;">
        <h1>WORD BIZ COACHING ACADEMY</h1>
         <p>Welcome to Word Biz Coaching Academy where children are committed to striving for the absolute best and coaches are committed to helping each and every child master over 15,000 English words with AI-Powered learning tools to ensure each child's knowledge is significantly boosted.</p>
+        
+        <!-- WhatsApp Channel Button -->
+        <a href="https://whatsapp.com/channel/0029VbBQ7HcAzNbx4tLhPh2E" target="_blank" style="text-decoration: none;">
+            <button class="whatsapp-channel-btn">
+                JOIN OUR WHATSAPP CHANNEL
+            </button>
+        </a>
     </div>
+</div>
 </div>
          <!-- Word Database Section -->
 <div id="word-database-section" class="content-section">
