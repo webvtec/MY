@@ -225,7 +225,7 @@
     z-index: 1;
 }
 
-/* Outer glowing rainbow border */
+/* Outer glowing border - blue, pink, purple theme */
 .welcome-section::before {
     content: '';
     position: absolute;
@@ -234,12 +234,12 @@
     right: -4px;
     bottom: -4px;
     background: linear-gradient(45deg, 
-        #ff0000, #ff7f00, #ffff00, #00ff00, 
-        #0000ff, #4b0082, #9400d3, #ff0000);
+        #0d3b66, #667eea, #764ba2, #f093fb, 
+        #4facfe, #00f2fe, #667eea, #0d3b66);
     background-size: 400% 400%;
     border-radius: 15px;
     z-index: -1;
-    animation: rainbow-flow 4s linear infinite;
+    animation: rainbow-flow 8s linear infinite; /* Changed from 4s to 8s - twice as slow */
     filter: blur(8px);
 }
 
@@ -1528,29 +1528,28 @@
     }
 }
 
-       @keyframes rainbow-flow {
+      @keyframes rainbow-flow {
     0% {
         background-position: 0% 50%;
-        filter: blur(10px) hue-rotate(0deg);
+        filter: blur(8px) hue-rotate(0deg);
     }
     25% {
         background-position: 100% 50%;
-        filter: blur(12px) hue-rotate(90deg);
+        filter: blur(10px) hue-rotate(30deg);
     }
     50% {
         background-position: 200% 50%;
-        filter: blur(15px) hue-rotate(180deg);
+        filter: blur(12px) hue-rotate(60deg);
     }
     75% {
         background-position: 300% 50%;
-        filter: blur(12px) hue-rotate(270deg);
+        filter: blur(10px) hue-rotate(30deg);
     }
     100% {
         background-position: 400% 50%;
-        filter: blur(10px) hue-rotate(360deg);
+        filter: blur(8px) hue-rotate(0deg);
     }
 }
-
 @keyframes border-chase {
     0% {
         background-position: 0% 50%;
