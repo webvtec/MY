@@ -449,7 +449,7 @@
 }
 
 .word-phonetic-preview {
-    color: #666;
+    color: #000; 
     font-style: italic;
     margin: 0;
     font-size: 0.9rem;
@@ -2722,10 +2722,13 @@ function displayWords(words) {
         }
         
         // Update the phonetic display
-        if (phonetic) {
-            phoneticDiv.innerHTML = `<strong>${phonetic}</strong>`;
-            phoneticDiv.style.color = '#666';
-        } else {
+       if (phonetic) {
+    // Replace slashes with brackets
+    const formattedPhonetic = phonetic.replace(/\//g, '');
+    phoneticDiv.innerHTML = `<strong>(${formattedPhonetic})</strong>`;
+    phoneticDiv.style.color = '#000';
+}
+        else {
             phoneticDiv.textContent = ''; // Hide if no phonetic available
         }
     } catch (error) {
@@ -2754,10 +2757,11 @@ async function loadPhoneticForVisibleWords() {
             const wordDoc = await wordRef.get();
             
             if (wordDoc.exists && wordDoc.data().phonetic) {
-                // Found in cache - display immediately
-                phoneticDiv.innerHTML = `<strong>${wordDoc.data().phonetic}</strong>`;
-                phoneticDiv.style.color = '#666';
-            }
+    // Found in cache - display immediately
+    const formattedPhonetic = wordDoc.data().phonetic.replace(/\//g, '');
+    phoneticDiv.innerHTML = `<strong>(${formattedPhonetic})</strong>`;
+    phoneticDiv.style.color = '#000';
+}
             // If not in cache, leave blank (will load when clicked)
         } catch (error) {
             console.error('Error loading phonetic for', word, error);
