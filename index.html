@@ -4351,30 +4351,23 @@ function displayFavorites() {
     document.getElementById('spelling-input').focus();
 }
         
-       function speakCurrentSpellingWord() {
-            if (!currentSpellingWord) return;
-            
-            const utterance = new SpeechSynthesisUtterance(currentSpellingWord);
-            utterance.rate = 0.7; // Slower for spelling
-            utterance.pitch = 1;
-            utterance.volume = 1;
-            
-            window.speechSynthesis.cancel();
-            window.speechSynthesis.speak(utterance);
-            
-            // Visual feedback
-            const btn = event?.target;
-            if (btn) {
-                btn.style.transform = 'scale(0.95)';
-                setTimeout(() => btn.style.transform = 'scale(1)', 200);
-            }
-        }
-
-        async function speakWordInSentence() {
+      function speakCurrentSpellingWord() {
     if (!currentSpellingWord) return;
     
-    // Show loading state
-    const btn = event?.target;
+    const utterance = new SpeechSynthesisUtterance(currentSpellingWord);
+    utterance.rate = 0.7; // Slower for spelling
+    utterance.pitch = 1;
+    utterance.volume = 1;
+    
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utterance);
+}
+
+async function speakWordInSentence() {
+    if (!currentSpellingWord) return;
+    
+    // Find the button that was clicked
+    const btn = document.querySelector('button:focus') || event?.target;
     if (btn) {
         btn.disabled = true;
         btn.textContent = '⏳ Loading...';
@@ -4424,13 +4417,6 @@ function displayFavorites() {
         if (!exampleSentence) {
             exampleSentence = `The word is ${currentSpellingWord}.`;
         }
-        
-        // Use SSML to emphasize the target word with volume
-        const targetWord = currentSpellingWord;
-        const emphasizedSentence = exampleSentence.replace(
-            new RegExp(`\\b${targetWord}\\b`, 'gi'),
-            `<emphasis level="strong">${targetWord}</emphasis>`
-        );
         
         // Speak the entire sentence at once
         const utterance = new SpeechSynthesisUtterance(exampleSentence);
