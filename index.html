@@ -3186,16 +3186,34 @@ function closeAuthModal() {
     // Clear all error messages
     document.querySelectorAll('.feedback.error').forEach(el => el.style.display = 'none');
     
-    // Re-enable password fields and reset button text
+    // Reset all forms
     ['student', 'coach', 'organization'].forEach(type => {
-        const passwordField = document.getElementById(`signup-${type}-password`);
-        if (passwordField) {
-            passwordField.disabled = false;
-            passwordField.placeholder = '';
+        const form = document.getElementById(`signup-${type}-form`);
+        if (form) {
+            form.reset();
+            
+            // Reset email field
+            const emailField = document.getElementById(`signup-${type}-email`);
+            if (emailField) {
+                emailField.readOnly = false;
+                emailField.style.backgroundColor = '';
+            }
+            
+            // Show password field again
+            const passwordField = document.getElementById(`signup-${type}-password`);
+            if (passwordField) {
+                passwordField.type = 'password';
+                const passwordGroup = passwordField.closest('.form-group');
+                if (passwordGroup) passwordGroup.style.display = 'block';
+            }
+            
+            // Show Google button again
+            const googleBtn = form.querySelector('.auth-submit[onclick*="signUpWithGoogle"]');
+            if (googleBtn) googleBtn.style.display = 'block';
         }
     });
 }
-
+        
 function switchAuthTab(tab) {
     document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.auth-form').forEach(f => {
@@ -3238,10 +3256,44 @@ function showSignUpForm(userType) {
 }
 
 function backToUserTypeSelection() {
+    // Clear pending Google user
+    window.pendingGoogleUser = null;
+    
     // Hide all forms
     document.getElementById('signup-student-form').style.display = 'none';
     document.getElementById('signup-coach-form').style.display = 'none';
     document.getElementById('signup-organization-form').style.display = 'none';
+    
+    // Reset all forms
+    ['student', 'coach', 'organization'].forEach(type => {
+        const form = document.getElementById(`signup-${type}-form`);
+        if (form) {
+            form.reset();
+            
+            // Reset email field
+            const emailField = document.getElementById(`signup-${type}-email`);
+            if (emailField) {
+                emailField.readOnly = false;
+                emailField.style.backgroundColor = '';
+            }
+            
+            // Show password field again
+            const passwordField = document.getElementById(`signup-${type}-password`);
+            if (passwordField) {
+                passwordField.type = 'password';
+                const passwordGroup = passwordField.closest('.form-group');
+                if (passwordGroup) passwordGroup.style.display = 'block';
+            }
+            
+            // Show Google button again
+            const googleBtn = form.querySelector('.auth-submit[onclick*="signUpWithGoogle"]');
+            if (googleBtn) googleBtn.style.display = 'block';
+            
+            // Clear error messages
+            const errorDiv = document.getElementById(`signup-${type}-error`);
+            if (errorDiv) errorDiv.style.display = 'none';
+        }
+    });
     
     // Show selection
     document.getElementById('signup-selection').style.display = 'block';
@@ -3400,17 +3452,29 @@ async function signUpWithGoogle(userType) {
             return;
         }
         
+        // Sign out immediately - we'll sign them back in after form completion
+        await auth.signOut();
+        
         // Pre-fill form with Google data
         if (userType === 'student') {
             document.getElementById('signup-student-name').value = user.displayName || '';
             document.getElementById('signup-student-email').value = user.email || '';
-            document.getElementById('signup-student-password').value = ''; // Leave password empty
-            document.getElementById('signup-student-password').disabled = true; // Disable password field
-            document.getElementById('signup-student-password').placeholder = 'Using Google Sign-In';
+            document.getElementById('signup-student-email').readOnly = true;
+            document.getElementById('signup-student-email').style.backgroundColor = '#f0f0f0';
+            document.getElementById('signup-student-password').value = 'GOOGLE_AUTH';
+            document.getElementById('signup-student-password').type = 'hidden';
+            
+            // Hide the Google button and password field label
+            const googleBtn = event.target;
+            googleBtn.style.display = 'none';
+            
+            // Hide password field completely
+            const passwordGroup = document.getElementById('signup-student-password').closest('.form-group');
+            if (passwordGroup) passwordGroup.style.display = 'none';
             
             // Show success message
             const errorDiv = document.getElementById('signup-student-error');
-            errorDiv.textContent = '✅ Google account connected! Please complete the remaining fields.';
+            errorDiv.textContent = '✅ Google account connected! Please complete the remaining fields and click "Create Student Account".';
             errorDiv.style.display = 'block';
             errorDiv.style.background = '#d4edda';
             errorDiv.style.color = '#155724';
@@ -3419,12 +3483,19 @@ async function signUpWithGoogle(userType) {
         } else if (userType === 'coach') {
             document.getElementById('signup-coach-name').value = user.displayName || '';
             document.getElementById('signup-coach-email').value = user.email || '';
-            document.getElementById('signup-coach-password').value = '';
-            document.getElementById('signup-coach-password').disabled = true;
-            document.getElementById('signup-coach-password').placeholder = 'Using Google Sign-In';
+            document.getElementById('signup-coach-email').readOnly = true;
+            document.getElementById('signup-coach-email').style.backgroundColor = '#f0f0f0';
+            document.getElementById('signup-coach-password').value = 'GOOGLE_AUTH';
+            document.getElementById('signup-coach-password').type = 'hidden';
+            
+            const googleBtn = event.target;
+            googleBtn.style.display = 'none';
+            
+            const passwordGroup = document.getElementById('signup-coach-password').closest('.form-group');
+            if (passwordGroup) passwordGroup.style.display = 'none';
             
             const errorDiv = document.getElementById('signup-coach-error');
-            errorDiv.textContent = '✅ Google account connected! Please complete the remaining fields.';
+            errorDiv.textContent = '✅ Google account connected! Please complete the remaining fields and click "Create Coach Account".';
             errorDiv.style.display = 'block';
             errorDiv.style.background = '#d4edda';
             errorDiv.style.color = '#155724';
@@ -3433,25 +3504,32 @@ async function signUpWithGoogle(userType) {
         } else if (userType === 'organization') {
             document.getElementById('signup-org-name').value = user.displayName || '';
             document.getElementById('signup-org-email').value = user.email || '';
-            document.getElementById('signup-org-password').value = '';
-            document.getElementById('signup-org-password').disabled = true;
-            document.getElementById('signup-org-password').placeholder = 'Using Google Sign-In';
+            document.getElementById('signup-org-email').readOnly = true;
+            document.getElementById('signup-org-email').style.backgroundColor = '#f0f0f0';
+            document.getElementById('signup-org-password').value = 'GOOGLE_AUTH';
+            document.getElementById('signup-org-password').type = 'hidden';
+            
+            const googleBtn = event.target;
+            googleBtn.style.display = 'none';
+            
+            const passwordGroup = document.getElementById('signup-org-password').closest('.form-group');
+            if (passwordGroup) passwordGroup.style.display = 'none';
             
             const errorDiv = document.getElementById('signup-org-error');
-            errorDiv.textContent = '✅ Google account connected! Please complete the remaining fields.';
+            errorDiv.textContent = '✅ Google account connected! Please complete the remaining fields and click "Create Organization Account".';
             errorDiv.style.display = 'block';
             errorDiv.style.background = '#d4edda';
             errorDiv.style.color = '#155724';
             errorDiv.style.borderColor = '#c3e6cb';
         }
         
-        // Store Google user temporarily (don't sign out yet)
-        window.pendingGoogleUser = user;
-        
-        // Change button text to "Complete Sign Up"
-        const googleBtn = event.target;
-        googleBtn.textContent = 'COMPLETE SIGN UP';
-        googleBtn.onclick = () => completeGoogleSignUp(userType);
+        // Store Google user data temporarily
+        window.pendingGoogleUser = {
+            uid: user.uid,
+            email: user.email,
+            displayName: user.displayName,
+            photoURL: user.photoURL
+        };
         
     } catch (error) {
         console.error('Google sign-up error:', error);
@@ -3467,7 +3545,7 @@ async function signUpWithGoogle(userType) {
         return;
     }
     
-    const user = window.pendingGoogleUser;
+    const googleUserData = window.pendingGoogleUser;
     let additionalData = { userType: userType };
     
     // Validate and collect additional data
@@ -3510,6 +3588,23 @@ async function signUpWithGoogle(userType) {
     }
     
     try {
+        // Sign in with Google again to create the auth account
+        const provider = new firebase.auth.GoogleAuthProvider();
+        const result = await auth.signInWithPopup(provider);
+        const user = result.user;
+        
+        // Verify it's the same Google account
+        if (user.email !== googleUserData.email) {
+            await auth.signOut();
+            const errorDiv = document.getElementById(`signup-${userType}-error`);
+            errorDiv.textContent = 'Please use the same Google account you selected earlier.';
+            errorDiv.style.display = 'block';
+            errorDiv.style.background = '#f8d7da';
+            errorDiv.style.color = '#721c24';
+            errorDiv.style.borderColor = '#f5c6cb';
+            return;
+        }
+        
         // Create user document in Firestore
         const name = document.getElementById(`signup-${userType}-name`).value;
         await db.collection('users').doc(user.uid).set({
