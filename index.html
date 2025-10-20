@@ -1712,22 +1712,20 @@
             <button class="auth-tab" onclick="switchAuthTab('signup')">SIGN UP</button>
         </div>
         <div class="auth-body">
+            
             <!-- Sign In Form -->
-            <form id="signin-form" class="auth-form active" onsubmit="handleSignIn(event)">
-                <div class="form-group">
-                    <label>Email</label>
-                    <input type="email" id="signin-email" required>
-                </div>
-                <div class="form-group">
-                    <label>Password</label>
-                    <input type="password" id="signin-password" required>
-                </div>
-                <button type="submit" class="auth-submit">SIGN IN    </button>
-                <button type="button" class="auth-submit" onclick="signInWithGoogle()" style="background: #db4437; margin-top: 10px;">
-                    SIGN IN WITH GOOGLE
-                </button>
-                <div id="signin-error" class="feedback error" style="display:none; margin-top:15px;"></div>
-            </form>
+<form id="signin-form" class="auth-form active" onsubmit="handleSignIn(event)">
+    <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="signin-email" required>
+    </div>
+    <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="signin-password" required>
+    </div>
+    <button type="submit" class="auth-submit">SIGN IN</button>
+    <div id="signin-error" class="feedback error" style="display:none; margin-top:15px;"></div>
+</form>
 
             <!-- Sign Up - User Type Selection -->
             <div id="signup-selection" class="auth-form">
@@ -1754,32 +1752,56 @@
                 </div>
             </div>
 
-            <!-- Sign Up Form - Student -->
-<form id="signup-student-form" class="auth-form" onsubmit="handleSignUp(event, 'student')" style="display: none;">
+           <!-- Sign Up Form - Student - Method Selection -->
+<div id="signup-student-selection" class="auth-form" style="display: none;">
     <button type="button" onclick="backToUserTypeSelection()" style="background: none; border: none; color: #0d3b66; cursor: pointer; margin-bottom: 15px; display: flex; align-items: center; gap: 5px;">
         ← Back to selection
     </button>
     
     <h3 style="color: #0d3b66; margin-bottom: 15px; text-align: center;">🎓 Student Sign Up</h3>
+    <p style="text-align: center; color: #666; margin-bottom: 25px;">Choose your sign-up method:</p>
+    
+    <div style="display: flex; flex-direction: column; gap: 15px;">
+        <button type="button" class="user-type-btn" onclick="showStudentEmailForm()">
+            <div style="font-size: 2rem; margin-bottom: 10px;">📧</div>
+            <div style="font-size: 1.2rem; font-weight: bold;">Sign Up with Email</div>
+            <div style="font-size: 0.9rem; color: #666; margin-top: 5px;">Create account with email and password</div>
+        </button>
+        
+        <button type="button" class="user-type-btn" onclick="showStudentGoogleForm()">
+            <div style="font-size: 2rem; margin-bottom: 10px;">🔴</div>
+            <div style="font-size: 1.2rem; font-weight: bold;">Sign Up with Google</div>
+            <div style="font-size: 0.9rem; color: #666; margin-top: 5px;">Quick sign-up with your Google account</div>
+        </button>
+    </div>
+</div>
+
+<!-- Sign Up Form - Student - Email -->
+<form id="signup-student-email-form" class="auth-form" onsubmit="handleSignUp(event, 'student')" style="display: none;">
+    <button type="button" onclick="backToStudentSelection()" style="background: none; border: none; color: #0d3b66; cursor: pointer; margin-bottom: 15px; display: flex; align-items: center; gap: 5px;">
+        ← Back
+    </button>
+    
+    <h3 style="color: #0d3b66; margin-bottom: 15px; text-align: center;">🎓 Student Sign Up - Email</h3>
     
     <div class="form-group">
-        <label>Full Name</label>
+        <label>Full Name <span style="color: red;">*</span></label>
         <input type="text" id="signup-student-name" required>
     </div>
     <div class="form-group">
-        <label>Email</label>
+        <label>Email <span style="color: red;">*</span></label>
         <input type="email" id="signup-student-email" required>
     </div>
     <div class="form-group">
-        <label>Password (min 6 characters)</label>
+        <label>Password (min 6 characters) <span style="color: red;">*</span></label>
         <input type="password" id="signup-student-password" required minlength="6">
     </div>
     <div class="form-group">
-        <label>Age</label>
+        <label>Age <span style="color: red;">*</span></label>
         <input type="number" id="signup-student-age" min="5" max="100" required>
     </div>
     <div class="form-group">
-        <label>Country</label>
+        <label>Country <span style="color: red;">*</span></label>
         <select id="signup-student-country" required style="width: 100%; padding: 12px 15px; border: 2px solid #0d3b66; border-radius: 5px; font-size: 1rem; font-family: Georgia, serif;">
             <option value="">Select your country</option>
             <option value="United States">United States</option>
@@ -1806,11 +1828,61 @@
         </select>
     </div>
     <button type="submit" class="auth-submit">Create Student Account</button>
-    <button type="button" class="auth-submit" onclick="signUpWithGoogle('student')" style="background: #db4437; margin-top: 10px;">
-        Sign Up with Google
-    </button>
     <div id="signup-student-error" class="feedback error" style="display:none; margin-top:15px;"></div>
 </form>
+
+<!-- Sign Up Form - Student - Google -->
+<form id="signup-student-google-form" class="auth-form" onsubmit="handleGoogleSignUpComplete(event, 'student')" style="display: none;">
+    <button type="button" onclick="backToStudentSelection()" style="background: none; border: none; color: #0d3b66; cursor: pointer; margin-bottom: 15px; display: flex; align-items: center; gap: 5px;">
+        ← Back
+    </button>
+    
+    <h3 style="color: #0d3b66; margin-bottom: 15px; text-align: center;">🎓 Complete Your Profile</h3>
+    <p style="text-align: center; color: #666; margin-bottom: 20px;">Please complete your profile information</p>
+    
+    <div class="form-group">
+        <label>Full Name <span style="color: red;">*</span></label>
+        <input type="text" id="signup-student-google-name" required>
+    </div>
+    <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="signup-student-google-email" readonly style="background: #f0f0f0;">
+    </div>
+    <div class="form-group">
+        <label>Age <span style="color: red;">*</span></label>
+        <input type="number" id="signup-student-google-age" min="5" max="100" required>
+    </div>
+    <div class="form-group">
+        <label>Country <span style="color: red;">*</span></label>
+        <select id="signup-student-google-country" required style="width: 100%; padding: 12px 15px; border: 2px solid #0d3b66; border-radius: 5px; font-size: 1rem; font-family: Georgia, serif;">
+            <option value="">Select your country</option>
+            <option value="United States">United States</option>
+            <option value="United Kingdom">United Kingdom</option>
+            <option value="Canada">Canada</option>
+            <option value="Australia">Australia</option>
+            <option value="Jamaica">Jamaica</option>
+            <option value="India">India</option>
+            <option value="Nigeria">Nigeria</option>
+            <option value="South Africa">South Africa</option>
+            <option value="Kenya">Kenya</option>
+            <option value="Ghana">Ghana</option>
+            <option value="Trinidad and Tobago">Trinidad and Tobago</option>
+            <option value="Barbados">Barbados</option>
+            <option value="Bahamas">Bahamas</option>
+            <option value="Philippines">Philippines</option>
+            <option value="Singapore">Singapore</option>
+            <option value="New Zealand">New Zealand</option>
+            <option value="Ireland">Ireland</option>
+            <option value="Pakistan">Pakistan</option>
+            <option value="Bangladesh">Bangladesh</option>
+            <option value="Malaysia">Malaysia</option>
+            <option value="Other">Other</option>
+        </select>
+    </div>
+    <button type="submit" class="auth-submit">Create Account</button>
+    <div id="signup-student-google-error" class="feedback error" style="display:none; margin-top:15px;"></div>
+</form>
+            
             <!-- Sign Up Form - Coach -->
             <form id="signup-coach-form" class="auth-form" onsubmit="handleSignUp(event, 'coach')" style="display: none;">
                 <button type="button" onclick="backToUserTypeSelection()" style="background: none; border: none; color: #0d3b66; cursor: pointer; margin-bottom: 15px; display: flex; align-items: center; gap: 5px;">
@@ -3171,17 +3243,32 @@ function showAuthModal() {
 }
 
 function closeAuthModal() {
+    // If there's a temp Google user, sign them out
+    if (window.tempGoogleUser) {
+        auth.signOut();
+        window.tempGoogleUser = null;
+    }
+    
     document.getElementById('authModal').classList.remove('active');
     document.getElementById('signin-error').style.display = 'none';
     
     // Hide all signup forms and show selection
     document.getElementById('signup-selection').style.display = 'none';
-    document.getElementById('signup-student-form').style.display = 'none';
+    document.getElementById('signup-student-selection').style.display = 'none';
+    document.getElementById('signup-student-email-form').style.display = 'none';
+    document.getElementById('signup-student-google-form').style.display = 'none';
     document.getElementById('signup-coach-form').style.display = 'none';
     document.getElementById('signup-organization-form').style.display = 'none';
     
     // Clear all error messages
     document.querySelectorAll('.feedback.error').forEach(el => el.style.display = 'none');
+    
+    // Clear all form inputs
+    document.querySelectorAll('.auth-form input').forEach(input => {
+        if (input.type !== 'submit' && input.type !== 'button') {
+            input.value = '';
+        }
+    });
 }
 
 function switchAuthTab(tab) {
@@ -3215,9 +3302,9 @@ function showSignUpForm(userType) {
     // Hide selection screen
     document.getElementById('signup-selection').style.display = 'none';
     
-    // Show appropriate form
+    // Show appropriate selection form
     if (userType === 'student') {
-        document.getElementById('signup-student-form').style.display = 'block';
+        document.getElementById('signup-student-selection').style.display = 'block';
     } else if (userType === 'coach') {
         document.getElementById('signup-coach-form').style.display = 'block';
     } else if (userType === 'organization') {
@@ -3226,13 +3313,24 @@ function showSignUpForm(userType) {
 }
 
 function backToUserTypeSelection() {
+    // If there's a temp Google user, sign them out
+    if (window.tempGoogleUser) {
+        auth.signOut();
+        window.tempGoogleUser = null;
+    }
+    
     // Hide all forms
-    document.getElementById('signup-student-form').style.display = 'none';
+    document.getElementById('signup-student-selection').style.display = 'none';
+    document.getElementById('signup-student-email-form').style.display = 'none';
+    document.getElementById('signup-student-google-form').style.display = 'none';
     document.getElementById('signup-coach-form').style.display = 'none';
     document.getElementById('signup-organization-form').style.display = 'none';
     
     // Show selection
     document.getElementById('signup-selection').style.display = 'block';
+    
+    // Clear all error messages
+    document.querySelectorAll('.feedback.error').forEach(el => el.style.display = 'none');
 }
 
 async function handleSignIn(event) {
@@ -3242,11 +3340,30 @@ async function handleSignIn(event) {
     const errorDiv = document.getElementById('signin-error');
 
     try {
-        await auth.signInWithEmailAndPassword(email, password);
+        const userCredential = await auth.signInWithEmailAndPassword(email, password);
+        
+        // Check if user document exists
+        const userRef = db.collection('users').doc(userCredential.user.uid);
+        const userDoc = await userRef.get();
+        
+        if (!userDoc.exists) {
+            // User authenticated but no profile - shouldn't happen, but just in case
+            await auth.signOut();
+            errorDiv.textContent = 'Account not found. Please sign up first.';
+            errorDiv.style.display = 'block';
+            return;
+        }
+        
         closeAuthModal();
         errorDiv.style.display = 'none';
     } catch (error) {
-        errorDiv.textContent = error.message;
+        if (error.code === 'auth/user-not-found') {
+            errorDiv.textContent = 'No account found with this email. Please sign up first.';
+        } else if (error.code === 'auth/wrong-password') {
+            errorDiv.textContent = 'Incorrect password. Please try again.';
+        } else {
+            errorDiv.textContent = error.message;
+        }
         errorDiv.style.display = 'block';
     }
 }
@@ -3306,59 +3423,130 @@ function signOut() {
     navigateTo('home');
 }
 
-async function signInWithGoogle() {
+function showStudentEmailForm() {
+    document.getElementById('signup-student-selection').style.display = 'none';
+    document.getElementById('signup-student-email-form').style.display = 'block';
+}
+
+async function showStudentGoogleForm() {
     const provider = new firebase.auth.GoogleAuthProvider();
+    const errorDiv = document.getElementById('signup-student-google-error');
+    
     try {
+        // Authenticate with Google
         const result = await auth.signInWithPopup(provider);
         const user = result.user;
         
-        // Check if user document exists
+        // Check if user already has an account
         const userRef = db.collection('users').doc(user.uid);
         const userDoc = await userRef.get();
         
-        if (!userDoc.exists) {
-            // New Google user - default to student
-            await userRef.set({
-                name: user.displayName,
-                email: user.email,
-                userType: 'student',
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
-            });
+        if (userDoc.exists) {
+            // User already exists - sign them out and show error
+            await auth.signOut();
+            errorDiv.textContent = 'This Google account is already registered. Please sign in instead.';
+            errorDiv.style.display = 'block';
+            
+            setTimeout(() => {
+                backToStudentSelection();
+                switchAuthTab('signin');
+            }, 2000);
+            return;
         }
         
-        closeAuthModal();
+        // New user - show the form to complete profile
+        document.getElementById('signup-student-selection').style.display = 'none';
+        document.getElementById('signup-student-google-form').style.display = 'block';
+        
+        // Pre-fill name and email
+        document.getElementById('signup-student-google-name').value = user.displayName || '';
+        document.getElementById('signup-student-google-email').value = user.email || '';
+        
+        // Store the user temporarily (we'll complete registration in the form submit)
+        window.tempGoogleUser = user;
+        
     } catch (error) {
-        console.error('Google sign-in error:', error);
-        document.getElementById('signin-error').textContent = error.message;
-        document.getElementById('signin-error').style.display = 'block';
+        console.error('Google sign-up error:', error);
+        
+        if (error.code === 'auth/popup-closed-by-user') {
+            errorDiv.textContent = 'Sign-up cancelled. Please try again.';
+        } else {
+            errorDiv.textContent = error.message;
+        }
+        errorDiv.style.display = 'block';
     }
 }
 
-async function signUpWithGoogle(userType) {
-    const provider = new firebase.auth.GoogleAuthProvider();
+async function handleGoogleSignUpComplete(event, userType) {
+    event.preventDefault();
+    
+    const name = document.getElementById('signup-student-google-name').value.trim();
+    const age = document.getElementById('signup-student-google-age').value;
+    const country = document.getElementById('signup-student-google-country').value;
+    const errorDiv = document.getElementById('signup-student-google-error');
+    
+    // Validate all fields are filled
+    if (!name || !age || !country) {
+        errorDiv.textContent = 'Please fill in all required fields.';
+        errorDiv.style.display = 'block';
+        return;
+    }
+    
+    if (!window.tempGoogleUser) {
+        errorDiv.textContent = 'Session expired. Please try again.';
+        errorDiv.style.display = 'block';
+        setTimeout(() => backToStudentSelection(), 2000);
+        return;
+    }
+    
     try {
-        const result = await auth.signInWithPopup(provider);
-        const user = result.user;
+        const user = window.tempGoogleUser;
         
-        // Create user document with specified type
-        const userRef = db.collection('users').doc(user.uid);
-        await userRef.set({
-            name: user.displayName,
+        // Create user document with all information
+        await db.collection('users').doc(user.uid).set({
+            name: name,
             email: user.email,
+            age: age,
+            country: country,
             userType: userType,
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
         
+        // Update Firebase Auth profile
+        await user.updateProfile({ displayName: name });
+        
+        // Clear temp user
+        window.tempGoogleUser = null;
+        
         closeAuthModal();
-        alert(`Welcome, ${user.displayName}! Your ${userType} account has been created successfully.`);
+        alert(`Welcome, ${name}! Your ${userType} account has been created successfully.`);
+        
     } catch (error) {
-        console.error('Google sign-up error:', error);
-        const errorDiv = document.getElementById(`signup-${userType}-error`);
+        console.error('Error completing Google sign-up:', error);
         errorDiv.textContent = error.message;
         errorDiv.style.display = 'block';
     }
 }
 
+function backToStudentSelection() {
+    // If there's a temp Google user, sign them out
+    if (window.tempGoogleUser) {
+        auth.signOut();
+        window.tempGoogleUser = null;
+    }
+    
+    // Hide all student forms
+    document.getElementById('signup-student-email-form').style.display = 'none';
+    document.getElementById('signup-student-google-form').style.display = 'none';
+    
+    // Show student selection
+    document.getElementById('signup-student-selection').style.display = 'block';
+    
+    // Clear error messages
+    document.getElementById('signup-student-error').style.display = 'none';
+    document.getElementById('signup-student-google-error').style.display = 'none';
+}
+        
         function updateUIForAuthenticatedUser(user) {
     const displayName = user.displayName || user.email.split('@')[0];
     const photoURL = user.photoURL;
