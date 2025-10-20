@@ -337,7 +337,7 @@
             border-radius: 5px;
         }
 
-       /* ===== WORD CARD STYLES ===== */
+      /* ===== WORD CARD STYLES ===== */
 .word-list {
     display: flex;
     flex-direction: column;
@@ -464,6 +464,7 @@
     transform: translateY(-3px);
     box-shadow: 0 5px 15px rgba(0,0,0,0.2);
 }
+        
         /* ===== WORD DETAIL MODAL ===== */
         .modal {
             display: none;
@@ -2473,7 +2474,8 @@ auth.onAuthStateChanged(async user => {
         }
 
         // ===== DISPLAY WORDS =====
-        function displayWords(words) {
+        // ===== DISPLAY WORDS =====
+function displayWords(words) {
     const wordList = document.getElementById('wordList');
     
     if (words.length === 0) {
@@ -2489,15 +2491,15 @@ auth.onAuthStateChanged(async user => {
                     <button class="icon-btn" onclick="event.stopPropagation(); speakWordQuick('${word}')">🔊</button>
                 </div>
             </div>
-            <div class="word-phonetic-preview" style="color: #666; font-style: italic; margin: 5px 0 8px 0; min-height: 18px; font-size: 0.95rem;" data-word="${word}"></div>
-            <div class="word-definition" style="font-size: 0.95rem; font-weight: normal; color: #555;">Click to see AI-powered definition with synonyms & antonyms</div>
+            <div class="word-phonetic-preview" data-word="${word}"></div>
+            <div class="word-definition">Click to see AI-powered definition with synonyms & antonyms</div>
         </div>
     `).join('');
 
     // After rendering, load phonetics for all visible words
     setTimeout(() => loadPhoneticForVisibleWords(), 100);
 }
-
+        
         async function loadPhoneticAndShowDetail(word, cardElement) {
     const phoneticDiv = cardElement.querySelector('.word-phonetic-preview');
     
