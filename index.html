@@ -2682,7 +2682,7 @@ function displayWords(words) {
     setTimeout(() => loadPhoneticForVisibleWords(), 100);
 }
         
-        async function loadPhoneticAndShowDetail(word, cardElement) {
+       async function loadPhoneticAndShowDetail(word, cardElement) {
     const phoneticDiv = cardElement.querySelector('.word-phonetic-preview');
     
     // Check if phonetic is already loaded and cached
@@ -2723,12 +2723,9 @@ function displayWords(words) {
         
         // Update the phonetic display
         if (phonetic) {
-            // Update the phonetic display
-if (phonetic) {
-    phoneticDiv.innerHTML = `<strong>${phonetic}</strong>`;
-    phoneticDiv.style.color = '#666';
-}
-            else {
+            phoneticDiv.innerHTML = `<strong>${phonetic}</strong>`;
+            phoneticDiv.style.color = '#666';
+        } else {
             phoneticDiv.textContent = ''; // Hide if no phonetic available
         }
     } catch (error) {
