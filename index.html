@@ -2723,9 +2723,12 @@ function displayWords(words) {
         
         // Update the phonetic display
         if (phonetic) {
-            phoneticDiv.textContent = phonetic;
-            phoneticDiv.style.color = '#666';
-        } else {
+            // Update the phonetic display
+if (phonetic) {
+    phoneticDiv.innerHTML = `<strong>${phonetic}</strong>`;
+    phoneticDiv.style.color = '#666';
+}
+            else {
             phoneticDiv.textContent = ''; // Hide if no phonetic available
         }
     } catch (error) {
@@ -2755,7 +2758,7 @@ async function loadPhoneticForVisibleWords() {
             
             if (wordDoc.exists && wordDoc.data().phonetic) {
                 // Found in cache - display immediately
-                phoneticDiv.textContent = wordDoc.data().phonetic;
+                phoneticDiv.innerHTML = `<strong>${wordDoc.data().phonetic}</strong>`;
                 phoneticDiv.style.color = '#666';
             }
             // If not in cache, leave blank (will load when clicked)
