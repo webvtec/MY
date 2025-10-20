@@ -217,7 +217,7 @@
 
        .welcome-section {
     background: white;
-    padding: 30px 20px; 
+    padding: 40px 30px;
     border-radius: 15px;
     margin-bottom: 30px;
     text-align: left;
@@ -225,7 +225,7 @@
     z-index: 1;
 }
 
-/* Multi-layered animated border effects */
+/* Outer glowing rainbow border */
 .welcome-section::before {
     content: '';
     position: absolute;
@@ -238,36 +238,22 @@
         #0000ff, #4b0082, #9400d3, #ff0000);
     background-size: 400% 400%;
     border-radius: 15px;
-    z-index: -2;
+    z-index: -1;
     animation: rainbow-flow 4s linear infinite;
-    filter: blur(10px);
+    filter: blur(8px);
 }
 
+/* Inner chasing border */
 .welcome-section::after {
     content: '';
     position: absolute;
-    top: -3px;
-    left: -3px;
-    right: -3px;
-    bottom: -3px;
-    background: linear-gradient(90deg, 
-        #ffd700, #0d3b66, #ff6b6b, #4ecdc4, 
-        #45b7d1, #ffd700);
-    background-size: 300% 300%;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: white; /* Solid white background */
     border-radius: 15px;
     z-index: -1;
-    animation: border-chase 3s linear infinite;
-    opacity: 0.9;
-}
-
-/* Pulsing glow effect on the container itself */
-.welcome-section {
-    box-shadow: 
-        0 0 20px rgba(255, 215, 0, 0.4),
-        0 0 40px rgba(13, 59, 102, 0.3),
-        0 0 60px rgba(255, 107, 107, 0.2),
-        inset 0 0 30px rgba(255, 215, 0, 0.1);
-    animation: mega-pulse 3s ease-in-out infinite;
 }
         .welcome-section h1 {
     color: #0d3b66;
