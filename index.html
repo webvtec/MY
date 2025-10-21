@@ -1891,7 +1891,7 @@ a[href*="whatsapp.com/channel"]:hover {
         </div>
     </div>
 
-    <!-- Verification Modal (Cannot be closed) -->
+   <!-- Verification Modal (Cannot be closed) -->
 <div class="verification-modal" id="verificationModal">
     <div class="verification-content">
         <div class="verification-header">
@@ -1939,6 +1939,13 @@ a[href*="whatsapp.com/channel"]:hover {
                 </div>
                 
                 <button type="submit" class="auth-submit">✅ Complete Profile</button>
+                
+                <!-- NEW: Sign Out Button -->
+                <button type="button" class="auth-submit" onclick="signOutAndSwitchAccount()" 
+                        style="background: #6c757d; margin-top: 10px;">
+                    🔄 Sign Out & Use Different Account
+                </button>
+                
                 <div id="verify-error" class="feedback error" style="display:none; margin-top:15px;"></div>
             </form>
         </div>
@@ -3875,6 +3882,34 @@ async function handleVerification(event) {
         console.error('Error completing profile:', error);
         errorDiv.textContent = 'Failed to complete profile: ' + error.message;
         errorDiv.style.display = 'block';
+    }
+}
+
+        async function signOutAndSwitchAccount() {
+    if (confirm('⚠️ Are you sure you want to sign out? You will need to sign in with a different account.')) {
+        try {
+            // Close verification modal
+            closeVerificationModal();
+            
+            // Sign out the user
+            await auth.signOut();
+            
+            // Reset UI to guest state
+            currentUser = null;
+            updateUIForGuestUser();
+            
+            // Navigate to home
+            navigateTo('home');
+            
+            // Show auth modal for them to sign in/up with different account
+            setTimeout(() => {
+                showAuthModal();
+            }, 500);
+            
+        } catch (error) {
+            console.error('Error signing out:', error);
+            alert('Failed to sign out: ' + error.message);
+        }
     }
 }
         
