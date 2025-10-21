@@ -738,6 +738,94 @@
             color: #ff6b6b;
         }
 
+        /* ===== VERIFICATION MODAL ===== */
+.verification-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.9);
+    z-index: 9999;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    overflow-y: auto;
+}
+
+.verification-modal.active {
+    display: flex;
+}
+
+.verification-content {
+    background: white;
+    border-radius: 15px;
+    max-width: 500px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    position: relative;
+    box-shadow: 0 10px 50px rgba(255,0,0,0.3);
+    border: 3px solid #dc3545;
+}
+
+.verification-header {
+    background: linear-gradient(135deg, #dc3545, #c82333);
+    color: white;
+    padding: 30px;
+    text-align: center;
+    border-radius: 15px 15px 0 0;
+}
+
+.verification-header h2 {
+    margin: 0;
+    font-size: 1.8rem;
+}
+
+.verification-body {
+    padding: 30px;
+}
+
+.verification-body .form-group {
+    margin-bottom: 20px;
+}
+
+.verification-body .form-group label {
+    display: block;
+    margin-bottom: 8px;
+    color: #0d3b66;
+    font-weight: bold;
+}
+
+.verification-body .form-group input,
+.verification-body .form-group select {
+    width: 100%;
+    padding: 12px 15px;
+    border: 2px solid #0d3b66;
+    border-radius: 5px;
+    font-size: 1rem;
+    font-family: Georgia, serif;
+}
+
+.verification-body .auth-submit {
+    width: 100%;
+    padding: 15px;
+    background: #28a745;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-size: 1.1rem;
+    font-weight: bold;
+    cursor: pointer;
+    font-family: Georgia, serif;
+    margin-top: 10px;
+}
+
+.verification-body .auth-submit:hover {
+    background: #218838;
+}
+
         /* ===== AUTH MODAL ===== */
         .auth-modal {
     display: none;
@@ -1803,6 +1891,60 @@ a[href*="whatsapp.com/channel"]:hover {
         </div>
     </div>
 
+    <!-- Verification Modal (Cannot be closed) -->
+<div class="verification-modal" id="verificationModal">
+    <div class="verification-content">
+        <div class="verification-header">
+            <h2>⚠️ Complete Your Profile</h2>
+            <p style="margin-top: 10px; font-size: 0.95rem;">Please complete your profile to continue using WordBiz</p>
+        </div>
+        <div class="verification-body">
+            <form id="verification-form" onsubmit="handleVerification(event)">
+                <div class="form-group">
+                    <label>Full Name *</label>
+                    <input type="text" id="verify-name" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>Age *</label>
+                    <input type="number" id="verify-age" min="5" max="100" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>Country *</label>
+                    <select id="verify-country" required>
+                        <option value="">Select your country</option>
+                        <option value="United States">United States</option>
+                        <option value="United Kingdom">United Kingdom</option>
+                        <option value="Canada">Canada</option>
+                        <option value="Australia">Australia</option>
+                        <option value="Jamaica">Jamaica</option>
+                        <option value="India">India</option>
+                        <option value="Nigeria">Nigeria</option>
+                        <option value="South Africa">South Africa</option>
+                        <option value="Kenya">Kenya</option>
+                        <option value="Ghana">Ghana</option>
+                        <option value="Trinidad and Tobago">Trinidad and Tobago</option>
+                        <option value="Barbados">Barbados</option>
+                        <option value="Bahamas">Bahamas</option>
+                        <option value="Philippines">Philippines</option>
+                        <option value="Singapore">Singapore</option>
+                        <option value="New Zealand">New Zealand</option>
+                        <option value="Ireland">Ireland</option>
+                        <option value="Pakistan">Pakistan</option>
+                        <option value="Bangladesh">Bangladesh</option>
+                        <option value="Malaysia">Malaysia</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                
+                <button type="submit" class="auth-submit">✅ Complete Profile</button>
+                <div id="verify-error" class="feedback error" style="display:none; margin-top:15px;"></div>
+            </form>
+        </div>
+    </div>
+</div>
+
     <!-- Auth Modal -->
 <div class="auth-modal" id="authModal">
     <div class="auth-content">
@@ -2497,6 +2639,25 @@ let draggedElement = null;
 auth.onAuthStateChanged(async user => {
     if (user) {
         currentUser = user;
+        
+        // Check if profile is complete
+        const userDoc = await db.collection('users').doc(user.uid).get();
+        
+        if (!userDoc.exists) {
+            // User authenticated but no Firestore doc - sign them out
+            await auth.signOut();
+            alert('Account error. Please sign up again.');
+            return;
+        }
+        
+        const userData = userDoc.data();
+        
+        if (!userData.profileComplete) {
+            // Force verification modal
+            showVerificationModal(userData);
+            return;
+        }
+        
         updateUIForAuthenticatedUser(user);
         
         // Load all user data
@@ -2519,7 +2680,6 @@ auth.onAuthStateChanged(async user => {
         updateUIForGuestUser();
     }
 });
-        });
         
       // ===== NAVIGATION =====
 async function navigateTo(section, skipSidebarClose = false) {
@@ -3463,11 +3623,41 @@ async function handleSignIn(event) {
     const errorDiv = document.getElementById('signin-error');
 
     try {
-        await auth.signInWithEmailAndPassword(email, password);
+        const userCredential = await auth.signInWithEmailAndPassword(email, password);
+        const user = userCredential.user;
+        
+        // Check if user document exists in Firestore
+        const userDoc = await db.collection('users').doc(user.uid).get();
+        
+        if (!userDoc.exists) {
+            // User signed in but no profile exists - sign them out
+            await auth.signOut();
+            errorDiv.textContent = 'No account found with this email. Please sign up first.';
+            errorDiv.style.display = 'block';
+            return;
+        }
+        
+        // Check if profile is complete
+        const userData = userDoc.data();
+        if (!userData.profileComplete) {
+            // Show verification modal
+            closeAuthModal();
+            showVerificationModal(userData);
+            return;
+        }
+        
         closeAuthModal();
         errorDiv.style.display = 'none';
     } catch (error) {
-        errorDiv.textContent = error.message;
+        if (error.code === 'auth/user-not-found') {
+            errorDiv.textContent = 'No account found with this email. Please sign up first.';
+        } else if (error.code === 'auth/wrong-password') {
+            errorDiv.textContent = 'Incorrect password. Please try again.';
+        } else if (error.code === 'auth/invalid-email') {
+            errorDiv.textContent = 'Invalid email address.';
+        } else {
+            errorDiv.textContent = error.message;
+        }
         errorDiv.style.display = 'block';
     }
 }
@@ -3476,21 +3666,30 @@ async function handleSignUp(event, userType) {
     event.preventDefault();
     
     let name, email, password, errorDiv;
-    let additionalData = { userType: userType };
+    let additionalData = { 
+        userType: userType,
+        profileComplete: false // Mark as incomplete
+    };
+    
     if (userType === 'student') {
-    name = document.getElementById('signup-student-name').value;
-    email = document.getElementById('signup-student-email').value;
-    password = document.getElementById('signup-student-password').value;
-    errorDiv = document.getElementById('signup-student-error');
-    additionalData.age = document.getElementById('signup-student-age').value;
-    additionalData.country = document.getElementById('signup-student-country').value;
-}
-    else if (userType === 'coach') {
+        name = document.getElementById('signup-student-name').value;
+        email = document.getElementById('signup-student-email').value;
+        password = document.getElementById('signup-student-password').value;
+        errorDiv = document.getElementById('signup-student-error');
+        additionalData.age = document.getElementById('signup-student-age').value;
+        additionalData.country = document.getElementById('signup-student-country').value;
+        
+        // For students, if they provided age and country, mark complete
+        if (additionalData.age && additionalData.country) {
+            additionalData.profileComplete = true;
+        }
+    } else if (userType === 'coach') {
         name = document.getElementById('signup-coach-name').value;
         email = document.getElementById('signup-coach-email').value;
         password = document.getElementById('signup-coach-password').value;
         errorDiv = document.getElementById('signup-coach-error');
         additionalData.organization = document.getElementById('signup-coach-organization').value;
+        additionalData.profileComplete = true; // Coaches don't need extra verification
     } else if (userType === 'organization') {
         name = document.getElementById('signup-org-name').value;
         email = document.getElementById('signup-org-email').value;
@@ -3498,6 +3697,7 @@ async function handleSignUp(event, userType) {
         errorDiv = document.getElementById('signup-org-error');
         additionalData.phone = document.getElementById('signup-org-phone').value;
         additionalData.address = document.getElementById('signup-org-address').value;
+        additionalData.profileComplete = true; // Organizations don't need extra verification
     }
 
     try {
@@ -3514,14 +3714,18 @@ async function handleSignUp(event, userType) {
         closeAuthModal();
         errorDiv.style.display = 'none';
         
-        // Show success message
-        alert(`Welcome, ${name}! Your ${userType} account has been created successfully.`);
+        // If profile not complete, show verification modal
+        if (!additionalData.profileComplete) {
+            showVerificationModal({ name, email, userType });
+        } else {
+            alert(`Welcome, ${name}! Your ${userType} account has been created successfully.`);
+        }
     } catch (error) {
         errorDiv.textContent = error.message;
         errorDiv.style.display = 'block';
     }
 }
-
+        
 function signOut() {
     auth.signOut();
     navigateTo('home');
@@ -3538,16 +3742,31 @@ async function signInWithGoogle() {
         const userDoc = await userRef.get();
         
         if (!userDoc.exists) {
-            // New Google user - default to student
+            // New Google user - create incomplete profile
             await userRef.set({
                 name: user.displayName,
                 email: user.email,
                 userType: 'student',
+                profileComplete: false,
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
+            
+            closeAuthModal();
+            showVerificationModal({
+                name: user.displayName,
+                email: user.email,
+                userType: 'student'
+            });
+        } else {
+            // Existing user - check if profile is complete
+            const userData = userDoc.data();
+            if (!userData.profileComplete) {
+                closeAuthModal();
+                showVerificationModal(userData);
+            } else {
+                closeAuthModal();
+            }
         }
-        
-        closeAuthModal();
     } catch (error) {
         console.error('Google sign-in error:', error);
         document.getElementById('signin-error').textContent = error.message;
@@ -3561,17 +3780,22 @@ async function signUpWithGoogle(userType) {
         const result = await auth.signInWithPopup(provider);
         const user = result.user;
         
-        // Create user document with specified type
+        // Create user document with specified type (incomplete profile)
         const userRef = db.collection('users').doc(user.uid);
         await userRef.set({
             name: user.displayName,
             email: user.email,
             userType: userType,
+            profileComplete: false,
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
         
         closeAuthModal();
-        alert(`Welcome, ${user.displayName}! Your ${userType} account has been created successfully.`);
+        showVerificationModal({
+            name: user.displayName,
+            email: user.email,
+            userType: userType
+        });
     } catch (error) {
         console.error('Google sign-up error:', error);
         const errorDiv = document.getElementById(`signup-${userType}-error`);
@@ -3580,6 +3804,79 @@ async function signUpWithGoogle(userType) {
     }
 }
 
+        // ===== VERIFICATION MODAL FUNCTIONS =====
+function showVerificationModal(userData) {
+    const modal = document.getElementById('verificationModal');
+    
+    // Pre-fill any existing data
+    if (userData.name) {
+        document.getElementById('verify-name').value = userData.name;
+    }
+    if (userData.age) {
+        document.getElementById('verify-age').value = userData.age;
+    }
+    if (userData.country) {
+        document.getElementById('verify-country').value = userData.country;
+    }
+    
+    modal.classList.add('active');
+}
+
+function closeVerificationModal() {
+    document.getElementById('verificationModal').classList.remove('active');
+}
+
+async function handleVerification(event) {
+    event.preventDefault();
+    
+    if (!currentUser) {
+        alert('Session expired. Please sign in again.');
+        return;
+    }
+    
+    const name = document.getElementById('verify-name').value.trim();
+    const age = document.getElementById('verify-age').value;
+    const country = document.getElementById('verify-country').value;
+    const errorDiv = document.getElementById('verify-error');
+    
+    if (!name || !age || !country) {
+        errorDiv.textContent = 'All fields are required.';
+        errorDiv.style.display = 'block';
+        return;
+    }
+    
+    if (age < 5 || age > 100) {
+        errorDiv.textContent = 'Please enter a valid age between 5 and 100.';
+        errorDiv.style.display = 'block';
+        return;
+    }
+    
+    try {
+        // Update Firestore
+        await db.collection('users').doc(currentUser.uid).update({
+            name: name,
+            age: parseInt(age),
+            country: country,
+            profileComplete: true
+        });
+        
+        // Update Firebase Auth profile
+        await currentUser.updateProfile({ displayName: name });
+        
+        errorDiv.style.display = 'none';
+        closeVerificationModal();
+        
+        alert('✅ Profile completed successfully! Welcome to WordBiz Coaching Academy!');
+        
+        // Refresh UI
+        updateUIForAuthenticatedUser(currentUser);
+    } catch (error) {
+        console.error('Error completing profile:', error);
+        errorDiv.textContent = 'Failed to complete profile: ' + error.message;
+        errorDiv.style.display = 'block';
+    }
+}
+        
         function updateUIForAuthenticatedUser(user) {
     const displayName = user.displayName || user.email.split('@')[0];
     const photoURL = user.photoURL;
