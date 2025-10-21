@@ -1551,6 +1551,23 @@ a[href*="whatsapp.com/channel"]:hover {
     transform: translateY(-3px) scale(1.05);
     box-shadow: 0 6px 20px rgba(37, 211, 102, 0.6);
 }
+
+      /* Level selection styling */
+#quiz-level-selection,
+#spelling-level-selection,
+#spelling-difficulty-selection,
+#unscramble-level-selection,
+#unscramble-difficulty-selection {
+    transition: opacity 0.3s ease;
+}
+
+#spelling-level-name,
+#unscramble-level-name {
+    font-size: 1.2rem;
+    color: #0d3b66;
+    font-weight: bold;
+    margin: 15px 0;
+}  
     </style>
 </head>
 <body>
@@ -1692,13 +1709,46 @@ a[href*="whatsapp.com/channel"]:hover {
             <button class="quiz-tab" onclick="switchQuizMode('leaderboard')">QUIZ LEADERBOARD</button>
         </div>
 
-                <div id="practice-quiz-mode" class="quiz-mode active">
-                    <div class="welcome-section">
-                        <h2>🎯 PRACTICE QUIZ</h2>
-                        <button class="practice-btn" onclick="startPracticeQuiz()">START PRACTICE QUIZ</button>
-                    </div>
-                    <div id="practice-quiz-container"></div>
-                </div>
+               <div id="practice-quiz-mode" class="quiz-mode active">
+    <!-- Level Selection -->
+    <div id="quiz-level-selection" class="welcome-section">
+        <h2>🎯 PRACTICE QUIZ</h2>
+        <p style="margin: 20px 0;">Select a difficulty level for your quiz:</p>
+        
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-top: 30px;">
+            <button class="user-type-btn" onclick="startPracticeQuizWithLevel('foundation')">
+                <div style="font-size: 2rem; margin-bottom: 10px;">🌱</div>
+                <div style="font-size: 1.3rem; font-weight: bold;">LEVEL 1</div>
+                <div style="font-size: 1.1rem; margin: 5px 0;">FOUNDATION</div>
+                <div style="font-size: 0.9rem; color: #666; margin-top: 5px;">Basic vocabulary quiz</div>
+            </button>
+            
+            <button class="user-type-btn" onclick="startPracticeQuizWithLevel('challenge')">
+                <div style="font-size: 2rem; margin-bottom: 10px;">🎯</div>
+                <div style="font-size: 1.3rem; font-weight: bold;">LEVEL 2</div>
+                <div style="font-size: 1.1rem; margin: 5px 0;">CHALLENGE</div>
+                <div style="font-size: 0.9rem; color: #666; margin-top: 5px;">Intermediate vocabulary quiz</div>
+            </button>
+            
+            <button class="user-type-btn" onclick="startPracticeQuizWithLevel('advanced')">
+                <div style="font-size: 2rem; margin-bottom: 10px;">🚀</div>
+                <div style="font-size: 1.3rem; font-weight: bold;">LEVEL 3</div>
+                <div style="font-size: 1.1rem; margin: 5px 0;">ADVANCED</div>
+                <div style="font-size: 0.9rem; color: #666; margin-top: 5px;">Complex vocabulary quiz</div>
+            </button>
+            
+            <button class="user-type-btn" onclick="startPracticeQuizWithLevel('championship')">
+                <div style="font-size: 2rem; margin-bottom: 10px;">🏆</div>
+                <div style="font-size: 1.3rem; font-weight: bold;">LEVEL 4</div>
+                <div style="font-size: 1.1rem; margin: 5px 0;">CHAMPIONSHIP</div>
+                <div style="font-size: 0.9rem; color: #666; margin-top: 5px;">Expert vocabulary quiz</div>
+            </button>
+        </div>
+    </div>
+    
+    <!-- Quiz Container -->
+    <div id="practice-quiz-container"></div>
+             </div>
             </div>
         </div>
 
@@ -1948,12 +1998,49 @@ a[href*="whatsapp.com/channel"]:hover {
                <!-- Practice Spelling Mode -->
 <div id="practice-spelling-mode" class="quiz-mode active">
     <div id="spelling-container">
-        <div class="welcome-section">
+        <!-- Level Selection -->
+        <div id="spelling-level-selection" class="welcome-section">
             <h2>🔤 Practice Spelling</h2>
-            <p>Listen to the word and type what you hear. The AI will speak each word clearly.</p>
+            <p>Select a word level, then choose difficulty:</p>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-top: 30px;">
+                <button class="user-type-btn" onclick="showSpellingDifficultySelection('foundation')">
+                    <div style="font-size: 2rem; margin-bottom: 10px;">🌱</div>
+                    <div style="font-size: 1.3rem; font-weight: bold;">LEVEL 1</div>
+                    <div style="font-size: 1.1rem; margin: 5px 0;">FOUNDATION</div>
+                </button>
+                
+                <button class="user-type-btn" onclick="showSpellingDifficultySelection('challenge')">
+                    <div style="font-size: 2rem; margin-bottom: 10px;">🎯</div>
+                    <div style="font-size: 1.3rem; font-weight: bold;">LEVEL 2</div>
+                    <div style="font-size: 1.1rem; margin: 5px 0;">CHALLENGE</div>
+                </button>
+                
+                <button class="user-type-btn" onclick="showSpellingDifficultySelection('advanced')">
+                    <div style="font-size: 2rem; margin-bottom: 10px;">🚀</div>
+                    <div style="font-size: 1.3rem; font-weight: bold;">LEVEL 3</div>
+                    <div style="font-size: 1.1rem; margin: 5px 0;">ADVANCED</div>
+                </button>
+                
+                <button class="user-type-btn" onclick="showSpellingDifficultySelection('championship')">
+                    <div style="font-size: 2rem; margin-bottom: 10px;">🏆</div>
+                    <div style="font-size: 1.3rem; font-weight: bold;">LEVEL 4</div>
+                    <div style="font-size: 1.1rem; margin: 5px 0;">CHAMPIONSHIP</div>
+                </button>
+            </div>
+        </div>
+        
+        <!-- Difficulty Selection -->
+        <div id="spelling-difficulty-selection" class="welcome-section" style="display: none;">
+            <button class="practice-btn" onclick="backToSpellingLevelSelection()" style="background: #6c757d; padding: 10px 20px; font-size: 0.9rem; margin-bottom: 20px;">
+                ← Back to Levels
+            </button>
+            
+            <h2>🔤 Choose Difficulty</h2>
+            <p id="spelling-level-name">Foundation Level</p>
             
             <div style="margin: 20px 0;">
-                <label style="display: block; margin-bottom: 10px; font-weight: bold;">Difficulty Level:</label>
+                <label style="display: block; margin-bottom: 10px; font-weight: bold;">Word Length:</label>
                 <select id="spelling-difficulty" style="padding: 10px; font-size: 1rem; border: 2px solid #0d3b66; border-radius: 5px; width: 200px;">
                     <option value="easy">Easy (3-5 letters)</option>
                     <option value="medium" selected>Medium (6-8 letters)</option>
@@ -1961,7 +2048,7 @@ a[href*="whatsapp.com/channel"]:hover {
                 </select>
             </div>
             
-            <button class="practice-btn" onclick="startSpellingPractice()">Start Practice Spelling</button>
+            <button class="practice-btn" onclick="startSpellingPracticeWithLevel()">Start Practice Spelling</button>
         </div>
         
         <div id="spelling-game" style="display: none;">
@@ -2053,12 +2140,49 @@ a[href*="whatsapp.com/channel"]:hover {
                 <!-- Unscramble Mode -->
 <div id="unscramble-mode" class="quiz-mode">
     <div id="unscramble-container">
-        <div class="welcome-section">
+        <!-- Level Selection -->
+        <div id="unscramble-level-selection" class="welcome-section">
             <h2>🔀 Unscramble Words</h2>
-            <p>Drag and drop the letters to form the correct word!</p>
+            <p>Select a word level, then choose difficulty:</p>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-top: 30px;">
+                <button class="user-type-btn" onclick="showUnscrambleDifficultySelection('foundation')">
+                    <div style="font-size: 2rem; margin-bottom: 10px;">🌱</div>
+                    <div style="font-size: 1.3rem; font-weight: bold;">LEVEL 1</div>
+                    <div style="font-size: 1.1rem; margin: 5px 0;">FOUNDATION</div>
+                </button>
+                
+                <button class="user-type-btn" onclick="showUnscrambleDifficultySelection('challenge')">
+                    <div style="font-size: 2rem; margin-bottom: 10px;">🎯</div>
+                    <div style="font-size: 1.3rem; font-weight: bold;">LEVEL 2</div>
+                    <div style="font-size: 1.1rem; margin: 5px 0;">CHALLENGE</div>
+                </button>
+                
+                <button class="user-type-btn" onclick="showUnscrambleDifficultySelection('advanced')">
+                    <div style="font-size: 2rem; margin-bottom: 10px;">🚀</div>
+                    <div style="font-size: 1.3rem; font-weight: bold;">LEVEL 3</div>
+                    <div style="font-size: 1.1rem; margin: 5px 0;">ADVANCED</div>
+                </button>
+                
+                <button class="user-type-btn" onclick="showUnscrambleDifficultySelection('championship')">
+                    <div style="font-size: 2rem; margin-bottom: 10px;">🏆</div>
+                    <div style="font-size: 1.3rem; font-weight: bold;">LEVEL 4</div>
+                    <div style="font-size: 1.1rem; margin: 5px 0;">CHAMPIONSHIP</div>
+                </button>
+            </div>
+        </div>
+        
+        <!-- Difficulty Selection -->
+        <div id="unscramble-difficulty-selection" class="welcome-section" style="display: none;">
+            <button class="practice-btn" onclick="backToUnscrambleLevelSelection()" style="background: #6c757d; padding: 10px 20px; font-size: 0.9rem; margin-bottom: 20px;">
+                ← Back to Levels
+            </button>
+            
+            <h2>🔀 Choose Difficulty</h2>
+            <p id="unscramble-level-name">Foundation Level</p>
             
             <div style="margin: 20px 0;">
-                <label style="display: block; margin-bottom: 10px; font-weight: bold;">Difficulty Level:</label>
+                <label style="display: block; margin-bottom: 10px; font-weight: bold;">Word Length:</label>
                 <select id="unscramble-difficulty" style="padding: 10px; font-size: 1rem; border: 2px solid #0d3b66; border-radius: 5px; width: 200px;">
                     <option value="easy">Easy (3-5 letters)</option>
                     <option value="medium" selected>Medium (6-8 letters)</option>
@@ -2066,7 +2190,7 @@ a[href*="whatsapp.com/channel"]:hover {
                 </select>
             </div>
             
-            <button class="practice-btn" onclick="startUnscramble()">Start Unscramble</button>
+            <button class="practice-btn" onclick="startUnscrambleWithLevel()">Start Unscramble</button>
         </div>
         
         <div id="unscramble-game" style="display: none;">
@@ -2382,6 +2506,7 @@ let currentSpellingIndex = 0;
 let spellingScore = 0;
 let currentSpellingWord = '';
 let spellingMistakes = [];
+let selectedGameLevel = '';
 
 // ===== UNSCRAMBLE FUNCTIONS =====
 let unscrambleWords = [];
@@ -2395,7 +2520,6 @@ let draggedElement = null;
         // ===== INITIALIZE =====
         document.addEventListener('DOMContentLoaded', function() {
             initializeAlphabet();
-            loadWords();
             initializeSpeechRecognition();
             
             document.getElementById('searchInput').addEventListener('keypress', function(e) {
@@ -2431,8 +2555,8 @@ auth.onAuthStateChanged(async user => {
 });
         });
         
-       // ===== NAVIGATION =====
-        async function navigateTo(section, skipSidebarClose = false) {
+      // ===== NAVIGATION =====
+async function navigateTo(section, skipSidebarClose = false) {
     // Check if user needs to be logged in
     if ((section === 'favorites' || section === 'incorrect-quiz' || 
          section === 'spelling-favorites' || section === 'spelling-incorrect' || 
@@ -2456,6 +2580,22 @@ auth.onAuthStateChanged(async user => {
         // Always show level selection first
         document.getElementById('level-selection').style.display = 'block';
         document.getElementById('word-database-display').style.display = 'none';
+    }
+    
+    // Reset Quiz section to level selection
+    if (section === 'quiz') {
+        document.getElementById('quiz-level-selection').style.display = 'block';
+        document.getElementById('practice-quiz-container').innerHTML = '';
+        selectedGameLevel = '';
+    }
+    
+    // Reset Spelling section to level selection
+    if (section === 'spelling') {
+        document.getElementById('spelling-level-selection').style.display = 'block';
+        document.getElementById('spelling-difficulty-selection').style.display = 'none';
+        document.getElementById('spelling-game').style.display = 'none';
+        document.getElementById('spelling-results').style.display = 'none';
+        selectedGameLevel = '';
     }
     
     if (section === 'favorites' && currentUser) {
@@ -2511,37 +2651,7 @@ auth.onAuthStateChanged(async user => {
             });
         }
 
-        // ===== LOAD WORDS =====
-       async function loadWords() {
-    try {
-        document.getElementById('statusMessage').innerHTML = 
-            `⏳ Loading word list from Google Docs... Please wait.`;
         
-        const googleDocsUrl = 'https://docs.google.com/document/d/1HmLbNiT0KA8djBm9c2xKMlPUXw-ciTmlTm9dFCFP-nc/export?format=txt';
-        const response = await fetch(googleDocsUrl);
-
-        if (!response.ok) throw new Error('Failed to load words');
-        
-        const text = await response.text();
-        allWords = text.split(/[\n\r\s,]+/)
-            .map(word => word.trim().toLowerCase())
-            .filter(word => word.length > 0 && /^[a-z]+$/.test(word))
-            .sort();
-        
-        console.log(`Loaded ${allWords.length} words`);
-        
-        document.getElementById('statusMessage').innerHTML = 
-            `✅ ${allWords.length.toLocaleString()} words loaded! Select a letter to filter or search for specific words.`;
-        
-        return Promise.resolve();
-    } catch (error) {
-        console.error('Error loading words:', error);
-        document.getElementById('statusMessage').innerHTML = 
-            `❌ Error loading words. Please refresh the page to try again.`;
-        return Promise.reject(error);
-    }
-}
-
 // New function to load level-specific words
 async function loadLevelWords(level) {
     try {
@@ -3565,7 +3675,20 @@ async function signUpWithGoogle(userType) {
             document.getElementById('practice-quiz-mode').classList.add('active');
         }
 
-       async function startPracticeQuiz() {
+     async function startPracticeQuizWithLevel(level) {
+    selectedGameLevel = level;
+    
+    // Hide level selection
+    document.getElementById('quiz-level-selection').style.display = 'none';
+    document.getElementById('practice-quiz-container').innerHTML = '<div class="loading">📚 Loading words from ' + level.toUpperCase() + ' level...</div>';
+    
+    // Load level words if not already loaded
+    if (levelWords[level].length === 0) {
+        await loadLevelWords(level);
+    } else {
+        allWords = levelWords[level];
+    }
+    
     document.getElementById('practice-quiz-container').innerHTML = '<div class="loading">🎲 Generating quiz questions...</div>';
     
     // Initialize IQ tracking
@@ -3602,6 +3725,22 @@ async function signUpWithGoogle(userType) {
             '<div class="feedback error">Failed to generate quiz. Please try again.</div>';
     }
 }
+
+// Keep old function name for backwards compatibility but add check
+async function startPracticeQuiz() {
+    if (!selectedGameLevel) {
+        alert('Please select a level first');
+        return;
+    }
+    await startPracticeQuizWithLevel(selectedGameLevel);
+}
+
+function backToQuizLevelSelection() {
+    document.getElementById('quiz-level-selection').style.display = 'block';
+    document.getElementById('practice-quiz-container').innerHTML = '';
+    selectedGameLevel = '';
+}
+
 
 function showQuestion(quizType = 'practice') {
     const question = currentQuiz.questions[currentQuestionIndex];
@@ -3806,9 +3945,10 @@ function getIQCategory(iq) {
             ` : ''}
             
             <div style="display: flex; gap: 10px; justify-content: center; margin-top: 30px; flex-wrap: wrap;">
-                <button class="practice-btn" onclick="startPracticeQuiz()">🔄 Try Again</button>
-                <button class="practice-btn" onclick="navigateTo('home')">🏠 Home</button>
-            </div>
+    <button class="practice-btn" onclick="backToQuizLevelSelection()">← Back to Levels</button>
+    <button class="practice-btn" onclick="startPracticeQuizWithLevel('${selectedGameLevel}')">🔄 Try Again</button>
+    <button class="practice-btn" onclick="navigateTo('home')">🏠 Home</button>
+</div>
         </div>
     `;
 }
@@ -4251,40 +4391,88 @@ function displayFavorites() {
 
        
 
-        function startSpellingPractice() {
-            const difficulty = document.getElementById('spelling-difficulty').value;
-            
-            // Filter words by difficulty
-            let filteredWords = [];
-            if (difficulty === 'easy') {
-                filteredWords = allWords.filter(word => word.length >= 3 && word.length <= 5);
-            } else if (difficulty === 'medium') {
-                filteredWords = allWords.filter(word => word.length >= 6 && word.length <= 8);
-            } else {
-                filteredWords = allWords.filter(word => word.length >= 9);
-            }
-            
-            if (filteredWords.length < 10) {
-                alert('Not enough words in this difficulty level. Try another difficulty.');
-                return;
-            }
-            
-            // Select 10 random words
-            spellingWords = [];
-            const shuffled = [...filteredWords].sort(() => 0.5 - Math.random());
-            spellingWords = shuffled.slice(0, 10);
-            
-            currentSpellingIndex = 0;
-            spellingScore = 0;
-            spellingMistakes = [];
-            
-            document.querySelector('#spelling-container .welcome-section').style.display = 'none';
-            document.getElementById('spelling-game').style.display = 'block';
-            document.getElementById('spelling-results').style.display = 'none';
-            
-            loadSpellingWord();
-        }
+async function showSpellingDifficultySelection(level) {
+    selectedGameLevel = level;
+    
+    // Load level words if not already loaded
+    if (levelWords[level].length === 0) {
+        document.getElementById('spelling-level-selection').style.display = 'none';
+        document.getElementById('spelling-difficulty-selection').innerHTML = '<div class="loading">📚 Loading ' + level.toUpperCase() + ' words...</div>';
+        document.getElementById('spelling-difficulty-selection').style.display = 'block';
+        
+        await loadLevelWords(level);
+    } else {
+        allWords = levelWords[level];
+    }
+    
+    // Update level name display
+    const levelNames = {
+        foundation: 'Foundation Level',
+        challenge: 'Challenge Level',
+        advanced: 'Advanced Level',
+        championship: 'Championship Level'
+    };
+    
+    document.getElementById('spelling-level-name').textContent = levelNames[level];
+    document.getElementById('spelling-level-selection').style.display = 'none';
+    document.getElementById('spelling-difficulty-selection').style.display = 'block';
+}
 
+function backToSpellingLevelSelection() {
+    document.getElementById('spelling-level-selection').style.display = 'block';
+    document.getElementById('spelling-difficulty-selection').style.display = 'none';
+    document.getElementById('spelling-game').style.display = 'none';
+    document.getElementById('spelling-results').style.display = 'none';
+    selectedGameLevel = '';
+}
+
+async function startSpellingPracticeWithLevel() {
+    const difficulty = document.getElementById('spelling-difficulty').value;
+    
+    // Make sure words are loaded
+    if (!allWords || allWords.length === 0) {
+        allWords = levelWords[selectedGameLevel];
+    }
+    
+    // Filter words by difficulty
+    let filteredWords = [];
+    if (difficulty === 'easy') {
+        filteredWords = allWords.filter(word => word.length >= 3 && word.length <= 5);
+    } else if (difficulty === 'medium') {
+        filteredWords = allWords.filter(word => word.length >= 6 && word.length <= 8);
+    } else {
+        filteredWords = allWords.filter(word => word.length >= 9);
+    }
+    
+    if (filteredWords.length < 10) {
+        alert('Not enough words in this difficulty level. Try another difficulty.');
+        return;
+    }
+    
+    // Select 10 random words
+    spellingWords = [];
+    const shuffled = [...filteredWords].sort(() => 0.5 - Math.random());
+    spellingWords = shuffled.slice(0, 10);
+    
+    currentSpellingIndex = 0;
+    spellingScore = 0;
+    spellingMistakes = [];
+    
+    document.getElementById('spelling-difficulty-selection').style.display = 'none';
+    document.getElementById('spelling-game').style.display = 'block';
+    document.getElementById('spelling-results').style.display = 'none';
+    
+    loadSpellingWord();
+}
+
+// Keep old function for backwards compatibility
+function startSpellingPractice() {
+    if (!selectedGameLevel) {
+        alert('Please select a level first');
+        return;
+    }
+    startSpellingPracticeWithLevel();
+}
         function loadSpellingWord() {
     currentSpellingWord = spellingWords[currentSpellingIndex];
     
@@ -4746,19 +4934,21 @@ function displayFavorites() {
                     ` : ''}
                     
                     <div style="display: flex; gap: 10px; justify-content: center; margin-top: 30px; flex-wrap: wrap;">
-                        <button class="practice-btn" onclick="startSpellingPractice()">🔄 Practice Again</button>
-                        <button class="practice-btn" onclick="restartSpellingSection()">📚 Change Difficulty</button>
-                        <button class="practice-btn" onclick="navigateTo('home')">🏠 Home</button>
-                    </div>
+                    <button class="practice-btn" onclick="startSpellingPracticeWithLevel()">🔄 Practice Again</button>
+                    <button class="practice-btn" onclick="backToSpellingLevelSelection()">← Back to Levels</button>
+                    <button class="practice-btn" onclick="navigateTo('home')">🏠 Home</button>
+                  </div>
                 </div>
             `;
         }
 
         function restartSpellingSection() {
-            document.getElementById('spelling-game').style.display = 'none';
-            document.getElementById('spelling-results').style.display = 'none';
-            document.querySelector('#spelling-container .welcome-section').style.display = 'block';
-        }
+    document.getElementById('spelling-game').style.display = 'none';
+    document.getElementById('spelling-results').style.display = 'none';
+    document.getElementById('spelling-level-selection').style.display = 'block';
+    document.getElementById('spelling-difficulty-selection').style.display = 'none';
+    selectedGameLevel = '';
+}
 
         function switchSpellingMode(mode) {
     // Update active tab
@@ -5281,8 +5471,48 @@ function backspaceKey() {
 }  
 
 // ===== UNSCRAMBLE FUNCTIONS =====
-function startUnscramble() {
+async function showUnscrambleDifficultySelection(level) {
+    selectedGameLevel = level;
+    
+    // Load level words if not already loaded
+    if (levelWords[level].length === 0) {
+        document.getElementById('unscramble-level-selection').style.display = 'none';
+        document.getElementById('unscramble-difficulty-selection').innerHTML = '<div class="loading">📚 Loading ' + level.toUpperCase() + ' words...</div>';
+        document.getElementById('unscramble-difficulty-selection').style.display = 'block';
+        
+        await loadLevelWords(level);
+    } else {
+        allWords = levelWords[level];
+    }
+    
+    // Update level name display
+    const levelNames = {
+        foundation: 'Foundation Level',
+        challenge: 'Challenge Level',
+        advanced: 'Advanced Level',
+        championship: 'Championship Level'
+    };
+    
+    document.getElementById('unscramble-level-name').textContent = levelNames[level];
+    document.getElementById('unscramble-level-selection').style.display = 'none';
+    document.getElementById('unscramble-difficulty-selection').style.display = 'block';
+}
+
+function backToUnscrambleLevelSelection() {
+    document.getElementById('unscramble-level-selection').style.display = 'block';
+    document.getElementById('unscramble-difficulty-selection').style.display = 'none';
+    document.getElementById('unscramble-game').style.display = 'none';
+    document.getElementById('unscramble-results').style.display = 'none';
+    selectedGameLevel = '';
+}
+
+async function startUnscrambleWithLevel() {
     const difficulty = document.getElementById('unscramble-difficulty').value;
+    
+    // Make sure words are loaded
+    if (!allWords || allWords.length === 0) {
+        allWords = levelWords[selectedGameLevel];
+    }
     
     // Filter words by difficulty
     let filteredWords = [];
@@ -5307,11 +5537,20 @@ function startUnscramble() {
     unscrambleScore = 0;
     hintsUsed = 0;
     
-    document.querySelector('#unscramble-container .welcome-section').style.display = 'none';
+    document.getElementById('unscramble-difficulty-selection').style.display = 'none';
     document.getElementById('unscramble-game').style.display = 'block';
     document.getElementById('unscramble-results').style.display = 'none';
     
     loadUnscrambleWord();
+}
+
+// Keep old function for backwards compatibility
+function startUnscramble() {
+    if (!selectedGameLevel) {
+        alert('Please select a level first');
+        return;
+    }
+    startUnscrambleWithLevel();
 }
 
 function loadUnscrambleWord() {
@@ -5672,10 +5911,10 @@ function showUnscrambleResults() {
             <p style="font-size: 1.2rem; margin: 20px 0;">${message}</p>
             
             <div style="display: flex; gap: 10px; justify-content: center; margin-top: 30px; flex-wrap: wrap;">
-                <button class="practice-btn" onclick="startUnscramble()">🔄 Try Again</button>
-                <button class="practice-btn" onclick="restartUnscrambleSection()">📚 Change Difficulty</button>
-                <button class="practice-btn" onclick="navigateTo('home')">🏠 Home</button>
-            </div>
+            <button class="practice-btn" onclick="startUnscrambleWithLevel()">🔄 Try Again</button>
+            <button class="practice-btn" onclick="backToUnscrambleLevelSelection()">← Back to Levels</button>
+            <button class="practice-btn" onclick="navigateTo('home')">🏠 Home</button>
+           </div>
         </div>
     `;
 }
