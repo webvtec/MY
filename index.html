@@ -4358,10 +4358,11 @@ function displayFavorites() {
 async function startSpellingPracticeWithLevel(level) {
     selectedGameLevel = level;
     
-    // Hide level selection
+    // Hide level selection and show loading
     document.getElementById('spelling-level-selection').style.display = 'none';
-    document.getElementById('spelling-game').style.display = 'block';
-    document.getElementById('spelling-game').innerHTML = '<div class="loading">📚 Loading ' + level.toUpperCase() + ' words...</div>';
+    const gameContainer = document.getElementById('spelling-game');
+    gameContainer.innerHTML = '<div class="loading">📚 Loading ' + level.toUpperCase() + ' words...</div>';
+    gameContainer.style.display = 'block';
     
     // Load level words if not already loaded
     if (levelWords[level].length === 0) {
@@ -4374,7 +4375,7 @@ async function startSpellingPracticeWithLevel(level) {
     if (allWords.length < 10) {
         alert('Not enough words in this level. Try another level.');
         document.getElementById('spelling-level-selection').style.display = 'block';
-        document.getElementById('spelling-game').style.display = 'none';
+        gameContainer.style.display = 'none';
         return;
     }
     
@@ -4385,7 +4386,89 @@ async function startSpellingPracticeWithLevel(level) {
     spellingScore = 0;
     spellingMistakes = [];
     
-    document.getElementById('spelling-game').style.display = 'block';
+    // Clear the loading message and restore the game UI
+    gameContainer.innerHTML = `
+        <div class="quiz-question-card">
+            <div class="quiz-score" id="spelling-score">Score: 0 / 0</div>
+            <h3 id="spelling-progress">Word 1 of 10</h3>
+            
+            <div style="text-align: center; margin: 30px 0;">
+                <div style="display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-bottom: 15px;">
+                    <button class="practice-btn" onclick="speakCurrentSpellingWord()" style="font-size: 0.9rem; padding: 10px 15px;">
+                        🔊 Play Word
+                    </button>
+                    <button class="practice-btn" onclick="speakWordInSentence()" style="font-size: 0.9rem; padding: 10px 15px;">
+                        💬 Use in Sentence
+                    </button>
+                    <button class="practice-btn" id="show-details-btn" onclick="showSpellingWordDetails()" style="font-size: 0.9rem; padding: 10px 15px; display: none;">
+                        📖 Word Details
+                    </button>
+                    <button class="practice-btn" id="add-spelling-favorite-btn" onclick="addCurrentSpellingToFavorites()" style="font-size: 0.9rem; padding: 10px 15px; display: none;">
+                        ⭐ Add to Favorites
+                    </button>
+                </div>
+                <p style="margin-top: 5px; color: #666; font-style: italic; font-size: 0.9rem;">Listen to the word alone, in a sentence, see details, or add to favorites</p>
+            </div>
+                            
+            <div class="form-group" style="margin: 30px 0;">
+                <label style="font-size: 1.2rem;">Type what you hear:</label>
+                <input type="text" id="spelling-input" 
+                       placeholder="Use the keyboard below..." 
+                       style="width: 100%; padding: 15px; font-size: 1.3rem; text-align: center; border: 3px solid #0d3b66; border-radius: 8px; margin-top: 10px;"
+                       readonly>
+            </div>
+            
+            <!-- Virtual Keyboard -->
+            <div class="virtual-keyboard">
+                <div class="keyboard-row">
+                    <button class="keyboard-key" onclick="typeKey('Q')">Q</button>
+                    <button class="keyboard-key" onclick="typeKey('W')">W</button>
+                    <button class="keyboard-key" onclick="typeKey('E')">E</button>
+                    <button class="keyboard-key" onclick="typeKey('R')">R</button>
+                    <button class="keyboard-key" onclick="typeKey('T')">T</button>
+                    <button class="keyboard-key" onclick="typeKey('Y')">Y</button>
+                    <button class="keyboard-key" onclick="typeKey('U')">U</button>
+                    <button class="keyboard-key" onclick="typeKey('I')">I</button>
+                    <button class="keyboard-key" onclick="typeKey('O')">O</button>
+                    <button class="keyboard-key" onclick="typeKey('P')">P</button>
+                </div>
+                <div class="keyboard-row">
+                    <button class="keyboard-key" onclick="typeKey('A')">A</button>
+                    <button class="keyboard-key" onclick="typeKey('S')">S</button>
+                    <button class="keyboard-key" onclick="typeKey('D')">D</button>
+                    <button class="keyboard-key" onclick="typeKey('F')">F</button>
+                    <button class="keyboard-key" onclick="typeKey('G')">G</button>
+                    <button class="keyboard-key" onclick="typeKey('H')">H</button>
+                    <button class="keyboard-key" onclick="typeKey('J')">J</button>
+                    <button class="keyboard-key" onclick="typeKey('K')">K</button>
+                    <button class="keyboard-key" onclick="typeKey('L')">L</button>
+                </div>
+                <div class="keyboard-row">
+                    <button class="keyboard-key" onclick="typeKey('Z')">Z</button>
+                    <button class="keyboard-key" onclick="typeKey('X')">X</button>
+                    <button class="keyboard-key" onclick="typeKey('C')">C</button>
+                    <button class="keyboard-key" onclick="typeKey('V')">V</button>
+                    <button class="keyboard-key" onclick="typeKey('B')">B</button>
+                    <button class="keyboard-key" onclick="typeKey('N')">N</button>
+                    <button class="keyboard-key" onclick="typeKey('M')">M</button>
+                </div>
+                <div class="keyboard-row">
+                    <button class="keyboard-key backspace" onclick="backspaceKey()">⌫ Delete</button>
+                    <button class="keyboard-key space" onclick="typeKey(' ')">Space</button>
+                    <button class="keyboard-key enter" onclick="submitSpelling()">✓ Enter</button>
+                </div>
+            </div>
+                            
+            <div style="text-align: center; margin-top: 20px;">
+                <button class="practice-btn" onclick="skipSpellingWord()" style="background: #666;">
+                    ⏭️ Skip
+                </button>
+            </div>
+                            
+            <div id="spelling-feedback" style="margin-top: 20px;"></div>
+        </div>
+    `;
+    
     document.getElementById('spelling-results').style.display = 'none';
     
     loadSpellingWord();
@@ -5407,10 +5490,11 @@ function backspaceKey() {
 async function startUnscrambleWithLevel(level) {
     selectedGameLevel = level;
     
-    // Hide level selection
+    // Hide level selection and show loading
     document.getElementById('unscramble-level-selection').style.display = 'none';
-    document.getElementById('unscramble-game').style.display = 'block';
-    document.getElementById('unscramble-game').innerHTML = '<div class="loading">📚 Loading ' + level.toUpperCase() + ' words...</div>';
+    const gameContainer = document.getElementById('unscramble-game');
+    gameContainer.innerHTML = '<div class="loading">📚 Loading ' + level.toUpperCase() + ' words...</div>';
+    gameContainer.style.display = 'block';
     
     // Load level words if not already loaded
     if (levelWords[level].length === 0) {
@@ -5423,7 +5507,7 @@ async function startUnscrambleWithLevel(level) {
     if (allWords.length < 10) {
         alert('Not enough words in this level. Try another level.');
         document.getElementById('unscramble-level-selection').style.display = 'block';
-        document.getElementById('unscramble-game').style.display = 'none';
+        gameContainer.style.display = 'none';
         return;
     }
     
@@ -5434,12 +5518,42 @@ async function startUnscrambleWithLevel(level) {
     unscrambleScore = 0;
     hintsUsed = 0;
     
-    document.getElementById('unscramble-game').style.display = 'block';
+    // Clear the loading message and restore the game UI
+    gameContainer.innerHTML = `
+        <div class="quiz-question-card">
+            <div class="quiz-score" id="unscramble-score">Score: 0 / 0</div>
+            <h3 id="unscramble-progress">Word 1 of 10</h3>
+            
+            <div style="text-align: center; margin: 30px 0;">
+                <h2 style="color: #0d3b66; margin-bottom: 20px;">Drag the letters to form the word:</h2>
+                
+                <div id="letter-tiles" class="letter-tiles-container">
+                    <!-- Letter tiles will be inserted here -->
+                </div>
+                
+                <div style="margin-top: 20px;">
+                    <button class="practice-btn" onclick="shuffleLetters()" style="font-size: 1.1rem; padding: 15px 30px; margin: 10px;">
+                        🔀 Shuffle
+                    </button>
+                    
+                    <button class="practice-btn" onclick="showUnscrambleHint()" style="font-size: 1.1rem; padding: 15px 30px; margin: 10px; background: #17a2b8;">
+                        💡 Hint
+                    </button>
+                    
+                    <button class="practice-btn" onclick="submitUnscramble()" style="font-size: 1.2rem; padding: 15px 40px; margin: 10px;">
+                        ✓ Submit Answer
+                    </button>
+                </div>
+            </div>
+            
+            <div id="unscramble-feedback" style="margin-top: 20px;"></div>
+        </div>
+    `;
+    
     document.getElementById('unscramble-results').style.display = 'none';
     
     loadUnscrambleWord();
 }
-
 function backToUnscrambleLevelSelection() {
     document.getElementById('unscramble-level-selection').style.display = 'block';
     document.getElementById('unscramble-game').style.display = 'none';
