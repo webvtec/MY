@@ -1656,6 +1656,38 @@ a[href*="whatsapp.com/channel"]:hover {
     font-weight: bold;
     margin: 15px 0;
 }  
+
+        .id-verification-pending {
+    background: #fff3cd;
+    border-left: 4px solid #ffc107;
+    padding: 15px;
+    border-radius: 5px;
+    color: #856404;
+}
+
+.id-verification-success {
+    background: #d4edda;
+    border-left: 4px solid #28a745;
+    padding: 15px;
+    border-radius: 5px;
+    color: #155724;
+}
+
+.id-verification-error {
+    background: #f8d7da;
+    border-left: 4px solid #dc3545;
+    padding: 15px;
+    border-radius: 5px;
+    color: #721c24;
+}
+
+.verification-detail {
+    margin: 8px 0;
+    padding: 8px;
+    background: rgba(255,255,255,0.5);
+    border-radius: 5px;
+    font-size: 0.9rem;
+}
     </style>
 </head>
 <body>
@@ -2064,35 +2096,64 @@ a[href*="whatsapp.com/channel"]:hover {
     <div id="signup-student-error" class="feedback error" style="display:none; margin-top:15px;"></div>
 </form>
             <!-- Sign Up Form - Coach -->
-            <form id="signup-coach-form" class="auth-form" onsubmit="handleSignUp(event, 'coach')" style="display: none;">
-                <button type="button" onclick="backToUserTypeSelection()" style="background: none; border: none; color: #0d3b66; cursor: pointer; margin-bottom: 15px; display: flex; align-items: center; gap: 5px;">
-                    ← Back to selection
-                </button>
-                
-                <h3 style="color: #0d3b66; margin-bottom: 15px; text-align: center;">👨‍🏫 Coach Sign Up</h3>
-                
-                <div class="form-group">
-                    <label>Full Name</label>
-                    <input type="text" id="signup-coach-name" required>
-                </div>
-                <div class="form-group">
-                    <label>Email</label>
-                    <input type="email" id="signup-coach-email" required>
-                </div>
-                <div class="form-group">
-                    <label>Password (min 6 characters)</label>
-                    <input type="password" id="signup-coach-password" required minlength="6">
-                </div>
-                <div class="form-group">
-                    <label>Organization/School Name (Optional)</label>
-                    <input type="text" id="signup-coach-organization">
-                </div>
-                <button type="submit" class="auth-submit">Create Coach Account</button>
-                <button type="button" class="auth-submit" onclick="signUpWithGoogle('coach')" style="background: #db4437; margin-top: 10px;">
-                    Sign Up with Google
-                </button>
-                <div id="signup-coach-error" class="feedback error" style="display:none; margin-top:15px;"></div>
-            </form>
+           <form id="signup-coach-form" class="auth-form" onsubmit="handleCoachSignUp(event)" style="display: none;">
+    <button type="button" onclick="backToUserTypeSelection()" style="background: none; border: none; color: #0d3b66; cursor: pointer; margin-bottom: 15px; display: flex; align-items: center; gap: 5px;">
+        ← Back to selection
+    </button>
+    
+    <h3 style="color: #0d3b66; margin-bottom: 15px; text-align: center;">👨‍🏫 Coach Sign Up</h3>
+    
+    <div class="form-group">
+        <label>Full Name (as shown on ID) *</label>
+        <input type="text" id="signup-coach-name" required>
+    </div>
+    <div class="form-group">
+        <label>Email *</label>
+        <input type="email" id="signup-coach-email" required>
+    </div>
+    <div class="form-group">
+        <label>Password (min 6 characters) *</label>
+        <input type="password" id="signup-coach-password" required minlength="6">
+    </div>
+    <div class="form-group">
+        <label>Date of Birth (as shown on ID) *</label>
+        <input type="date" id="signup-coach-dob" required>
+    </div>
+    <div class="form-group">
+        <label>Organization/School Name (Optional)</label>
+        <input type="text" id="signup-coach-organization">
+    </div>
+    
+    <!-- ID VERIFICATION SECTION -->
+    <div class="form-group" style="border: 2px dashed #0d3b66; padding: 20px; border-radius: 10px; background: #f9f9f9; margin-top: 20px;">
+        <label style="display: flex; align-items: center; gap: 10px; font-size: 1.1rem; color: #0d3b66; margin-bottom: 10px;">
+            🆔 ID Verification Required *
+        </label>
+        <p style="color: #666; font-size: 0.9rem; margin-bottom: 15px; line-height: 1.5;">
+            Upload a clear photo of your government-issued ID (Driver's License, Passport, or National ID). AI will verify your identity automatically.
+        </p>
+        
+        <input type="file" id="coach-id-upload" accept="image/*" capture="environment" style="display: none;" onchange="previewIDImage(event)">
+        
+        <button type="button" onclick="document.getElementById('coach-id-upload').click()" class="auth-submit" style="background: #17a2b8; margin-bottom: 15px;">
+            📸 Upload ID Photo
+        </button>
+        
+        <!-- Preview Container -->
+        <div id="id-preview-container" style="display: none; margin-top: 15px;">
+            <img id="id-preview" style="max-width: 100%; border-radius: 8px; border: 2px solid #0d3b66;">
+            <button type="button" onclick="removeIDImage()" style="margin-top: 10px; padding: 8px 15px; background: #dc3545; color: white; border: none; border-radius: 5px; cursor: pointer; width: 100%;">
+                ❌ Remove Photo
+            </button>
+        </div>
+        
+        <div id="id-verification-status" style="margin-top: 15px; display: none;"></div>
+    </div>
+    
+    <button type="submit" class="auth-submit" id="coach-submit-btn">Create Coach Account</button>
+    
+    <div id="signup-coach-error" class="feedback error" style="display:none; margin-top:15px;"></div>
+</form>
 
             <!-- Sign Up Form - Organization -->
             <form id="signup-organization-form" class="auth-form" onsubmit="handleSignUp(event, 'organization')" style="display: none;">
@@ -2631,6 +2692,8 @@ let currentUnscrambleWord = '';
 let currentLetterOrder = [];
 let hintsUsed = 0;
 let draggedElement = null;
+let coachIDImage = null;
+let idVerificationResult = null;
         
         // ===== INITIALIZE =====
         document.addEventListener('DOMContentLoaded', function() {
@@ -6275,6 +6338,246 @@ function restartUnscrambleSection() {
     document.getElementById('unscramble-level-selection').style.display = 'block';
     selectedGameLevel = '';
 }
+
+
+
+// Preview ID image
+function previewIDImage(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+        alert('File size must be less than 5MB');
+        return;
+    }
+    
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+        alert('Please upload an image file');
+        return;
+    }
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        coachIDImage = e.target.result;
+        document.getElementById('id-preview').src = coachIDImage;
+        document.getElementById('id-preview-container').style.display = 'block';
+        
+        // Reset verification status
+        document.getElementById('id-verification-status').style.display = 'none';
+        idVerificationResult = null;
+    };
+    reader.readAsDataURL(file);
+}
+
+// Remove ID image
+function removeIDImage() {
+    coachIDImage = null;
+    idVerificationResult = null;
+    document.getElementById('coach-id-upload').value = '';
+    document.getElementById('id-preview-container').style.display = 'none';
+    document.getElementById('id-verification-status').style.display = 'none';
+}
+
+// Verify ID with OpenAI
+async function verifyCoachID(name, dob) {
+    if (!coachIDImage) {
+        throw new Error('Please upload your ID photo');
+    }
+    
+    const statusDiv = document.getElementById('id-verification-status');
+    statusDiv.style.display = 'block';
+    statusDiv.className = 'id-verification-pending';
+    statusDiv.innerHTML = `
+        <div style="text-align: center;">
+            <div style="font-size: 2rem; margin-bottom: 10px;">🔍</div>
+            <strong>Verifying ID...</strong>
+            <p style="margin-top: 8px;">AI is analyzing your ID document. This may take 10-20 seconds.</p>
+        </div>
+    `;
+    
+    try {
+        // Extract base64 data (remove data:image/...;base64, prefix)
+        const base64Data = coachIDImage.split(',')[1];
+        
+        const response = await fetch(CLOUD_FUNCTION_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                data: {
+                    action: 'verifyID',
+                    imageBase64: base64Data,
+                    userName: name,
+                    userDOB: dob
+                }
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to verify ID');
+        }
+        
+        const data = await response.json();
+        idVerificationResult = data.result;
+        
+        // Display verification result
+        if (idVerificationResult.approved) {
+            statusDiv.className = 'id-verification-success';
+            statusDiv.innerHTML = `
+                <div>
+                    <div style="font-size: 2rem; margin-bottom: 10px;">✅</div>
+                    <strong>ID Verification Successful!</strong>
+                    <div class="verification-detail">
+                        <strong>📝 Name Match:</strong> ${idVerificationResult.nameMatch ? '✅ Verified' : '❌ Mismatch'}
+                    </div>
+                    <div class="verification-detail">
+                        <strong>🎂 DOB Match:</strong> ${idVerificationResult.dobMatch ? '✅ Verified' : '❌ Mismatch'}
+                    </div>
+                    <div class="verification-detail">
+                        <strong>🆔 ID Type:</strong> ${idVerificationResult.idType}
+                    </div>
+                    <div class="verification-detail">
+                        <strong>👤 Age:</strong> ${idVerificationResult.age} years old
+                    </div>
+                    <div class="verification-detail">
+                        <strong>🎯 Confidence:</strong> ${idVerificationResult.confidence}%
+                    </div>
+                    <p style="margin-top: 10px; color: #155724; font-weight: bold;">
+                        Your identity has been verified. You may now create your account.
+                    </p>
+                </div>
+            `;
+            return idVerificationResult;
+        } else {
+            statusDiv.className = 'id-verification-error';
+            statusDiv.innerHTML = `
+                <div>
+                    <div style="font-size: 2rem; margin-bottom: 10px;">❌</div>
+                    <strong>ID Verification Failed</strong>
+                    ${idVerificationResult.issues && idVerificationResult.issues.length > 0 ? `
+                        <div style="margin-top: 10px;">
+                            <strong>Issues Found:</strong>
+                            <ul style="margin: 10px 0; padding-left: 20px;">
+                                ${idVerificationResult.issues.map(issue => `<li>${issue}</li>`).join('')}
+                            </ul>
+                        </div>
+                    ` : ''}
+                    <div class="verification-detail">
+                        <strong>Name Match:</strong> ${idVerificationResult.nameMatch ? '✅' : '❌'} ${idVerificationResult.nameMatch ? 'Verified' : 'Name does not match'}
+                    </div>
+                    <div class="verification-detail">
+                        <strong>DOB Match:</strong> ${idVerificationResult.dobMatch ? '✅' : '❌'} ${idVerificationResult.dobMatch ? 'Verified' : 'Date of birth does not match'}
+                    </div>
+                    ${idVerificationResult.age < 16 ? `
+                        <div class="verification-detail" style="background: #f8d7da; color: #721c24;">
+                            <strong>⚠️ Age Requirement:</strong> You must be at least 16 years old to be a coach.
+                        </div>
+                    ` : ''}
+                    <div class="verification-detail">
+                        <strong>Confidence:</strong> ${idVerificationResult.confidence}%
+                    </div>
+                    <p style="margin-top: 10px; font-weight: bold;">
+                        Please ensure:
+                        <ul style="margin: 8px 0; padding-left: 20px;">
+                            <li>Your ID is clear and readable</li>
+                            <li>Name matches exactly as on your ID</li>
+                            <li>Date of birth is correct</li>
+                            <li>You are at least 16 years old</li>
+                            <li>ID is not expired</li>
+                        </ul>
+                    </p>
+                </div>
+            `;
+            throw new Error('ID verification failed');
+        }
+    } catch (error) {
+        statusDiv.className = 'id-verification-error';
+        statusDiv.innerHTML = `
+            <div>
+                <div style="font-size: 2rem; margin-bottom: 10px;">❌</div>
+                <strong>Verification Error</strong>
+                <p style="margin-top: 10px;">${error.message}</p>
+                <p style="margin-top: 10px; font-size: 0.9rem;">
+                    Please try again or contact support if the problem persists.
+                </p>
+            </div>
+        `;
+        throw error;
+    }
+}
+
+// Handle coach signup with ID verification
+async function handleCoachSignUp(event) {
+    event.preventDefault();
+    
+    const name = document.getElementById('signup-coach-name').value.trim();
+    const email = document.getElementById('signup-coach-email').value;
+    const password = document.getElementById('signup-coach-password').value;
+    const dob = document.getElementById('signup-coach-dob').value;
+    const organization = document.getElementById('signup-coach-organization').value;
+    const errorDiv = document.getElementById('signup-coach-error');
+    const submitBtn = document.getElementById('coach-submit-btn');
+    
+    // Validate ID upload
+    if (!coachIDImage) {
+        errorDiv.textContent = 'Please upload your ID photo for verification';
+        errorDiv.style.display = 'block';
+        return;
+    }
+    
+    // Disable submit button
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Verifying ID...';
+    
+    try {
+        // Step 1: Verify ID
+        const verificationResult = await verifyCoachID(name, dob);
+        
+        if (!verificationResult.approved) {
+            throw new Error('ID verification failed. Please check the issues above.');
+        }
+        
+        submitBtn.textContent = 'Creating Account...';
+        
+        // Step 2: Create Firebase Auth account
+        const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+        await userCredential.user.updateProfile({ displayName: name });
+        
+        // Step 3: Store user data in Firestore with verification details
+        await db.collection('users').doc(userCredential.user.uid).set({
+            name: name,
+            email: email,
+            dateOfBirth: dob,
+            organization: organization || '',
+            userType: 'coach',
+            profileComplete: true,
+            idVerified: true,
+            idVerificationData: {
+                idType: verificationResult.idType,
+                verifiedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                confidence: verificationResult.confidence,
+                age: verificationResult.age
+            },
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        // Success!
+        closeAuthModal();
+        errorDiv.style.display = 'none';
+        alert(`✅ Welcome, ${name}! Your coach account has been created and verified successfully.`);
+        
+    } catch (error) {
+        console.error('Coach signup error:', error);
+        errorDiv.textContent = error.message;
+        errorDiv.style.display = 'block';
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Create Coach Account';
+    }
+}
+
+
     </script>
 </body>
 </html>
