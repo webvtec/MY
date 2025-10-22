@@ -3413,7 +3413,7 @@ auth.onAuthStateChanged(async user => {
 });
     });
         
-     // ===== NAVIGATION =====
+    // ===== NAVIGATION =====
 async function navigateTo(section, skipSidebarClose = false) {
     // Check if user needs to be logged in
     if ((section === 'favorites' || section === 'incorrect-quiz' || 
@@ -3475,11 +3475,11 @@ async function navigateTo(section, skipSidebarClose = false) {
     if (section === 'coaches') {
         loadAndDisplayCoaches();
     }
-
+    
     // Load students section
-if (section === 'students') {
-    loadAndDisplayStudents();
-}
+    if (section === 'students') {
+        loadAndDisplayStudents();
+    }
     
     // Load dashboard when navigating to it
     if (section === 'student-dashboard' && currentUser) {
