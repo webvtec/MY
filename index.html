@@ -7463,7 +7463,7 @@ function restartUnscrambleSection() {
     selectedGameLevel = '';
 }
 
-  // ===== COACHES DISPLAY FUNCTIONS =====
+   // ===== COACHES DISPLAY FUNCTIONS =====
 async function loadAndDisplayCoaches() {
     const container = document.getElementById('coaches-container');
     
@@ -7532,7 +7532,7 @@ async function loadAndDisplayCoaches() {
                     </thead>
                     <tbody>
                         ${coaches.map(coach => `
-                           <tr onclick="showCoachDetailById('${coach.id}')" style="cursor: pointer;">
+                            <tr onclick="showCoachDetailById('${coach.id}')" style="cursor: pointer;">
                                 <td>
                                     <div class="coach-profile-cell">
                                         <div class="coach-avatar">${(coach.name || 'C').charAt(0).toUpperCase()}</div>
@@ -7574,80 +7574,8 @@ async function loadAndDisplayCoaches() {
     }
 }
 
-// Show coach detail modal
-function showCoachDetail(coach) {
-    const modal = document.getElementById('coachDetailModal');
-    
-    // Update avatar
-    const avatar = document.getElementById('modal-coach-avatar');
-    avatar.textContent = (coach.name || 'C').charAt(0).toUpperCase();
-    
-    // Update name
-    document.getElementById('modal-coach-name').textContent = coach.name || 'Unknown Coach';
-    
-    // Update status badge
-    const statusBadge = document.getElementById('modal-coach-status');
-    if (coach.idVerified) {
-        statusBadge.className = 'status-badge verified';
-        statusBadge.textContent = '✅ Verified';
-    } else {
-        statusBadge.className = 'status-badge pending';
-        statusBadge.textContent = '⏳ Pending Verification';
-    }
-    
-    // Update email
-    document.getElementById('modal-coach-email').textContent = coach.email || 'N/A';
-    
-    // Update organization
-    document.getElementById('modal-coach-organization').textContent = coach.organization || 'Independent';
-    
-    // Update joined date
-    if (coach.createdAt) {
-        const joinDate = new Date(coach.createdAt.toDate());
-        document.getElementById('modal-coach-joined').textContent = 
-            joinDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-    } else {
-        document.getElementById('modal-coach-joined').textContent = 'Recently';
-    }
-    
-    // Update verification info
-    if (coach.idVerified) {
-        const verificationText = coach.idDocumentType ? 
-            `ID Verified (${coach.idDocumentType})` : 
-            'ID Verified';
-        document.getElementById('modal-coach-verification').textContent = verificationText;
-    } else {
-        document.getElementById('modal-coach-verification').textContent = 'Pending Verification';
-    }
-    
-    // Show/hide age if available
-    const ageRow = document.getElementById('modal-coach-age-row');
-    if (coach.verifiedAge) {
-        ageRow.style.display = 'flex';
-        document.getElementById('modal-coach-age').textContent = coach.verifiedAge + ' years old';
-    } else {
-        ageRow.style.display = 'none';
-    }
-    
-    // Show modal
-    modal.classList.add('active');
-}
-
-// Close coach detail modal
-function closeCoachDetailModal() {
-    document.getElementById('coachDetailModal').classList.remove('active');
-}
-
-// Close modal when clicking outside
-document.addEventListener('click', function(event) {
-    const modal = document.getElementById('coachDetailModal');
-    if (event.target === modal) {
-        closeCoachDetailModal();
-    }
-});
-
-
-      async function showCoachDetailById(coachId) {
+// Load and show coach profile page
+async function showCoachDetailById(coachId) {
     try {
         const coachDoc = await db.collection('users').doc(coachId).get();
         if (coachDoc.exists) {
@@ -7658,7 +7586,61 @@ document.addEventListener('click', function(event) {
         console.error('Error loading coach details:', error);
         alert('Unable to load coach details');
     }
-}  
+}
+
+// Display coach profile page
+function showCoachDetail(coach) {
+    // Navigate to coach profile view section
+    navigateTo('coach-profile-view');
+    
+    // Update avatar
+    const avatar = document.getElementById('coach-view-avatar');
+    avatar.textContent = (coach.name || 'C').charAt(0).toUpperCase();
+    
+    // Update name and email
+    document.getElementById('coach-view-name').textContent = coach.name || 'Unknown Coach';
+    document.getElementById('coach-view-email').textContent = coach.email || 'N/A';
+    document.getElementById('coach-view-email-field').textContent = coach.email || 'N/A';
+    
+    // Update status badge
+    const statusElement = document.getElementById('coach-view-status');
+    if (coach.idVerified) {
+        statusElement.innerHTML = '<span style="background: #d4edda; color: #155724; padding: 8px 20px; border-radius: 25px; font-weight: bold;">✅ Verified Coach</span>';
+    } else {
+        statusElement.innerHTML = '<span style="background: #fff3cd; color: #856404; padding: 8px 20px; border-radius: 25px; font-weight: bold;">⏳ Pending Verification</span>';
+    }
+    
+    // Update organization
+    document.getElementById('coach-view-organization').textContent = coach.organization || 'Independent';
+    
+    // Update verification info
+    if (coach.idVerified) {
+        const verificationText = coach.idDocumentType ? 
+            `✅ ID Verified (${coach.idDocumentType})` : 
+            '✅ ID Verified';
+        document.getElementById('coach-view-verification').textContent = verificationText;
+    } else {
+        document.getElementById('coach-view-verification').textContent = '⏳ Pending Verification';
+    }
+    
+    // Show/hide age if available
+    const ageField = document.getElementById('coach-view-age-field');
+    if (coach.verifiedAge) {
+        ageField.style.display = 'flex';
+        document.getElementById('coach-view-age').textContent = coach.verifiedAge + ' years old';
+    } else {
+        ageField.style.display = 'none';
+    }
+    
+    // Update joined date
+    if (coach.createdAt) {
+        const joinDate = coach.createdAt.toDate();
+        document.getElementById('coach-view-joined').textContent = 
+            joinDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    } else {
+        document.getElementById('coach-view-joined').textContent = 'Recently joined';
+    }
+}
     </script>
 </body>
 </html>
