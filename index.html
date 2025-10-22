@@ -7781,6 +7781,7 @@ document.addEventListener('click', function(event) {
 });
 
       // ===== STUDENTS DISPLAY FUNCTIONS =====
+// ===== STUDENTS DISPLAY FUNCTIONS =====
 async function loadAndDisplayStudents() {
     const container = document.getElementById('students-container');
     
@@ -7821,28 +7822,16 @@ async function loadAndDisplayStudents() {
             return b.createdAt.toDate() - a.createdAt.toDate();
         });
         
-        // Calculate stats
+        // Calculate total students
         const totalStudents = students.length;
-        const countries = [...new Set(students.filter(s => s.country).map(s => s.country))].length;
-        const avgAge = students.filter(s => s.age).length > 0 
-            ? Math.round(students.filter(s => s.age).reduce((sum, s) => sum + (s.age || 0), 0) / students.filter(s => s.age).length)
-            : 0;
         
         // Display stats and table
         container.innerHTML = `
-            <!-- Stats Cards -->
+            <!-- Stats Card -->
             <div class="coach-stats">
                 <div class="coach-stat-card">
                     <div class="stat-number">${totalStudents}</div>
                     <div class="stat-label">Total Students</div>
-                </div>
-                <div class="coach-stat-card">
-                    <div class="stat-number">${countries}</div>
-                    <div class="stat-label">Countries</div>
-                </div>
-                <div class="coach-stat-card">
-                    <div class="stat-number">${avgAge || 'N/A'}</div>
-                    <div class="stat-label">Average Age</div>
                 </div>
             </div>
             
@@ -7853,8 +7842,6 @@ async function loadAndDisplayStudents() {
                         <tr>
                             <th>🎓 Student</th>
                             <th>🆔 Student ID</th>
-                            <th>🌍 Country</th>
-                            <th>📅 Member Since</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -7875,15 +7862,6 @@ async function loadAndDisplayStudents() {
                                 avatarText = initial;
                             }
                             
-                            // Format join date
-                            let joinDate = 'Recently';
-                            if (student.createdAt) {
-                                joinDate = student.createdAt.toDate().toLocaleDateString('en-US', { 
-                                    year: 'numeric', 
-                                    month: 'short'
-                                });
-                            }
-                            
                             return `
                                 <tr onclick="showStudentDetailById('${student.id}')" style="cursor: pointer;">
                                     <td>
@@ -7897,8 +7875,6 @@ async function loadAndDisplayStudents() {
                                             ${studentId}
                                         </span>
                                     </td>
-                                    <td>${student.country || 'N/A'}</td>
-                                    <td>${joinDate}</td>
                                 </tr>
                             `;
                         }).join('')}
@@ -7911,7 +7887,7 @@ async function loadAndDisplayStudents() {
                 <p style="color: rgba(255,255,255,0.95); line-height: 1.6;">
                     Our students are learning from coaches around the world, building vocabulary skills 
                     through interactive quizzes, spelling challenges, and personalized practice sessions.
-                    Click on any student to view their profile.
+                    Click on any student to view their full profile.
                 </p>
             </div>
         `;
@@ -7929,7 +7905,7 @@ async function loadAndDisplayStudents() {
         `;
     }
 }
-
+        
 // Load and show student profile modal
 async function showStudentDetailById(studentId) {
     try {
