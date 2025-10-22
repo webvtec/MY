@@ -2067,9 +2067,10 @@ a[href*="whatsapp.com/channel"]:hover {
 
 .coach-info-row {
     display: flex;
-    padding: 15px 0;
-    border-bottom: 1px solid #f0f0f0;
     align-items: center;
+    padding: 8px 0; /* ✅ Reduced vertical spacing */
+    border-bottom: 1px solid #f0f0f0;
+    gap: 10px; /* ✅ Controls horizontal space between label and value */
 }
 
 .coach-info-row:last-child {
@@ -2080,16 +2081,17 @@ a[href*="whatsapp.com/channel"]:hover {
     font-weight: bold;
     color: #0d3b66;
     font-size: 1rem;
-    min-width: 140px;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px; /* ✅ Space between emoji and text */
+    white-space: nowrap; /* ✅ Keeps label on one line */
 }
 
 .coach-info-value {
     flex: 1;
     color: #333;
     font-size: 1rem;
+    word-break: break-word;
 }
 
 .coach-verification-notice {
@@ -2156,13 +2158,14 @@ a[href*="whatsapp.com/channel"]:hover {
     .coach-info-row {
         flex-direction: column;
         align-items: flex-start;
-        gap: 8px;
+        gap: 5px; /* ✅ Smaller gap on mobile */
     }
     
     .coach-info-label {
-        min-width: auto;
+        width: 100%; /* ✅ Full width on mobile */
     }
-}  
+}
+
     </style>
 </head>
 <body>
