@@ -3289,8 +3289,12 @@ auth.onAuthStateChanged(async user => {
     if (user) {
         currentUser = user;
         
+        console.log('👤 User signed in:', user.email);
+        console.log('🖼️ Auth photoURL:', user.photoURL);
+        
         // Check if profile is complete
-        const userDoc = await db.collection('users').doc(user.uid).get();
+        const userRef = db.collection('users').doc(user.uid);
+        const userDoc = await userRef.get();
         
         if (!userDoc.exists) {
             // User authenticated but no Firestore doc - sign them out
@@ -3300,6 +3304,16 @@ auth.onAuthStateChanged(async user => {
         }
         
         const userData = userDoc.data();
+        console.log('📄 Firestore photoURL:', userData.photoURL);
+        
+        // ✅ AUTO-SYNC: If Firebase Auth has photoURL but Firestore doesn't, update it
+        if (user.photoURL && !userData.photoURL) {
+            console.log('🔄 Syncing photoURL to Firestore...');
+            await userRef.update({
+                photoURL: user.photoURL
+            });
+            console.log('✅ PhotoURL synced!');
+        }
         
         if (!userData.profileComplete) {
             // Force verification modal
@@ -3329,7 +3343,7 @@ auth.onAuthStateChanged(async user => {
         updateUIForGuestUser();
     }
 });
-        });
+    });
         
      // ===== NAVIGATION =====
 async function navigateTo(section, skipSidebarClose = false) {
@@ -7708,53 +7722,7 @@ document.addEventListener('click', function(event) {
     }
 });
 
-     // ===== ONE-TIME MIGRATION: Update existing users with photoURL =====
-async function migrateUserPhotoURLs() {
-    console.log('🔄 Starting photoURL migration...');
-    
-    try {
-        // Get all users from Firestore
-        const usersSnapshot = await db.collection('users').get();
-        
-        let updated = 0;
-        let skipped = 0;
-        let errors = 0;
-        
-        const updatePromises = [];
-        
-        usersSnapshot.forEach(doc => {
-            const userId = doc.id;
-            const userData = doc.data();
-            
-            // Check if user already has photoURL in Firestore
-            if (userData.photoURL) {
-                console.log(`⏭️ Skipping ${userData.name} - already has photoURL`);
-                skipped++;
-                return;
-            }
-            
-            // Get the user from Firebase Auth
-            const updatePromise = auth.app.firestore().collection('users').doc(userId).get()
-                .then(() => {
-                    // We need to get photoURL from Firebase Auth
-                    // Since we can't directly access other users' auth data from client,
-                    // we'll update when they next sign in
-                    console.log(`📝 Marked ${userData.name} for update on next sign-in`);
-                });
-            
-            updatePromises.push(updatePromise);
-        });
-        
-        await Promise.all(updatePromises);
-        
-        console.log(`✅ Migration complete: ${updated} updated, ${skipped} skipped, ${errors} errors`);
-        alert(`Migration complete!\nUpdated: ${updated}\nSkipped: ${skipped}\nErrors: ${errors}`);
-        
-    } catch (error) {
-        console.error('❌ Migration error:', error);
-        alert('Migration failed: ' + error.message);
-    }
-}   
+      
     </script>
 </body>
 </html>
