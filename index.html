@@ -4397,10 +4397,11 @@ async function signInWithGoogle() {
         const userDoc = await userRef.get();
         
         if (!userDoc.exists) {
-            // New Google user - create incomplete profile
+            // ✅ NOW SAVING photoURL
             await userRef.set({
                 name: user.displayName,
                 email: user.email,
+                photoURL: user.photoURL || null, // ✅ ADD THIS
                 userType: 'student',
                 profileComplete: false,
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -4428,18 +4429,19 @@ async function signInWithGoogle() {
         document.getElementById('signin-error').style.display = 'block';
     }
 }
-
+        
 async function signUpWithGoogle(userType) {
     const provider = new firebase.auth.GoogleAuthProvider();
     try {
         const result = await auth.signInWithPopup(provider);
         const user = result.user;
         
-        // Create user document with specified type (incomplete profile)
+        // ✅ NOW SAVING photoURL
         const userRef = db.collection('users').doc(user.uid);
         await userRef.set({
             name: user.displayName,
             email: user.email,
+            photoURL: user.photoURL || null, // ✅ ADD THIS
             userType: userType,
             profileComplete: false,
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -4864,13 +4866,20 @@ async function handleVerification(event) {
     }
     
     try {
-        // Update Firestore
-        await db.collection('users').doc(currentUser.uid).update({
+        // ✅ Update Firestore - PRESERVE photoURL
+        const updateData = {
             name: name,
             age: parseInt(age),
             country: country,
             profileComplete: true
-        });
+        };
+        
+        // Only add photoURL if it exists (don't overwrite with null)
+        if (currentUser.photoURL) {
+            updateData.photoURL = currentUser.photoURL;
+        }
+        
+        await db.collection('users').doc(currentUser.uid).update(updateData);
         
         // Update Firebase Auth profile
         await currentUser.updateProfile({ displayName: name });
@@ -4879,9 +4888,9 @@ async function handleVerification(event) {
         closeVerificationModal();
         
         if (isCoachVerification) {
-            alert('Profile and ID verification completed successfully! Welcome to WordBiz Coaching Academy!');
+            alert('✅ Profile and ID verification completed successfully! Welcome to WordBiz Coaching Academy!');
         } else {
-            alert('Profile completed successfully! Welcome to WordBiz Coaching Academy!');
+            alert('✅ Profile completed successfully! Welcome to WordBiz Coaching Academy!');
         }
         
         // Refresh UI
@@ -4892,6 +4901,7 @@ async function handleVerification(event) {
         errorDiv.style.display = 'block';
     }
 }
+        
         
         function updateUIForAuthenticatedUser(user) {
     const displayName = user.displayName || user.email.split('@')[0];
