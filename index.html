@@ -1656,6 +1656,181 @@ a[href*="whatsapp.com/channel"]:hover {
     font-weight: bold;
     margin: 15px 0;
 }  
+
+        /* ID Verification Styles */
+.id-verification-section {
+    display: none;
+    margin-top: 30px;
+    padding: 25px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 15px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+}
+
+.id-verification-section.show {
+    display: block;
+}
+
+.id-verification-section h3 {
+    color: white;
+    margin-bottom: 15px;
+    font-size: 1.3rem;
+}
+
+.id-verification-section p {
+    color: rgba(255,255,255,0.9);
+    margin-bottom: 20px;
+    line-height: 1.6;
+}
+
+.id-upload-area {
+    background: rgba(255,255,255,0.95);
+    border: 3px dashed #667eea;
+    border-radius: 12px;
+    padding: 30px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s;
+    position: relative;
+}
+
+.id-upload-area:hover {
+    background: white;
+    border-color: #764ba2;
+    transform: translateY(-2px);
+}
+
+.id-upload-area.drag-over {
+    background: #e3f2fd;
+    border-color: #2196F3;
+}
+
+.id-upload-icon {
+    font-size: 3rem;
+    margin-bottom: 15px;
+    color: #667eea;
+}
+
+.id-upload-text {
+    font-size: 1.1rem;
+    color: #0d3b66;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+.id-upload-hint {
+    font-size: 0.9rem;
+    color: #666;
+}
+
+.id-preview-container {
+    margin-top: 20px;
+    display: none;
+}
+
+.id-preview-container.show {
+    display: block;
+}
+
+.id-preview-image {
+    max-width: 100%;
+    max-height: 300px;
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    margin-bottom: 15px;
+}
+
+.id-verification-status {
+    margin-top: 20px;
+    padding: 15px;
+    border-radius: 8px;
+    display: none;
+}
+
+.id-verification-status.show {
+    display: block;
+}
+
+.id-verification-status.verifying {
+    background: #fff3cd;
+    border-left: 4px solid #ffc107;
+    color: #856404;
+}
+
+.id-verification-status.success {
+    background: #d4edda;
+    border-left: 4px solid #28a745;
+    color: #155724;
+}
+
+.id-verification-status.error {
+    background: #f8d7da;
+    border-left: 4px solid #dc3545;
+    color: #721c24;
+}
+
+.verification-spinner {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 3px solid rgba(0,0,0,0.1);
+    border-top-color: #856404;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-right: 10px;
+    vertical-align: middle;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.id-requirements {
+    background: rgba(255,255,255,0.15);
+    padding: 15px;
+    border-radius: 8px;
+    margin-top: 15px;
+}
+
+.id-requirements ul {
+    list-style: none;
+    padding: 0;
+    margin: 10px 0 0 0;
+}
+
+.id-requirements li {
+    color: white;
+    padding: 5px 0;
+    padding-left: 25px;
+    position: relative;
+}
+
+.id-requirements li:before {
+    content: "✓";
+    position: absolute;
+    left: 0;
+    color: #FFD700;
+    font-weight: bold;
+}
+
+#verify-id-file {
+    display: none;
+}
+
+.btn-change-id {
+    background: #dc3545;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+    margin-top: 10px;
+}
+
+.btn-change-id:hover {
+    background: #c82333;
+}
     </style>
 </head>
 <body>
@@ -1937,10 +2112,44 @@ a[href*="whatsapp.com/channel"]:hover {
                         <option value="Other">Other</option>
                     </select>
                 </div>
+
+                <!-- ID Verification Section for Coaches ONLY -->
+                <div class="id-verification-section" id="coachIdVerification">
+                    <h3>🆔 Coach ID Verification Required</h3>
+                    <p>For the safety of our students, all coaches must verify their identity with a government-issued ID.</p>
+                    
+                    <div class="id-requirements">
+                        <strong style="color: white;">Accepted Documents:</strong>
+                        <ul>
+                            <li>Driver's License</li>
+                            <li>Passport</li>
+                            <li>National ID Card</li>
+                        </ul>
+                        <p style="margin-top: 10px; font-size: 0.9rem; color: rgba(255,255,255,0.9);">
+                            ✓ Must be at least 16 years old<br>
+                            ✓ Name must match your profile<br>
+                            ✓ Document must be valid and unaltered<br>
+                            🔒 Your ID photo is never stored - only verification status
+                        </p>
+                    </div>
+
+                    <div class="id-upload-area" id="idUploadArea" onclick="document.getElementById('verify-id-file').click()">
+                        <div class="id-upload-icon">📷</div>
+                        <div class="id-upload-text">Click or Drag to Upload ID</div>
+                        <div class="id-upload-hint">Supported: JPG, PNG, PDF (Max 10MB)</div>
+                        <input type="file" id="verify-id-file" accept="image/*,.pdf" onchange="handleIDUpload(event)">
+                    </div>
+
+                    <div class="id-preview-container" id="idPreviewContainer">
+                        <img id="idPreviewImage" class="id-preview-image" alt="ID Preview">
+                        <button type="button" class="btn-change-id" onclick="changeIDPhoto()">Change Photo</button>
+                    </div>
+
+                    <div class="id-verification-status" id="idVerificationStatus"></div>
+                </div>
                 
-                <button type="submit" class="auth-submit">✅ Complete Profile</button>
+                <button type="submit" class="auth-submit" id="completeProfileBtn">✅ Complete Profile</button>
                 
-                <!-- NEW: Sign Out Button -->
                 <button type="button" class="auth-submit" onclick="signOutAndSwitchAccount()" 
                         style="background: #6c757d; margin-top: 10px;">
                     🔄 Sign Out & Use Different Account
@@ -2631,7 +2840,14 @@ let currentUnscrambleWord = '';
 let currentLetterOrder = [];
 let hintsUsed = 0;
 let draggedElement = null;
-        
+
+
+
+// ID Verification variables
+let uploadedIDFile = null;
+let uploadedIDBase64 = null;
+let isCoachVerification = false;
+let idVerificationPassed = false;
         // ===== INITIALIZE =====
         document.addEventListener('DOMContentLoaded', function() {
             initializeAlphabet();
@@ -3910,6 +4126,339 @@ async function handleVerification(event) {
             console.error('Error signing out:', error);
             alert('Failed to sign out: ' + error.message);
         }
+    }
+}
+
+        // ===== ID VERIFICATION FUNCTIONS =====
+
+function showVerificationModal(userData) {
+    const modal = document.getElementById('verificationModal');
+    const idSection = document.getElementById('coachIdVerification');
+    const completeBtn = document.getElementById('completeProfileBtn');
+    
+    // Pre-fill any existing data
+    if (userData.name) {
+        document.getElementById('verify-name').value = userData.name;
+    }
+    if (userData.age) {
+        document.getElementById('verify-age').value = userData.age;
+    }
+    if (userData.country) {
+        document.getElementById('verify-country').value = userData.country;
+    }
+    
+    // Check if this is a coach
+    isCoachVerification = (userData.userType === 'coach');
+    
+    if (isCoachVerification) {
+        idSection.classList.add('show');
+        completeBtn.textContent = '⏳ Upload ID to Continue';
+        completeBtn.disabled = true;
+    } else {
+        idSection.classList.remove('show');
+        completeBtn.textContent = '✅ Complete Profile';
+        completeBtn.disabled = false;
+    }
+    
+    // Reset ID verification state
+    uploadedIDFile = null;
+    uploadedIDBase64 = null;
+    idVerificationPassed = false;
+    document.getElementById('idPreviewContainer').classList.remove('show');
+    document.getElementById('idVerificationStatus').classList.remove('show');
+    
+    modal.classList.add('active');
+}
+
+// Handle ID file upload
+function handleIDUpload(event) {
+    const file = event.target.files[0];
+    
+    if (!file) return;
+    
+    // Validate file size (10MB max)
+    if (file.size > 10 * 1024 * 1024) {
+        alert('File is too large. Maximum size is 10MB.');
+        return;
+    }
+    
+    // Validate file type
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
+    if (!validTypes.includes(file.type)) {
+        alert('Invalid file type. Please upload JPG, PNG, or PDF.');
+        return;
+    }
+    
+    uploadedIDFile = file;
+    
+    // Convert to base64 for preview and API
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        uploadedIDBase64 = e.target.result.split(',')[1]; // Remove data:image/jpeg;base64, prefix
+        
+        // Show preview for images only
+        if (file.type.startsWith('image/')) {
+            document.getElementById('idPreviewImage').src = e.target.result;
+            document.getElementById('idPreviewContainer').classList.add('show');
+        } else {
+            document.getElementById('idPreviewContainer').classList.remove('show');
+        }
+        
+        // Automatically start verification
+        verifyIDWithAI();
+    };
+    reader.readAsDataURL(file);
+}
+
+// Drag and drop support
+document.addEventListener('DOMContentLoaded', function() {
+    const uploadArea = document.getElementById('idUploadArea');
+    
+    if (uploadArea) {
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, preventDefaults, false);
+        });
+        
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        
+        ['dragenter', 'dragover'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, () => {
+                uploadArea.classList.add('drag-over');
+            }, false);
+        });
+        
+        ['dragleave', 'drop'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, () => {
+                uploadArea.classList.remove('drag-over');
+            }, false);
+        });
+        
+        uploadArea.addEventListener('drop', function(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            
+            if (files.length > 0) {
+                document.getElementById('verify-id-file').files = files;
+                handleIDUpload({ target: { files: files } });
+            }
+        }, false);
+    }
+});
+
+function changeIDPhoto() {
+    document.getElementById('verify-id-file').value = '';
+    document.getElementById('idPreviewContainer').classList.remove('show');
+    document.getElementById('idVerificationStatus').classList.remove('show');
+    uploadedIDFile = null;
+    uploadedIDBase64 = null;
+    idVerificationPassed = false;
+    document.getElementById('completeProfileBtn').disabled = true;
+    document.getElementById('completeProfileBtn').textContent = '⏳ Upload ID to Continue';
+}
+
+// Verify ID using AI
+async function verifyIDWithAI() {
+    if (!uploadedIDBase64) {
+        alert('Please upload an ID first');
+        return;
+    }
+    
+    const statusDiv = document.getElementById('idVerificationStatus');
+    const completeBtn = document.getElementById('completeProfileBtn');
+    const coachName = document.getElementById('verify-name').value.trim();
+    
+    if (!coachName) {
+        alert('Please enter your full name first');
+        return;
+    }
+    
+    // Show verifying status
+    statusDiv.className = 'id-verification-status verifying show';
+    statusDiv.innerHTML = `
+        <div class="verification-spinner"></div>
+        <strong>Verifying your ID...</strong>
+        <p style="margin-top: 8px;">This may take 10-20 seconds. Please wait...</p>
+    `;
+    
+    completeBtn.disabled = true;
+    completeBtn.textContent = '⏳ Verifying ID...';
+    
+    try {
+        // Call your Cloud Run function
+        const response = await fetch(CLOUD_FUNCTION_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                data: {
+                    action: 'verifyCoachID',
+                    imageBase64: uploadedIDBase64,
+                    coachName: coachName,
+                    userId: currentUser.uid
+                }
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`Verification failed: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        const result = data.result;
+        
+        console.log('Verification result:', result);
+        
+        if (result.isValid && result.isOver16 && !result.documentAppearsTampered) {
+            // Success
+            idVerificationPassed = true;
+            statusDiv.className = 'id-verification-status success show';
+            statusDiv.innerHTML = `
+                <strong>✅ ID Verified Successfully!</strong>
+                <p style="margin-top: 8px;">
+                    <strong>Document:</strong> ${result.documentType}<br>
+                    <strong>Name:</strong> ${result.fullName}<br>
+                    <strong>Age:</strong> ${result.age} years old<br>
+                    <strong>Status:</strong> ${result.reason}
+                </p>
+                <p style="margin-top: 10px; font-size: 0.9rem; font-style: italic;">
+                    🔒 Your ID photo has not been stored. Only verification status is saved.
+                </p>
+            `;
+            
+            completeBtn.disabled = false;
+            completeBtn.textContent = '✅ Complete Profile';
+            
+            // Store verification result in Firestore (without the image)
+            await db.collection('users').doc(currentUser.uid).update({
+                idVerified: true,
+                idVerificationDate: firebase.firestore.FieldValue.serverTimestamp(),
+                idDocumentType: result.documentType,
+                idVerificationConfidence: result.confidence,
+                verifiedAge: result.age
+            });
+            
+        } else {
+            // Verification failed
+            idVerificationPassed = false;
+            statusDiv.className = 'id-verification-status error show';
+            
+            let errorMessage = result.reason || 'Verification failed';
+            
+            if (!result.isValid) {
+                errorMessage = '❌ Invalid or unrecognized document. Please upload a clear photo of your Driver\'s License, Passport, or National ID.';
+            } else if (!result.isOver16) {
+                errorMessage = '❌ You must be at least 16 years old to register as a coach.';
+            } else if (result.documentAppearsTampered) {
+                errorMessage = '❌ Document appears to be altered or tampered. Please upload an original, unedited ID.';
+            }
+            
+            statusDiv.innerHTML = `
+                <strong>Verification Failed</strong>
+                <p style="margin-top: 8px;">${errorMessage}</p>
+                ${result.fullName ? `<p style="margin-top: 5px;"><strong>Detected Name:</strong> ${result.fullName}</p>` : ''}
+                ${result.age ? `<p><strong>Detected Age:</strong> ${result.age}</p>` : ''}
+                <p style="margin-top: 10px; font-size: 0.9rem;">
+                    <strong>Tips for better verification:</strong><br>
+                    • Ensure good lighting<br>
+                    • Avoid glare or shadows<br>
+                    • Make sure all text is readable<br>
+                    • Use the original, unedited document
+                </p>
+            `;
+            
+            completeBtn.disabled = true;
+            completeBtn.textContent = '❌ Upload Valid ID';
+        }
+        
+    } catch (error) {
+        console.error('ID Verification Error:', error);
+        idVerificationPassed = false;
+        statusDiv.className = 'id-verification-status error show';
+        statusDiv.innerHTML = `
+            <strong>❌ Verification Error</strong>
+            <p style="margin-top: 8px;">
+                Unable to verify your ID. This could be due to:<br>
+                • Poor image quality<br>
+                • Network connection issues<br>
+                • Unsupported document format
+            </p>
+            <p style="margin-top: 10px;">
+                Error details: ${error.message}
+            </p>
+            <p style="margin-top: 10px; font-weight: bold;">
+                Please try uploading a clearer photo of your ID.
+            </p>
+        `;
+        
+        completeBtn.disabled = true;
+        completeBtn.textContent = '❌ Upload Valid ID';
+    }
+}
+
+// Update handleVerification function to include ID check
+async function handleVerification(event) {
+    event.preventDefault();
+    
+    if (!currentUser) {
+        alert('Session expired. Please sign in again.');
+        return;
+    }
+    
+    const name = document.getElementById('verify-name').value.trim();
+    const age = document.getElementById('verify-age').value;
+    const country = document.getElementById('verify-country').value;
+    const errorDiv = document.getElementById('verify-error');
+    
+    if (!name || !age || !country) {
+        errorDiv.textContent = 'All fields are required.';
+        errorDiv.style.display = 'block';
+        return;
+    }
+    
+    if (age < 5 || age > 100) {
+        errorDiv.textContent = 'Please enter a valid age between 5 and 100.';
+        errorDiv.style.display = 'block';
+        return;
+    }
+    
+    // Check if coach needs ID verification
+    if (isCoachVerification && !idVerificationPassed) {
+        errorDiv.textContent = 'Please upload and verify your government-issued ID to continue.';
+        errorDiv.style.display = 'block';
+        return;
+    }
+    
+    try {
+        // Update Firestore
+        await db.collection('users').doc(currentUser.uid).update({
+            name: name,
+            age: parseInt(age),
+            country: country,
+            profileComplete: true
+        });
+        
+        // Update Firebase Auth profile
+        await currentUser.updateProfile({ displayName: name });
+        
+        errorDiv.style.display = 'none';
+        closeVerificationModal();
+        
+        if (isCoachVerification) {
+            alert('✅ Profile and ID verification completed successfully! Welcome to WordBiz Coaching Academy!');
+        } else {
+            alert('✅ Profile completed successfully! Welcome to WordBiz Coaching Academy!');
+        }
+        
+        // Refresh UI
+        updateUIForAuthenticatedUser(currentUser);
+    } catch (error) {
+        console.error('Error completing profile:', error);
+        errorDiv.textContent = 'Failed to complete profile: ' + error.message;
+        errorDiv.style.display = 'block';
     }
 }
         
