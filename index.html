@@ -3148,68 +3148,50 @@ a[href*="whatsapp.com/channel"]:hover {
     </div>
 </div>
 
-<!-- Coach Profile View Section -->
-<div id="coach-profile-view-section" class="content-section">
-    <div class="dashboard-container">
-        <!-- Back Button -->
-        <button class="practice-btn" onclick="navigateTo('coaches')" style="margin-bottom: 20px; background: #6c757d;">
-            ← Back to Coaches
-        </button>
+<!-- Coach Detail Modal -->
+<div class="coach-detail-modal" id="coachDetailModal">
+    <div class="coach-detail-content">
+        <div class="coach-detail-header">
+            <button class="coach-detail-close" onclick="closeCoachDetailModal()">×</button>
+            <div class="coach-detail-avatar-large" id="modal-coach-avatar">C</div>
+            <h2 id="modal-coach-name">Coach Name</h2>
+            <div class="status-badge" id="modal-coach-status">✅ Verified</div>
+        </div>
+        <div class="coach-detail-body">
+            <div class="coach-info-row">
+                <div class="coach-info-label">📧 Email</div>
+                <div class="coach-info-value" id="modal-coach-email">Loading...</div>
+            </div>
 
-        <!-- Welcome Header -->
-        <div class="dashboard-welcome-card">
-            <div class="dashboard-profile-section">
-                <div class="profile-avatar-large" id="coach-view-avatar">C</div>
-                <div class="profile-info">
-                    <h1 id="coach-view-name">Coach Name</h1>
-                    <p id="coach-view-email">coach@email.com</p>
-                    <p id="coach-view-status" style="font-size: 1rem; margin-top: 10px;"></p>
-                </div>
+            <div class="coach-info-row">
+                <div class="coach-info-label">🏫 Organization</div>
+                <div class="coach-info-value" id="modal-coach-organization">Loading...</div>
+            </div>
+
+            <div class="coach-info-row">
+                <div class="coach-info-label">🆔 Verification Status</div>
+                <div class="coach-info-value" id="modal-coach-verification">Loading...</div>
+            </div>
+
+            <div class="coach-info-row" id="modal-coach-age-row" style="display: none;">
+                <div class="coach-info-label">🎂 Age</div>
+                <div class="coach-info-value" id="modal-coach-age">N/A</div>
+            </div>
+
+            <div class="coach-info-row">
+                <div class="coach-info-label">📅 Member Since</div>
+                <div class="coach-info-value" id="modal-coach-joined">Loading...</div>
             </div>
         </div>
 
-        <!-- Profile Information -->
-        <div class="dashboard-section">
-            <h2 class="section-title">👨‍🏫 COACH INFORMATION</h2>
-            <div class="profile-card">
-                <div class="profile-field">
-                    <div class="field-label">📧 Email</div>
-                    <div class="field-value" id="coach-view-email-field">Loading...</div>
-                </div>
-
-                <div class="profile-field">
-                    <div class="field-label">🏫 Organization</div>
-                    <div class="field-value" id="coach-view-organization">Loading...</div>
-                </div>
-
-                <div class="profile-field">
-                    <div class="field-label">🆔 Verification Status</div>
-                    <div class="field-value" id="coach-view-verification">Loading...</div>
-                </div>
-
-                <div class="profile-field" id="coach-view-age-field" style="display: none;">
-                    <div class="field-label">🎂 Age</div>
-                    <div class="field-value" id="coach-view-age">N/A</div>
-                </div>
-
-                <div class="profile-field">
-                    <div class="field-label">📅 Member Since</div>
-                    <div class="field-value" id="coach-view-joined">Loading...</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Verification Notice -->
-        <div class="dashboard-section">
-            <div style="background: #e3f2fd; padding: 20px; border-radius: 10px; border-left: 4px solid #0d3b66;">
-                <h3 style="color: #0d3b66; margin-bottom: 10px;">🛡️ Verified Coach</h3>
-                <p style="color: #666; margin: 10px 0;">This coach has completed our verification process:</p>
-                <ul style="margin: 10px 0 0 20px; color: #666; line-height: 1.8;">
-                    <li>✅ Government-issued ID verified</li>
-                    <li>✅ Age verification (16+ years)</li>
-                    <li>✅ Document authenticity confirmed</li>
-                </ul>
-            </div>
+        <div class="coach-verification-notice">
+            <h3>🛡️ Verified Coach</h3>
+            <p>This coach has completed our verification process:</p>
+            <ul>
+                <li>✅ Government-issued ID verified</li>
+                <li>✅ Age verification (16+ years)</li>
+                <li>✅ Document authenticity confirmed</li>
+            </ul>
         </div>
     </div>
 </div>
@@ -7487,10 +7469,14 @@ async function loadAndDisplayCoaches() {
     try {
         container.innerHTML = '<div class="loading">📚 Loading coaches...</div>';
         
+        console.log('🔍 Fetching coaches from Firestore...');
+        
         // Fetch all coaches from Firestore
         const coachesSnapshot = await db.collection('users')
             .where('userType', '==', 'coach')
             .get();
+        
+        console.log('📊 Found coaches:', coachesSnapshot.size);
         
         if (coachesSnapshot.empty) {
             container.innerHTML = `
@@ -7505,10 +7491,12 @@ async function loadAndDisplayCoaches() {
         
         const coaches = [];
         coachesSnapshot.forEach(doc => {
-            coaches.push({ id: doc.id, ...doc.data() });
+            const data = doc.data();
+            console.log('👤 Coach:', doc.id, data.name, data.photoURL);
+            coaches.push({ id: doc.id, ...data });
         });
         
-        // Sort coaches in JavaScript (newest first)
+        // Sort coaches (newest first)
         coaches.sort((a, b) => {
             if (!a.createdAt) return 1;
             if (!b.createdAt) return -1;
@@ -7548,22 +7536,37 @@ async function loadAndDisplayCoaches() {
                         </tr>
                     </thead>
                     <tbody>
-                        ${coaches.map(coach => `
-    <tr onclick="showCoachDetailById('${coach.id}')" style="cursor: pointer;">
-        <td>
-            <div class="coach-profile-cell">
-                <div class="coach-avatar" style="${coach.photoURL ? `background-image: url(${coach.photoURL}); background-size: cover; background-position: center;` : ''}">${coach.photoURL ? '' : (coach.name || 'C').charAt(0).toUpperCase()}</div>
-                <div class="coach-name">${coach.name || 'Unknown Coach'}</div>
-            </div>
-        </td>
-                                <td>
-                                    ${coach.idVerified ? 
-                                        '<span class="verified-badge">✅ Verified</span>' : 
-                                        '<span class="unverified-badge">⏳ Pending</span>'
-                                    }
-                                </td>
-                            </tr>
-                        `).join('')}
+                        ${coaches.map(coach => {
+                            // Determine avatar display
+                            let avatarStyle = '';
+                            let avatarText = '';
+                            
+                            if (coach.photoURL) {
+                                avatarStyle = `style="background-image: url('${coach.photoURL}'); background-size: cover; background-position: center;"`;
+                                avatarText = '';
+                            } else {
+                                const initial = (coach.name || 'C').charAt(0).toUpperCase();
+                                avatarStyle = '';
+                                avatarText = initial;
+                            }
+                            
+                            return `
+                                <tr onclick="showCoachDetailById('${coach.id}')" style="cursor: pointer;">
+                                    <td>
+                                        <div class="coach-profile-cell">
+                                            <div class="coach-avatar" ${avatarStyle}>${avatarText}</div>
+                                            <div class="coach-name">${coach.name || 'Unknown Coach'}</div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        ${coach.idVerified ? 
+                                            '<span class="verified-badge">✅ Verified</span>' : 
+                                            '<span class="unverified-badge">⏳ Pending</span>'
+                                        }
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('')}
                     </tbody>
                 </table>
             </div>
@@ -7578,7 +7581,7 @@ async function loadAndDisplayCoaches() {
         `;
         
     } catch (error) {
-        console.error('Error loading coaches:', error);
+        console.error('❌ Error loading coaches:', error);
         container.innerHTML = `
             <div class="feedback error">
                 ❌ Error loading coaches. Please try refreshing the page.
@@ -7591,33 +7594,41 @@ async function loadAndDisplayCoaches() {
     }
 }
 
-// Load and show coach profile page
+// Load and show coach profile modal
 async function showCoachDetailById(coachId) {
     try {
+        console.log('📋 Loading coach details for:', coachId);
         const coachDoc = await db.collection('users').doc(coachId).get();
+        
         if (coachDoc.exists) {
             const coach = { id: coachDoc.id, ...coachDoc.data() };
+            console.log('✅ Coach data loaded:', coach);
             showCoachDetail(coach);
+        } else {
+            console.error('❌ Coach not found');
+            alert('Coach profile not found');
         }
     } catch (error) {
-        console.error('Error loading coach details:', error);
-        alert('Unable to load coach details');
+        console.error('❌ Error loading coach details:', error);
+        alert('Unable to load coach details: ' + error.message);
     }
 }
 
-// Display coach profile page
 // Display coach detail modal
 function showCoachDetail(coach) {
+    console.log('🎨 Displaying coach modal:', coach.name);
     const modal = document.getElementById('coachDetailModal');
     
     // Update avatar with photo
     const avatar = document.getElementById('modal-coach-avatar');
     if (coach.photoURL) {
-        avatar.style.backgroundImage = `url(${coach.photoURL})`;
+        console.log('🖼️ Setting photo URL:', coach.photoURL);
+        avatar.style.backgroundImage = `url('${coach.photoURL}')`;
         avatar.style.backgroundSize = 'cover';
         avatar.style.backgroundPosition = 'center';
         avatar.textContent = '';
     } else {
+        console.log('📝 No photo URL, using initial');
         avatar.style.backgroundImage = 'none';
         avatar.textContent = (coach.name || 'C').charAt(0).toUpperCase();
     }
@@ -7671,9 +7682,10 @@ function showCoachDetail(coach) {
     
     // Show modal
     modal.classList.add('active');
+    console.log('✅ Modal displayed');
 }
 
-  // Close coach detail modal
+// Close coach detail modal
 function closeCoachDetailModal() {
     document.getElementById('coachDetailModal').classList.remove('active');
 }
@@ -7684,7 +7696,7 @@ document.addEventListener('click', function(event) {
     if (event.target === modal) {
         closeCoachDetailModal();
     }
-});      
+});
     </script>
 </body>
 </html>
