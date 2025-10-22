@@ -7549,13 +7549,13 @@ async function loadAndDisplayCoaches() {
                     </thead>
                     <tbody>
                         ${coaches.map(coach => `
-                            <tr onclick="showCoachDetailById('${coach.id}')" style="cursor: pointer;">
-                                <td>
-                                    <div class="coach-profile-cell">
-                                        <div class="coach-avatar">${(coach.name || 'C').charAt(0).toUpperCase()}</div>
-                                        <div class="coach-name">${coach.name || 'Unknown Coach'}</div>
-                                    </div>
-                                </td>
+    <tr onclick="showCoachDetailById('${coach.id}')" style="cursor: pointer;">
+        <td>
+            <div class="coach-profile-cell">
+                <div class="coach-avatar" style="${coach.photoURL ? `background-image: url(${coach.photoURL}); background-size: cover; background-position: center;` : ''}">${coach.photoURL ? '' : (coach.name || 'C').charAt(0).toUpperCase()}</div>
+                <div class="coach-name">${coach.name || 'Unknown Coach'}</div>
+            </div>
+        </td>
                                 <td>
                                     ${coach.idVerified ? 
                                         '<span class="verified-badge">✅ Verified</span>' : 
@@ -7606,58 +7606,85 @@ async function showCoachDetailById(coachId) {
 }
 
 // Display coach profile page
+// Display coach detail modal
 function showCoachDetail(coach) {
-    // Navigate to coach profile view section
-    navigateTo('coach-profile-view');
+    const modal = document.getElementById('coachDetailModal');
     
-    // Update avatar
-    const avatar = document.getElementById('coach-view-avatar');
-    avatar.textContent = (coach.name || 'C').charAt(0).toUpperCase();
+    // Update avatar with photo
+    const avatar = document.getElementById('modal-coach-avatar');
+    if (coach.photoURL) {
+        avatar.style.backgroundImage = `url(${coach.photoURL})`;
+        avatar.style.backgroundSize = 'cover';
+        avatar.style.backgroundPosition = 'center';
+        avatar.textContent = '';
+    } else {
+        avatar.style.backgroundImage = 'none';
+        avatar.textContent = (coach.name || 'C').charAt(0).toUpperCase();
+    }
     
-    // Update name and email
-    document.getElementById('coach-view-name').textContent = coach.name || 'Unknown Coach';
-    document.getElementById('coach-view-email').textContent = coach.email || 'N/A';
-    document.getElementById('coach-view-email-field').textContent = coach.email || 'N/A';
+    // Update name
+    document.getElementById('modal-coach-name').textContent = coach.name || 'Unknown Coach';
     
     // Update status badge
-    const statusElement = document.getElementById('coach-view-status');
+    const statusBadge = document.getElementById('modal-coach-status');
     if (coach.idVerified) {
-        statusElement.innerHTML = '<span style="background: #d4edda; color: #155724; padding: 8px 20px; border-radius: 25px; font-weight: bold;">✅ Verified Coach</span>';
+        statusBadge.className = 'status-badge verified';
+        statusBadge.textContent = '✅ Verified';
     } else {
-        statusElement.innerHTML = '<span style="background: #fff3cd; color: #856404; padding: 8px 20px; border-radius: 25px; font-weight: bold;">⏳ Pending Verification</span>';
+        statusBadge.className = 'status-badge pending';
+        statusBadge.textContent = '⏳ Pending Verification';
     }
+    
+    // Update email
+    document.getElementById('modal-coach-email').textContent = coach.email || 'N/A';
     
     // Update organization
-    document.getElementById('coach-view-organization').textContent = coach.organization || 'Independent';
-    
-    // Update verification info
-    if (coach.idVerified) {
-        const verificationText = coach.idDocumentType ? 
-            `✅ ID Verified (${coach.idDocumentType})` : 
-            '✅ ID Verified';
-        document.getElementById('coach-view-verification').textContent = verificationText;
-    } else {
-        document.getElementById('coach-view-verification').textContent = '⏳ Pending Verification';
-    }
-    
-    // Show/hide age if available
-    const ageField = document.getElementById('coach-view-age-field');
-    if (coach.verifiedAge) {
-        ageField.style.display = 'flex';
-        document.getElementById('coach-view-age').textContent = coach.verifiedAge + ' years old';
-    } else {
-        ageField.style.display = 'none';
-    }
+    document.getElementById('modal-coach-organization').textContent = coach.organization || 'Independent';
     
     // Update joined date
     if (coach.createdAt) {
         const joinDate = coach.createdAt.toDate();
-        document.getElementById('coach-view-joined').textContent = 
+        document.getElementById('modal-coach-joined').textContent = 
             joinDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
     } else {
-        document.getElementById('coach-view-joined').textContent = 'Recently joined';
+        document.getElementById('modal-coach-joined').textContent = 'Recently';
     }
+    
+    // Update verification info
+    if (coach.idVerified) {
+        const verificationText = coach.idDocumentType ? 
+            `ID Verified (${coach.idDocumentType})` : 
+            'ID Verified';
+        document.getElementById('modal-coach-verification').textContent = verificationText;
+    } else {
+        document.getElementById('modal-coach-verification').textContent = 'Pending Verification';
+    }
+    
+    // Show/hide age if available
+    const ageRow = document.getElementById('modal-coach-age-row');
+    if (coach.verifiedAge) {
+        ageRow.style.display = 'flex';
+        document.getElementById('modal-coach-age').textContent = coach.verifiedAge + ' years old';
+    } else {
+        ageRow.style.display = 'none';
+    }
+    
+    // Show modal
+    modal.classList.add('active');
 }
+
+  // Close coach detail modal
+function closeCoachDetailModal() {
+    document.getElementById('coachDetailModal').classList.remove('active');
+}
+
+// Close modal when clicking outside
+document.addEventListener('click', function(event) {
+    const modal = document.getElementById('coachDetailModal');
+    if (event.target === modal) {
+        closeCoachDetailModal();
+    }
+});      
     </script>
 </body>
 </html>
