@@ -7532,7 +7532,7 @@ async function loadAndDisplayCoaches() {
                     </thead>
                     <tbody>
                         ${coaches.map(coach => `
-                            <tr onclick='showCoachDetail(${JSON.stringify(coach).replace(/'/g, "&apos;")})'>
+                           <tr onclick="showCoachDetailById('${coach.id}')" style="cursor: pointer;">
                                 <td>
                                     <div class="coach-profile-cell">
                                         <div class="coach-avatar">${(coach.name || 'C').charAt(0).toUpperCase()}</div>
@@ -7645,6 +7645,20 @@ document.addEventListener('click', function(event) {
         closeCoachDetailModal();
     }
 });
+
+
+      async function showCoachDetailById(coachId) {
+    try {
+        const coachDoc = await db.collection('users').doc(coachId).get();
+        if (coachDoc.exists) {
+            const coach = { id: coachDoc.id, ...coachDoc.data() };
+            showCoachDetail(coach);
+        }
+    } catch (error) {
+        console.error('Error loading coach details:', error);
+        alert('Unable to load coach details');
+    }
+}  
     </script>
 </body>
 </html>
