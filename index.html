@@ -2161,6 +2161,40 @@ a[href*="whatsapp.com/channel"]:hover {
     </div>
 </div>
 
+
+    <!-- Change Password Modal -->
+<div class="auth-modal" id="changePasswordModal">
+    <div class="auth-content">
+        <div class="auth-header">
+            <h2>🔒 Change Password</h2>
+            <button class="modal-close" onclick="closeChangePasswordModal()">×</button>
+        </div>
+        <div class="auth-body">
+            <form id="change-password-form" onsubmit="handleChangePassword(event)">
+                <div class="form-group">
+                    <label>Current Password *</label>
+                    <input type="password" id="current-password" required minlength="6">
+                </div>
+                
+                <div class="form-group">
+                    <label>New Password * (minimum 6 characters)</label>
+                    <input type="password" id="new-password" required minlength="6">
+                </div>
+                
+                <div class="form-group">
+                    <label>Confirm New Password *</label>
+                    <input type="password" id="confirm-new-password" required minlength="6">
+                </div>
+                
+                <button type="submit" class="auth-submit">✅ Change Password</button>
+                
+                <div id="change-password-error" class="feedback error" style="display:none; margin-top:15px;"></div>
+                <div id="change-password-success" class="feedback success" style="display:none; margin-top:15px;"></div>
+            </form>
+        </div>
+    </div>
+</div>
+    
     <!-- Auth Modal -->
 <div class="auth-modal" id="authModal">
     <div class="auth-content">
@@ -6218,8 +6252,46 @@ async function loadUserDashboard() {
         document.getElementById('display-usertype').textContent = 
             userData?.userType ? userData.userType.charAt(0).toUpperCase() + userData.userType.slice(1) : 'Student';
         
+        // ===== COACH-SPECIFIC RESTRICTIONS =====
+        const isCoach = userData?.userType === 'coach';
+        
+        if (isCoach) {
+            // Hide edit button for coaches
+            document.getElementById('edit-profile-btn').style.display = 'none';
+            
+            // Hide delete account option for coaches
+            const deleteAccountOption = document.querySelector('.setting-item[onclick="confirmDeleteAccount()"]');
+            if (deleteAccountOption) {
+                deleteAccountOption.style.display = 'none';
+            }
+            
+            // Add a notice for coaches
+            const profileActionsDiv = document.querySelector('.profile-actions');
+            if (profileActionsDiv && !document.getElementById('coach-notice')) {
+                const notice = document.createElement('div');
+                notice.id = 'coach-notice';
+                notice.style.cssText = 'background: #fff3cd; padding: 12px 20px; border-radius: 8px; border-left: 4px solid #ffc107; color: #856404; font-size: 0.9rem; width: 100%;';
+                notice.innerHTML = '<strong>🛡️ Coach Account:</strong> Your profile is locked for security. Contact support to make changes.';
+                profileActionsDiv.parentElement.insertBefore(notice, profileActionsDiv);
+            }
+        } else {
+            // Show edit button for non-coaches (students)
+            document.getElementById('edit-profile-btn').style.display = 'inline-block';
+            
+            // Show delete account option for non-coaches
+            const deleteAccountOption = document.querySelector('.setting-item[onclick="confirmDeleteAccount()"]');
+            if (deleteAccountOption) {
+                deleteAccountOption.style.display = 'flex';
+            }
+            
+            // Remove coach notice if it exists
+            const coachNotice = document.getElementById('coach-notice');
+            if (coachNotice) {
+                coachNotice.remove();
+            }
+        }
+        
         // Update stats (wait for them to be loaded)
-        // Give it a moment for the collections to load
         setTimeout(() => {
             document.getElementById('stat-quiz-favorites').textContent = userFavorites.length;
             document.getElementById('stat-quiz-incorrect').textContent = userIncorrect.length;
@@ -6229,14 +6301,162 @@ async function loadUserDashboard() {
         
     } catch (error) {
         console.error('Error loading dashboard:', error);
-        // Show error state
         document.getElementById('dashboard-name').textContent = 'Error loading profile';
         document.getElementById('dashboard-email').textContent = 'Please try refreshing';
     }
 }
+
+        // ===== PASSWORD CHANGE FUNCTIONS =====
+function showChangePasswordModal() {
+    document.getElementById('changePasswordModal').classList.add('active');
+    
+    // Clear form
+    document.getElementById('change-password-form').reset();
+    document.getElementById('change-password-error').style.display = 'none';
+    document.getElementById('change-password-success').style.display = 'none';
+}
+
+function closeChangePasswordModal() {
+    document.getElementById('changePasswordModal').classList.remove('active');
+    document.getElementById('change-password-form').reset();
+    document.getElementById('change-password-error').style.display = 'none';
+    document.getElementById('change-password-success').style.display = 'none';
+}
+
+async function handleChangePassword(event) {
+    event.preventDefault();
+    
+    if (!currentUser) {
+        alert('Please sign in to change password');
+        return;
+    }
+    
+    const currentPassword = document.getElementById('current-password').value;
+    const newPassword = document.getElementById('new-password').value;
+    const confirmPassword = document.getElementById('confirm-new-password').value;
+    
+    const errorDiv = document.getElementById('change-password-error');
+    const successDiv = document.getElementById('change-password-success');
+    
+    // Hide previous messages
+    errorDiv.style.display = 'none';
+    successDiv.style.display = 'none';
+    
+    // Validate passwords match
+    if (newPassword !== confirmPassword) {
+        errorDiv.textContent = 'New passwords do not match!';
+        errorDiv.style.display = 'block';
+        return;
+    }
+    
+    // Validate new password is different
+    if (currentPassword === newPassword) {
+        errorDiv.textContent = 'New password must be different from current password!';
+        errorDiv.style.display = 'block';
+        return;
+    }
+    
+    // Validate password strength
+    if (newPassword.length < 6) {
+        errorDiv.textContent = 'New password must be at least 6 characters!';
+        errorDiv.style.display = 'block';
+        return;
+    }
+    
+    try {
+        // Re-authenticate user with current password
+        const credential = firebase.auth.EmailAuthProvider.credential(
+            currentUser.email,
+            currentPassword
+        );
         
-function toggleEditMode() {
-    // Hide display elements, show edit inputs
+        await currentUser.reauthenticateWithCredential(credential);
+        
+        // Update password
+        await currentUser.updatePassword(newPassword);
+        
+        // Success!
+        successDiv.textContent = '✅ Password changed successfully!';
+        successDiv.style.display = 'block';
+        
+        // Clear form
+        document.getElementById('change-password-form').reset();
+        
+        // Close modal after 2 seconds
+        setTimeout(() => {
+            closeChangePasswordModal();
+        }, 2000);
+        
+    } catch (error) {
+        console.error('Error changing password:', error);
+        
+        let errorMessage = 'Failed to change password. ';
+        
+        if (error.code === 'auth/wrong-password') {
+            errorMessage += 'Current password is incorrect.';
+        } else if (error.code === 'auth/weak-password') {
+            errorMessage += 'New password is too weak.';
+        } else if (error.code === 'auth/requires-recent-login') {
+            errorMessage += 'Please sign out and sign in again, then try changing your password.';
+        } else {
+            errorMessage += error.message;
+        }
+        
+        errorDiv.textContent = errorMessage;
+        errorDiv.style.display = 'block';
+    }
+}
+
+// Special handling for Google sign-in users
+async function handlePasswordChangeForGoogleUsers() {
+    if (currentUser && currentUser.providerData.length > 0) {
+        const provider = currentUser.providerData[0].providerId;
+        
+        if (provider === 'google.com') {
+            alert('You signed in with Google. To change your password, please go to your Google Account settings.');
+            return true; // Indicates Google user
+        }
+    }
+    return false; // Not a Google user
+}
+
+// Update showChangePasswordModal to check for Google users
+function showChangePasswordModal() {
+    // Check if user signed in with Google
+    if (currentUser && currentUser.providerData.length > 0) {
+        const provider = currentUser.providerData[0].providerId;
+        
+        if (provider === 'google.com') {
+            alert('🔐 You signed in with Google.\n\nTo change your password, please visit:\nhttps://myaccount.google.com/security');
+            return;
+        }
+    }
+    
+    document.getElementById('changePasswordModal').classList.add('active');
+    
+    // Clear form
+    document.getElementById('change-password-form').reset();
+    document.getElementById('change-password-error').style.display = 'none';
+    document.getElementById('change-password-success').style.display = 'none';
+}
+        
+async function toggleEditMode() {
+    // Check if user is a coach
+    if (currentUser) {
+        try {
+            const userDoc = await db.collection('users').doc(currentUser.uid).get();
+            const userData = userDoc.data();
+            
+            if (userData?.userType === 'coach') {
+                alert('🛡️ Coach profiles cannot be edited.\n\nFor security reasons, coach account information is locked after ID verification.\n\nPlease contact support if you need to update your information.');
+                return;
+            }
+        } catch (error) {
+            console.error('Error checking user type:', error);
+        }
+    }
+    
+    // Hide display elements, show edit inputs (for students only)
     document.getElementById('display-name').style.display = 'none';
     document.getElementById('edit-name').style.display = 'block';
     
@@ -6250,8 +6470,6 @@ function toggleEditMode() {
     document.getElementById('edit-profile-btn').style.display = 'none';
     document.getElementById('save-profile-btn').style.display = 'inline-block';
     document.getElementById('cancel-edit-btn').style.display = 'inline-block';
-    
-    document.getElementById('profile-form').classList.add('edit-mode');
 }
 
 function cancelEditMode() {
@@ -6322,7 +6540,23 @@ async function saveProfile() {
     alert('Change password feature coming soon! For now, you can reset your password using the "Forgot Password" link on the sign-in page.');
 }
 
-function confirmDeleteAccount() {
+async function confirmDeleteAccount() {
+    if (!currentUser) return;
+    
+    // Check if user is a coach
+    try {
+        const userDoc = await db.collection('users').doc(currentUser.uid).get();
+        const userData = userDoc.data();
+        
+        if (userData?.userType === 'coach') {
+            alert('🛡️ Coach accounts cannot be deleted.\n\nFor security and compliance reasons, coach accounts must be deactivated by an administrator.\n\nPlease contact support if you need to deactivate your account.');
+            return;
+        }
+    } catch (error) {
+        console.error('Error checking user type:', error);
+    }
+    
+    // Proceed with deletion for non-coach users
     if (confirm('⚠️ WARNING: This will permanently delete your account and all your data. This action cannot be undone.\n\nAre you absolutely sure?')) {
         if (confirm('Final confirmation: Delete your account forever?')) {
             deleteUserAccount();
