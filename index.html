@@ -7651,7 +7651,7 @@ function showCoachDetail(coach) {
         avatar.style.backgroundPosition = 'center';
         avatar.textContent = '';
     } else {
-        console.log('📝 No photo URL, using initial');
+        console.log('🔤 No photo URL, using initial');
         avatar.style.backgroundImage = 'none';
         avatar.textContent = (coach.name || 'C').charAt(0).toUpperCase();
     }
@@ -7663,7 +7663,7 @@ function showCoachDetail(coach) {
     const statusBadge = document.getElementById('modal-coach-status');
     if (coach.idVerified) {
         statusBadge.className = 'status-badge verified';
-        statusBadge.textContent = 'Verified';
+        statusBadge.textContent = '✅ Verified';
     } else {
         statusBadge.className = 'status-badge pending';
         statusBadge.textContent = '⏳ Pending Verification';
@@ -7682,16 +7682,6 @@ function showCoachDetail(coach) {
             joinDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
     } else {
         document.getElementById('modal-coach-joined').textContent = 'Recently';
-    }
-    
-    // Update verification info
-    if (coach.idVerified) {
-        const verificationText = coach.idDocumentType ? 
-            `ID Verified (${coach.idDocumentType})` : 
-            'ID Verified';
-        document.getElementById('modal-coach-verification').textContent = verificationText;
-    } else {
-        document.getElementById('modal-coach-verification').textContent = 'Pending Verification';
     }
     
     // Show/hide age if available
