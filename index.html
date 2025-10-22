@@ -2186,7 +2186,7 @@ a[href*="whatsapp.com/channel"]:hover {
     <div class="sidebar-item sidebar-item-home" onclick="navigateTo('home')">HOME</div>
     <div class="sidebar-item" onclick="navigateTo('word-database')">WORD DATABASE</div>
     <div class="sidebar-item" onclick="navigateTo('coaches')">BOOK COACHES</div>
-    <div class="sidebar-item" onclick="try { navigateTo('students'); } catch(e) { alert('Error: ' + e.message); console.error(e); }">STUDENTS</div>
+    <div class="sidebar-item" onclick="navigateTo('students')">STUDENTS</div>
     <div class="sidebar-item" onclick="()">CONTACT US</div>
     <div class="sidebar-item" onclick="navigateTo('about')">ABOUT US</div>
     <div class="sidebar-item sign-in" id="sidebar-signin" onclick="showAuthModal()">SIGN IN</div>
@@ -3205,7 +3205,7 @@ a[href*="whatsapp.com/channel"]:hover {
 </div>
 
 
-    <!-- Students Section -->
+ <!-- Students Section -->
 <div id="students-section" class="content-section">
     <div class="word-database">
         <div class="database-header">
@@ -7796,13 +7796,12 @@ function generateStudentID(userId) {
     return `WB-${year}-${shortId}`;
 }
 
-// ===== STUDENTS DISPLAY FUNCTIONS =====
+// ===== STUDENTS SECTION FUNCTIONS =====
 async function loadAndDisplayStudents() {
     const container = document.getElementById('students-container');
     
     if (!container) {
-        alert('❌ ERROR: students-container element not found in HTML!');
-        console.error('students-container is missing from DOM');
+        alert('ERROR: Container not found!');
         return;
     }
     
@@ -7858,23 +7857,19 @@ async function loadAndDisplayStudents() {
                     </thead>
                     <tbody>
                         ${students.map(student => {
-                            let avatarStyle = '';
-                            let avatarText = '';
-                            
+                            let avatarHtml = '';
                             if (student.photoURL) {
-                                avatarStyle = `style="background-image: url('${student.photoURL}'); background-size: cover; background-position: center;"`;
-                                avatarText = '';
+                                avatarHtml = `<div class="coach-avatar" style="background-image: url('${student.photoURL}'); background-size: cover; background-position: center;"></div>`;
                             } else {
                                 const initial = (student.name || 'S').charAt(0).toUpperCase();
-                                avatarStyle = '';
-                                avatarText = initial;
+                                avatarHtml = `<div class="coach-avatar">${initial}</div>`;
                             }
                             
                             return `
                                 <tr onclick="showStudentDetailById('${student.id}')" style="cursor: pointer;">
                                     <td>
                                         <div class="coach-profile-cell">
-                                            <div class="coach-avatar" ${avatarStyle}>${avatarText}</div>
+                                            ${avatarHtml}
                                             <div class="coach-name">${student.name || 'Unknown Student'}</div>
                                         </div>
                                     </td>
@@ -7898,17 +7893,11 @@ async function loadAndDisplayStudents() {
         `;
         
     } catch (error) {
-        const errorMsg = `❌ ERROR: ${error.message}\n\nCode: ${error.code || 'Unknown'}\n\nStack: ${error.stack}`;
-        alert(errorMsg);
-        console.error('Full error:', error);
-        
+        alert('ERROR: ' + error.message);
+        console.error(error);
         container.innerHTML = `
-            <div class="feedback error" style="white-space: pre-wrap;">
-                ❌ Error loading students
-                <br><br>
-                <strong>Error:</strong> ${error.message}
-                <br>
-                <strong>Code:</strong> ${error.code || 'Unknown'}
+            <div class="feedback error">
+                ❌ Error: ${error.message}
                 <br><br>
                 <button class="practice-btn" onclick="loadAndDisplayStudents()">🔄 Retry</button>
             </div>
@@ -7916,59 +7905,41 @@ async function loadAndDisplayStudents() {
     }
 }
 
-// Load and show student profile modal
 async function showStudentDetailById(studentId) {
     try {
-        console.log('📋 Loading student details for:', studentId);
         const studentDoc = await db.collection('users').doc(studentId).get();
         
         if (studentDoc.exists) {
             const student = { id: studentDoc.id, ...studentDoc.data() };
             const generatedStudentId = generateStudentID(studentId);
-            console.log('Student data loaded:', student);
             showStudentDetail(student, generatedStudentId);
         } else {
-            console.error('❌ Student not found');
             alert('Student profile not found');
         }
     } catch (error) {
-        console.error('❌ Error loading student details:', error);
-        alert('Unable to load student details: ' + error.message);
+        alert('Error loading student: ' + error.message);
     }
 }
 
-// Display student detail modal
 function showStudentDetail(student, studentId) {
-    console.log('Displaying student modal:', student.name);
     const modal = document.getElementById('studentDetailModal');
     
-    // Update avatar with photo
     const avatar = document.getElementById('modal-student-avatar');
     if (student.photoURL) {
-        console.log('🖼️ Setting photo URL:', student.photoURL);
         avatar.style.backgroundImage = `url('${student.photoURL}')`;
         avatar.style.backgroundSize = 'cover';
         avatar.style.backgroundPosition = 'center';
         avatar.textContent = '';
     } else {
-        console.log('🔤 No photo URL, using initial');
         avatar.style.backgroundImage = 'none';
         avatar.textContent = (student.name || 'S').charAt(0).toUpperCase();
     }
     
-    // Update name
     document.getElementById('modal-student-name').textContent = student.name || 'Unknown Student';
-    
-    // Update student ID
     document.getElementById('modal-student-id').textContent = studentId;
-    
-    // Update email
     document.getElementById('modal-student-email').textContent = student.email || 'N/A';
-    
-    // Update country
     document.getElementById('modal-student-country').textContent = student.country || 'N/A';
     
-    // Update joined date
     if (student.createdAt) {
         const joinDate = student.createdAt.toDate();
         document.getElementById('modal-student-joined').textContent = 
@@ -7977,30 +7948,18 @@ function showStudentDetail(student, studentId) {
         document.getElementById('modal-student-joined').textContent = 'Recently';
     }
     
-    // Update age
     if (student.age) {
         document.getElementById('modal-student-age').textContent = student.age + ' years old';
     } else {
         document.getElementById('modal-student-age').textContent = 'Not specified';
     }
     
-    // Show modal
     modal.classList.add('active');
-    console.log('Modal displayed');
 }
 
-// Close student detail modal
 function closeStudentDetailModal() {
     document.getElementById('studentDetailModal').classList.remove('active');
 }
-
-// Close modal when clicking outside
-document.addEventListener('click', function(event) {
-    const modal = document.getElementById('studentDetailModal');
-    if (event.target === modal) {
-        closeStudentDetailModal();
-    }
-});
     </script>
 </body>
 </html>
