@@ -3413,8 +3413,7 @@ auth.onAuthStateChanged(async user => {
 });
     });
         
-    // ===== NAVIGATION =====
-async function navigateTo(section, skipSidebarClose = false) {
+    async function navigateTo(section, skipSidebarClose = false) {
     // Check if user needs to be logged in
     if ((section === 'favorites' || section === 'incorrect-quiz' || 
          section === 'spelling-favorites' || section === 'spelling-incorrect' || 
@@ -3473,12 +3472,12 @@ async function navigateTo(section, skipSidebarClose = false) {
     
     // Load coaches section
     if (section === 'coaches') {
-        loadAndDisplayCoaches();
+        await loadAndDisplayCoaches(); // ✅ ADDED AWAIT
     }
     
-    // Load students section
+    // ✅ FIX: Load students section
     if (section === 'students') {
-        loadAndDisplayStudents();
+        await loadAndDisplayStudents(); // ✅ ADDED AWAIT
     }
     
     // Load dashboard when navigating to it
