@@ -3159,27 +3159,27 @@ a[href*="whatsapp.com/channel"]:hover {
         </div>
         <div class="coach-detail-body">
             <div class="coach-info-row">
-                <div class="coach-info-label">📧 Email</div>
+                <div class="coach-info-label">📧 Email: </div>
                 <div class="coach-info-value" id="modal-coach-email">Loading...</div>
             </div>
 
             <div class="coach-info-row">
-                <div class="coach-info-label">🏫 Organization</div>
+                <div class="coach-info-label">🏫 Organization: </div>
                 <div class="coach-info-value" id="modal-coach-organization">Loading...</div>
             </div>
 
             <div class="coach-info-row">
-                <div class="coach-info-label">🆔 Verification Status</div>
+                <div class="coach-info-label">🆔 Verification Status: </div>
                 <div class="coach-info-value" id="modal-coach-verification">Loading...</div>
             </div>
 
             <div class="coach-info-row" id="modal-coach-age-row" style="display: none;">
-                <div class="coach-info-label">🎂 Age</div>
+                <div class="coach-info-label">🎂 Age: </div>
                 <div class="coach-info-value" id="modal-coach-age">N/A</div>
             </div>
 
             <div class="coach-info-row">
-                <div class="coach-info-label">📅 Member Since</div>
+                <div class="coach-info-label">📅 Member Since: </div>
                 <div class="coach-info-value" id="modal-coach-joined">Loading...</div>
             </div>
         </div>
@@ -7626,7 +7626,7 @@ async function showCoachDetailById(coachId) {
         
         if (coachDoc.exists) {
             const coach = { id: coachDoc.id, ...coachDoc.data() };
-            console.log('✅ Coach data loaded:', coach);
+            console.log('Coach data loaded:', coach);
             showCoachDetail(coach);
         } else {
             console.error('❌ Coach not found');
@@ -7640,7 +7640,7 @@ async function showCoachDetailById(coachId) {
 
 // Display coach detail modal
 function showCoachDetail(coach) {
-    console.log('🎨 Displaying coach modal:', coach.name);
+    console.log('Displaying coach modal:', coach.name);
     const modal = document.getElementById('coachDetailModal');
     
     // Update avatar with photo
@@ -7664,7 +7664,7 @@ function showCoachDetail(coach) {
     const statusBadge = document.getElementById('modal-coach-status');
     if (coach.idVerified) {
         statusBadge.className = 'status-badge verified';
-        statusBadge.textContent = '✅ Verified';
+        statusBadge.textContent = 'Verified';
     } else {
         statusBadge.className = 'status-badge pending';
         statusBadge.textContent = '⏳ Pending Verification';
@@ -7706,7 +7706,7 @@ function showCoachDetail(coach) {
     
     // Show modal
     modal.classList.add('active');
-    console.log('✅ Modal displayed');
+    console.log('Modal displayed');
 }
 
 // Close coach detail modal
