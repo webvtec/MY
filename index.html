@@ -6264,6 +6264,17 @@ async function loadUserDashboard() {
             if (deleteAccountOption) {
                 deleteAccountOption.style.display = 'none';
             }
+            
+            // Hide quiz mistakes and spelling mistakes navigation items for coaches
+            const quizMistakesNav = document.querySelector('a[href="#quiz-mistakes"]');
+            if (quizMistakesNav) {
+                quizMistakesNav.style.display = 'none';
+            }
+            
+            const spellingMistakesNav = document.querySelector('a[href="#spelling-mistakes"]');
+            if (spellingMistakesNav) {
+                spellingMistakesNav.style.display = 'none';
+            }
         } else {
             // Show edit button for non-coaches (students)
             document.getElementById('edit-profile-btn').style.display = 'inline-block';
@@ -6272,6 +6283,17 @@ async function loadUserDashboard() {
             const deleteAccountOption = document.querySelector('.setting-item[onclick="confirmDeleteAccount()"]');
             if (deleteAccountOption) {
                 deleteAccountOption.style.display = 'flex';
+            }
+            
+            // Show quiz mistakes and spelling mistakes navigation items for students
+            const quizMistakesNav = document.querySelector('a[href="#quiz-mistakes"]');
+            if (quizMistakesNav) {
+                quizMistakesNav.style.display = 'flex';
+            }
+            
+            const spellingMistakesNav = document.querySelector('a[href="#spelling-mistakes"]');
+            if (spellingMistakesNav) {
+                spellingMistakesNav.style.display = 'flex';
             }
         }
         
@@ -6289,7 +6311,7 @@ async function loadUserDashboard() {
         document.getElementById('dashboard-email').textContent = 'Please try refreshing';
     }
 }
-
+        
         // ===== PASSWORD CHANGE FUNCTIONS =====
 function showChangePasswordModal() {
     document.getElementById('changePasswordModal').classList.add('active');
