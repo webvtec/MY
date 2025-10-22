@@ -7541,7 +7541,7 @@ async function loadAndDisplayCoaches() {
                 </div>
                 <div class="coach-stat-card">
                     <div class="stat-number">${verifiedCoaches}</div>
-                    <div class="stat-label">✅ Verified</div>
+                    <div class="stat-label">Verified</div>
                 </div>
                 <div class="coach-stat-card">
                     <div class="stat-number">${pendingCoaches}</div>
@@ -7663,7 +7663,7 @@ function showCoachDetail(coach) {
     const statusBadge = document.getElementById('modal-coach-status');
     if (coach.idVerified) {
         statusBadge.className = 'status-badge verified';
-        statusBadge.textContent = '✅ Verified';
+        statusBadge.textContent = 'Verified';
     } else {
         statusBadge.className = 'status-badge pending';
         statusBadge.textContent = '⏳ Pending Verification';
