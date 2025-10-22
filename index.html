@@ -4317,7 +4317,7 @@ async function verifyIDWithAI() {
             idVerificationPassed = true;
             statusDiv.className = 'id-verification-status success show';
             statusDiv.innerHTML = `
-                <strong>✅ ID Verified Successfully!</strong>
+                <strong>ID Verified Successfully!</strong>
                 <p style="margin-top: 8px;">
                     <strong>Document:</strong> ${result.documentType}<br>
                     <strong>Name:</strong> ${result.fullName}<br>
@@ -4330,7 +4330,7 @@ async function verifyIDWithAI() {
             `;
             
             completeBtn.disabled = false;
-            completeBtn.textContent = '✅ Complete Profile';
+            completeBtn.textContent = 'COMPLETE PROFILE';
             
             // Store verification result in Firestore (without the image)
             await db.collection('users').doc(currentUser.uid).update({
@@ -4448,9 +4448,9 @@ async function handleVerification(event) {
         closeVerificationModal();
         
         if (isCoachVerification) {
-            alert('✅ Profile and ID verification completed successfully! Welcome to WordBiz Coaching Academy!');
+            alert('Profile and ID verification completed successfully! Welcome to WordBiz Coaching Academy!');
         } else {
-            alert('✅ Profile completed successfully! Welcome to WordBiz Coaching Academy!');
+            alert('Profile completed successfully! Welcome to WordBiz Coaching Academy!');
         }
         
         // Refresh UI
