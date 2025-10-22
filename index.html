@@ -7199,10 +7199,9 @@ async function loadAndDisplayCoaches() {
     try {
         container.innerHTML = '<div class="loading">📚 Loading coaches...</div>';
         
-        // Fetch all coaches from Firestore
+        // Fetch all coaches from Firestore (WITHOUT orderBy to avoid index requirement)
         const coachesSnapshot = await db.collection('users')
             .where('userType', '==', 'coach')
-            .orderBy('createdAt', 'desc')
             .get();
         
         if (coachesSnapshot.empty) {
@@ -7219,6 +7218,13 @@ async function loadAndDisplayCoaches() {
         const coaches = [];
         coachesSnapshot.forEach(doc => {
             coaches.push({ id: doc.id, ...doc.data() });
+        });
+        
+        // Sort coaches in JavaScript (newest first)
+        coaches.sort((a, b) => {
+            if (!a.createdAt) return 1;
+            if (!b.createdAt) return -1;
+            return b.createdAt.toDate() - a.createdAt.toDate();
         });
         
         // Calculate stats
@@ -7272,7 +7278,7 @@ async function loadAndDisplayCoaches() {
                                     year: 'numeric', 
                                     month: 'short', 
                                     day: 'numeric' 
-                                }) : 'N/A'}</td>
+                                }) : 'Recently'}</td>
                             </tr>
                         `).join('')}
                     </tbody>
@@ -7300,11 +7306,13 @@ async function loadAndDisplayCoaches() {
             <div class="feedback error">
                 ❌ Error loading coaches. Please try refreshing the page.
                 <br><br>
+                <strong>Error details:</strong> ${error.message}
+                <br><br>
                 <button class="practice-btn" onclick="loadAndDisplayCoaches()">🔄 Retry</button>
             </div>
         `;
     }
-}      
+}
     </script>
 </body>
 </html>
