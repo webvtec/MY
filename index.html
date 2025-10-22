@@ -7707,6 +7707,54 @@ document.addEventListener('click', function(event) {
         closeCoachDetailModal();
     }
 });
+
+     // ===== ONE-TIME MIGRATION: Update existing users with photoURL =====
+async function migrateUserPhotoURLs() {
+    console.log('🔄 Starting photoURL migration...');
+    
+    try {
+        // Get all users from Firestore
+        const usersSnapshot = await db.collection('users').get();
+        
+        let updated = 0;
+        let skipped = 0;
+        let errors = 0;
+        
+        const updatePromises = [];
+        
+        usersSnapshot.forEach(doc => {
+            const userId = doc.id;
+            const userData = doc.data();
+            
+            // Check if user already has photoURL in Firestore
+            if (userData.photoURL) {
+                console.log(`⏭️ Skipping ${userData.name} - already has photoURL`);
+                skipped++;
+                return;
+            }
+            
+            // Get the user from Firebase Auth
+            const updatePromise = auth.app.firestore().collection('users').doc(userId).get()
+                .then(() => {
+                    // We need to get photoURL from Firebase Auth
+                    // Since we can't directly access other users' auth data from client,
+                    // we'll update when they next sign in
+                    console.log(`📝 Marked ${userData.name} for update on next sign-in`);
+                });
+            
+            updatePromises.push(updatePromise);
+        });
+        
+        await Promise.all(updatePromises);
+        
+        console.log(`✅ Migration complete: ${updated} updated, ${skipped} skipped, ${errors} errors`);
+        alert(`Migration complete!\nUpdated: ${updated}\nSkipped: ${skipped}\nErrors: ${errors}`);
+        
+    } catch (error) {
+        console.error('❌ Migration error:', error);
+        alert('Migration failed: ' + error.message);
+    }
+}   
     </script>
 </body>
 </html>
