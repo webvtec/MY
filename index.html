@@ -3148,45 +3148,63 @@ a[href*="whatsapp.com/channel"]:hover {
     </div>
 </div>
 
- <!-- Coach Detail Modal -->
-<div class="coach-detail-modal" id="coachDetailModal">
-    <div class="coach-detail-content">
-        <div class="coach-detail-header">
-            <button class="coach-detail-close" onclick="closeCoachDetailModal()">×</button>
-            <div class="coach-detail-avatar-large" id="modal-coach-avatar">C</div>
-            <h2 id="modal-coach-name">Coach Name</h2>
-            <span class="status-badge verified" id="modal-coach-status">✅ Verified</span>
+<!-- Coach Profile View Section -->
+<div id="coach-profile-view-section" class="content-section">
+    <div class="dashboard-container">
+        <!-- Back Button -->
+        <button class="practice-btn" onclick="navigateTo('coaches')" style="margin-bottom: 20px; background: #6c757d;">
+            ← Back to Coaches
+        </button>
+
+        <!-- Welcome Header -->
+        <div class="dashboard-welcome-card">
+            <div class="dashboard-profile-section">
+                <div class="profile-avatar-large" id="coach-view-avatar">C</div>
+                <div class="profile-info">
+                    <h1 id="coach-view-name">Coach Name</h1>
+                    <p id="coach-view-email">coach@email.com</p>
+                    <p id="coach-view-status" style="font-size: 1rem; margin-top: 10px;"></p>
+                </div>
+            </div>
         </div>
-        <div class="coach-detail-body">
-            <div class="coach-info-row">
-                <div class="coach-info-label">📧 Email</div>
-                <div class="coach-info-value" id="modal-coach-email">email@example.com</div>
+
+        <!-- Profile Information -->
+        <div class="dashboard-section">
+            <h2 class="section-title">👨‍🏫 COACH INFORMATION</h2>
+            <div class="profile-card">
+                <div class="profile-field">
+                    <div class="field-label">📧 Email</div>
+                    <div class="field-value" id="coach-view-email-field">Loading...</div>
+                </div>
+
+                <div class="profile-field">
+                    <div class="field-label">🏫 Organization</div>
+                    <div class="field-value" id="coach-view-organization">Loading...</div>
+                </div>
+
+                <div class="profile-field">
+                    <div class="field-label">🆔 Verification Status</div>
+                    <div class="field-value" id="coach-view-verification">Loading...</div>
+                </div>
+
+                <div class="profile-field" id="coach-view-age-field" style="display: none;">
+                    <div class="field-label">🎂 Age</div>
+                    <div class="field-value" id="coach-view-age">N/A</div>
+                </div>
+
+                <div class="profile-field">
+                    <div class="field-label">📅 Member Since</div>
+                    <div class="field-value" id="coach-view-joined">Loading...</div>
+                </div>
             </div>
-            
-            <div class="coach-info-row">
-                <div class="coach-info-label">🏫 Organization</div>
-                <div class="coach-info-value" id="modal-coach-organization">Independent</div>
-            </div>
-            
-            <div class="coach-info-row">
-                <div class="coach-info-label">📅 Joined</div>
-                <div class="coach-info-value" id="modal-coach-joined">January 2025</div>
-            </div>
-            
-            <div class="coach-info-row">
-                <div class="coach-info-label">🆔 Verification</div>
-                <div class="coach-info-value" id="modal-coach-verification">ID Verified</div>
-            </div>
-            
-            <div class="coach-info-row" id="modal-coach-age-row" style="display: none;">
-                <div class="coach-info-label">🎂 Age</div>
-                <div class="coach-info-value" id="modal-coach-age">N/A</div>
-            </div>
-            
-            <div class="coach-verification-notice">
-                <h3>🛡️ Verified Coach</h3>
+        </div>
+
+        <!-- Verification Notice -->
+        <div class="dashboard-section">
+            <div style="background: #e3f2fd; padding: 20px; border-radius: 10px; border-left: 4px solid #0d3b66;">
+                <h3 style="color: #0d3b66; margin-bottom: 10px;">🛡️ Verified Coach</h3>
                 <p style="color: #666; margin: 10px 0;">This coach has completed our verification process:</p>
-                <ul>
+                <ul style="margin: 10px 0 0 20px; color: #666; line-height: 1.8;">
                     <li>✅ Government-issued ID verified</li>
                     <li>✅ Age verification (16+ years)</li>
                     <li>✅ Document authenticity confirmed</li>
@@ -3195,7 +3213,6 @@ a[href*="whatsapp.com/channel"]:hover {
         </div>
     </div>
 </div>
-
 
     <script>
         // ===== FIREBASE CONFIGURATION =====
