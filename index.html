@@ -1832,7 +1832,7 @@ a[href*="whatsapp.com/channel"]:hover {
     background: #c82333;
 }
 
-   /* Coaches Table Styles */
+   /* Coaches Table Styles - Simplified */
 .coaches-table {
     width: 100%;
     background: white;
@@ -1865,23 +1865,56 @@ a[href*="whatsapp.com/channel"]:hover {
     color: #333;
 }
 
+.coaches-table tbody tr {
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
 .coaches-table tbody tr:hover {
     background: #f8f9fa;
-    transition: background 0.3s;
+    transform: translateX(5px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
 .coaches-table tbody tr:last-child td {
     border-bottom: none;
 }
 
+.coach-profile-cell {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.coach-avatar {
+    width: 45px;
+    height: 45px;
+    min-width: 45px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #0d3b66, #1a5490);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    font-weight: bold;
+    box-shadow: 0 2px 8px rgba(13,59,102,0.3);
+}
+
+.coach-name {
+    font-size: 1.1rem;
+    font-weight: bold;
+    color: #0d3b66;
+}
+
 .verified-badge {
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    padding: 5px 12px;
+    padding: 6px 14px;
     background: #d4edda;
     color: #155724;
-    border-radius: 15px;
+    border-radius: 20px;
     font-size: 0.9rem;
     font-weight: bold;
 }
@@ -1890,10 +1923,10 @@ a[href*="whatsapp.com/channel"]:hover {
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    padding: 5px 12px;
-    background: #f8d7da;
-    color: #721c24;
-    border-radius: 15px;
+    padding: 6px 14px;
+    background: #fff3cd;
+    color: #856404;
+    border-radius: 20px;
     font-size: 0.9rem;
     font-weight: bold;
 }
@@ -1925,21 +1958,211 @@ a[href*="whatsapp.com/channel"]:hover {
     font-size: 1rem;
 }
 
+/* Coach Detail Modal */
+.coach-detail-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.7);
+    z-index: 3000;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    overflow-y: auto;
+}
+
+.coach-detail-modal.active {
+    display: flex;
+}
+
+.coach-detail-content {
+    background: white;
+    border-radius: 15px;
+    max-width: 600px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    position: relative;
+    box-shadow: 0 10px 50px rgba(0,0,0,0.3);
+}
+
+.coach-detail-header {
+    background: linear-gradient(135deg, #0d3b66 0%, #1a5490 100%);
+    color: white;
+    padding: 30px;
+    border-radius: 15px 15px 0 0;
+    text-align: center;
+    position: relative;
+}
+
+.coach-detail-close {
+    position: absolute;
+    top: 15px;
+    right: 20px;
+    background: rgba(255,255,255,0.2);
+    border: none;
+    color: white;
+    font-size: 1.8rem;
+    cursor: pointer;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s;
+}
+
+.coach-detail-close:hover {
+    background: rgba(255,255,255,0.3);
+    transform: rotate(90deg);
+}
+
+.coach-detail-avatar-large {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #ffd700, #ffed4e);
+    color: #0d3b66;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 3rem;
+    font-weight: bold;
+    margin: 0 auto 15px auto;
+    box-shadow: 0 4px 15px rgba(255,215,0,0.4);
+    border: 4px solid rgba(255,255,255,0.3);
+}
+
+.coach-detail-header h2 {
+    margin: 0 0 10px 0;
+    font-size: 1.8rem;
+}
+
+.coach-detail-header .status-badge {
+    display: inline-block;
+    padding: 8px 20px;
+    border-radius: 25px;
+    font-size: 0.95rem;
+    font-weight: bold;
+    margin-top: 10px;
+}
+
+.coach-detail-header .verified {
+    background: #d4edda;
+    color: #155724;
+}
+
+.coach-detail-header .pending {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.coach-detail-body {
+    padding: 30px;
+}
+
+.coach-info-row {
+    display: flex;
+    padding: 15px 0;
+    border-bottom: 1px solid #f0f0f0;
+    align-items: center;
+}
+
+.coach-info-row:last-child {
+    border-bottom: none;
+}
+
+.coach-info-label {
+    font-weight: bold;
+    color: #0d3b66;
+    font-size: 1rem;
+    min-width: 140px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.coach-info-value {
+    flex: 1;
+    color: #333;
+    font-size: 1rem;
+}
+
+.coach-verification-notice {
+    background: #e3f2fd;
+    padding: 20px;
+    border-radius: 10px;
+    border-left: 4px solid #0d3b66;
+    margin-top: 20px;
+}
+
+.coach-verification-notice h3 {
+    color: #0d3b66;
+    margin: 0 0 10px 0;
+    font-size: 1.1rem;
+}
+
+.coach-verification-notice ul {
+    margin: 10px 0 0 20px;
+    color: #666;
+    line-height: 1.8;
+}
+
 @media (max-width: 768px) {
-    .coaches-table {
-        overflow-x: auto;
+    .coaches-table th:not(:first-child):not(:last-child),
+    .coaches-table td:not(:first-child):not(:last-child) {
+        display: none;
     }
     
-    .coaches-table table {
-        min-width: 600px;
+    .coach-avatar {
+        width: 40px;
+        height: 40px;
+        min-width: 40px;
+        font-size: 1rem;
     }
     
-    .coaches-table th,
-    .coaches-table td {
-        padding: 10px;
-        font-size: 0.9rem;
+    .coach-name {
+        font-size: 1rem;
     }
-}     
+    
+    .verified-badge,
+    .unverified-badge {
+        font-size: 0.8rem;
+        padding: 5px 10px;
+    }
+    
+    .coach-detail-content {
+        margin: 20px;
+    }
+    
+    .coach-detail-header {
+        padding: 20px;
+    }
+    
+    .coach-detail-avatar-large {
+        width: 80px;
+        height: 80px;
+        font-size: 2.5rem;
+    }
+    
+    .coach-detail-body {
+        padding: 20px;
+    }
+    
+    .coach-info-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+    
+    .coach-info-label {
+        min-width: auto;
+    }
+}  
     </style>
 </head>
 <body>
@@ -2495,6 +2718,54 @@ a[href*="whatsapp.com/channel"]:hover {
         
         <div id="coaches-container" class="loading">
             Loading coaches...
+        </div>
+    </div>
+</div>
+
+    <!-- Coach Detail Modal -->
+<div class="coach-detail-modal" id="coachDetailModal">
+    <div class="coach-detail-content">
+        <div class="coach-detail-header">
+            <button class="coach-detail-close" onclick="closeCoachDetailModal()">×</button>
+            <div class="coach-detail-avatar-large" id="modal-coach-avatar">C</div>
+            <h2 id="modal-coach-name">Coach Name</h2>
+            <span class="status-badge verified" id="modal-coach-status">✅ Verified</span>
+        </div>
+        <div class="coach-detail-body">
+            <div class="coach-info-row">
+                <div class="coach-info-label">📧 Email</div>
+                <div class="coach-info-value" id="modal-coach-email">email@example.com</div>
+            </div>
+            
+            <div class="coach-info-row">
+                <div class="coach-info-label">🏫 Organization</div>
+                <div class="coach-info-value" id="modal-coach-organization">Independent</div>
+            </div>
+            
+            <div class="coach-info-row">
+                <div class="coach-info-label">📅 Joined</div>
+                <div class="coach-info-value" id="modal-coach-joined">January 2025</div>
+            </div>
+            
+            <div class="coach-info-row">
+                <div class="coach-info-label">🆔 Verification</div>
+                <div class="coach-info-value" id="modal-coach-verification">ID Verified</div>
+            </div>
+            
+            <div class="coach-info-row" id="modal-coach-age-row" style="display: none;">
+                <div class="coach-info-label">🎂 Age</div>
+                <div class="coach-info-value" id="modal-coach-age">N/A</div>
+            </div>
+            
+            <div class="coach-verification-notice">
+                <h3>🛡️ Verified Coach</h3>
+                <p style="color: #666; margin: 10px 0;">This coach has completed our verification process:</p>
+                <ul>
+                    <li>✅ Government-issued ID verified</li>
+                    <li>✅ Age verification (16+ years)</li>
+                    <li>✅ Document authenticity confirmed</li>
+                </ul>
+            </div>
         </div>
     </div>
 </div>
@@ -7199,7 +7470,7 @@ async function loadAndDisplayCoaches() {
     try {
         container.innerHTML = '<div class="loading">📚 Loading coaches...</div>';
         
-        // Fetch all coaches from Firestore (WITHOUT orderBy to avoid index requirement)
+        // Fetch all coaches from Firestore
         const coachesSnapshot = await db.collection('users')
             .where('userType', '==', 'coach')
             .get();
@@ -7255,30 +7526,25 @@ async function loadAndDisplayCoaches() {
                 <table>
                     <thead>
                         <tr>
-                            <th>👤 Name</th>
-                            <th>📧 Email</th>
-                            <th>🏫 Organization</th>
+                            <th>👨‍🏫 Coach</th>
                             <th>✅ Status</th>
-                            <th>📅 Joined</th>
                         </tr>
                     </thead>
                     <tbody>
                         ${coaches.map(coach => `
-                            <tr>
-                                <td><strong>${coach.name || 'Unknown'}</strong></td>
-                                <td>${coach.email || 'N/A'}</td>
-                                <td>${coach.organization || 'Independent'}</td>
+                            <tr onclick='showCoachDetail(${JSON.stringify(coach).replace(/'/g, "&apos;")})'>
+                                <td>
+                                    <div class="coach-profile-cell">
+                                        <div class="coach-avatar">${(coach.name || 'C').charAt(0).toUpperCase()}</div>
+                                        <div class="coach-name">${coach.name || 'Unknown Coach'}</div>
+                                    </div>
+                                </td>
                                 <td>
                                     ${coach.idVerified ? 
                                         '<span class="verified-badge">✅ Verified</span>' : 
                                         '<span class="unverified-badge">⏳ Pending</span>'
                                     }
                                 </td>
-                                <td>${coach.createdAt ? new Date(coach.createdAt.toDate()).toLocaleDateString('en-US', { 
-                                    year: 'numeric', 
-                                    month: 'short', 
-                                    day: 'numeric' 
-                                }) : 'Recently'}</td>
                             </tr>
                         `).join('')}
                     </tbody>
@@ -7289,13 +7555,8 @@ async function loadAndDisplayCoaches() {
                 <h3 style="color: #0d3b66; margin-bottom: 10px;">🛡️ Safety & Verification</h3>
                 <p style="color: #666; line-height: 1.6;">
                     All coaches on WordBiz Coaching Academy undergo ID verification for student safety. 
-                    Only verified coaches can interact with students. Our verification process includes:
+                    Click on any coach to view their full profile and verification details.
                 </p>
-                <ul style="margin-top: 10px; color: #666; line-height: 1.8;">
-                    <li>✅ Government-issued ID verification</li>
-                    <li>✅ Age verification (16+ years old)</li>
-                    <li>✅ Document authenticity check</li>
-                </ul>
             </div>
         `;
         
@@ -7312,6 +7573,78 @@ async function loadAndDisplayCoaches() {
         `;
     }
 }
+
+// Show coach detail modal
+function showCoachDetail(coach) {
+    const modal = document.getElementById('coachDetailModal');
+    
+    // Update avatar
+    const avatar = document.getElementById('modal-coach-avatar');
+    avatar.textContent = (coach.name || 'C').charAt(0).toUpperCase();
+    
+    // Update name
+    document.getElementById('modal-coach-name').textContent = coach.name || 'Unknown Coach';
+    
+    // Update status badge
+    const statusBadge = document.getElementById('modal-coach-status');
+    if (coach.idVerified) {
+        statusBadge.className = 'status-badge verified';
+        statusBadge.textContent = '✅ Verified';
+    } else {
+        statusBadge.className = 'status-badge pending';
+        statusBadge.textContent = '⏳ Pending Verification';
+    }
+    
+    // Update email
+    document.getElementById('modal-coach-email').textContent = coach.email || 'N/A';
+    
+    // Update organization
+    document.getElementById('modal-coach-organization').textContent = coach.organization || 'Independent';
+    
+    // Update joined date
+    if (coach.createdAt) {
+        const joinDate = new Date(coach.createdAt.toDate());
+        document.getElementById('modal-coach-joined').textContent = 
+            joinDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    } else {
+        document.getElementById('modal-coach-joined').textContent = 'Recently';
+    }
+    
+    // Update verification info
+    if (coach.idVerified) {
+        const verificationText = coach.idDocumentType ? 
+            `ID Verified (${coach.idDocumentType})` : 
+            'ID Verified';
+        document.getElementById('modal-coach-verification').textContent = verificationText;
+    } else {
+        document.getElementById('modal-coach-verification').textContent = 'Pending Verification';
+    }
+    
+    // Show/hide age if available
+    const ageRow = document.getElementById('modal-coach-age-row');
+    if (coach.verifiedAge) {
+        ageRow.style.display = 'flex';
+        document.getElementById('modal-coach-age').textContent = coach.verifiedAge + ' years old';
+    } else {
+        ageRow.style.display = 'none';
+    }
+    
+    // Show modal
+    modal.classList.add('active');
+}
+
+// Close coach detail modal
+function closeCoachDetailModal() {
+    document.getElementById('coachDetailModal').classList.remove('active');
+}
+
+// Close modal when clicking outside
+document.addEventListener('click', function(event) {
+    const modal = document.getElementById('coachDetailModal');
+    if (event.target === modal) {
+        closeCoachDetailModal();
+    }
+});
     </script>
 </body>
 </html>
