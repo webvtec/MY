@@ -2186,6 +2186,7 @@ a[href*="whatsapp.com/channel"]:hover {
     <div class="sidebar-item sidebar-item-home" onclick="navigateTo('home')">HOME</div>
     <div class="sidebar-item" onclick="navigateTo('word-database')">WORD DATABASE</div>
     <div class="sidebar-item" onclick="navigateTo('coaches')">BOOK COACHES</div>
+    <div class="sidebar-item" onclick="navigateTo('students')">OUR STUDENTS</div>
     <div class="sidebar-item" onclick="()">CONTACT US</div>
     <div class="sidebar-item" onclick="navigateTo('about')">ABOUT US</div>
     <div class="sidebar-item sign-in" id="sidebar-signin" onclick="showAuthModal()">SIGN IN</div>
@@ -3195,6 +3196,69 @@ a[href*="whatsapp.com/channel"]:hover {
     </div>
 </div>
 
+
+    <!-- Students Section -->
+<div id="students-section" class="content-section">
+    <div class="word-database">
+        <div class="database-header">
+            <h2>📚 OUR STUDENTS</h2>
+            <p style="color: #666; margin-top: 10px;">Meet our dedicated learners from around the world</p>
+        </div>
+        
+        <div id="students-container" class="loading">
+            Loading students...
+        </div>
+    </div>
+</div>
+
+<!-- Student Detail Modal -->
+<div class="coach-detail-modal" id="studentDetailModal">
+    <div class="coach-detail-content">
+        <div class="coach-detail-header">
+            <button class="coach-detail-close" onclick="closeStudentDetailModal()">×</button>
+            <div class="coach-detail-avatar-large" id="modal-student-avatar">S</div>
+            <h2 id="modal-student-name">Student Name</h2>
+            <div class="status-badge" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none;" id="modal-student-id">WB-2025-XXXX</div>
+        </div>
+        
+        <div class="coach-detail-body">
+            <div class="coach-info-row">
+                <div class="coach-info-label">🆔 Student ID:</div>
+                <div class="coach-info-value" id="modal-student-id-display">WB-2025-XXXX</div>
+            </div>
+            
+            <div class="coach-info-row">
+                <div class="coach-info-label">📧 Email:</div>
+                <div class="coach-info-value" id="modal-student-email">Loading...</div>
+            </div>
+            
+            <div class="coach-info-row" id="modal-student-age-row">
+                <div class="coach-info-label">🎂 Age:</div>
+                <div class="coach-info-value" id="modal-student-age">N/A</div>
+            </div>
+            
+            <div class="coach-info-row">
+                <div class="coach-info-label">🌍 Country:</div>
+                <div class="coach-info-value" id="modal-student-country">Loading...</div>
+            </div>
+            
+            <div class="coach-info-row">
+                <div class="coach-info-label">📅 Member Since:</div>
+                <div class="coach-info-value" id="modal-student-joined">Loading...</div>
+            </div>
+        </div>
+
+        <div class="coach-verification-notice" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-left-color: #667eea;">
+            <h3 style="color: white;">📚 Active Learner</h3>
+            <p style="color: rgba(255,255,255,0.95);">This student is actively improving their vocabulary skills through:</p>
+            <ul style="color: rgba(255,255,255,0.95);">
+                <li>✅ Interactive quizzes and practice tests</li>
+                <li>✅ Spelling challenges and word games</li>
+                <li>✅ Building vocabulary across multiple levels</li>
+            </ul>
+        </div>
+    </div>
+</div>
     <script>
         // ===== FIREBASE CONFIGURATION =====
         const firebaseConfig = {
@@ -3404,7 +3468,12 @@ async function navigateTo(section, skipSidebarClose = false) {
     
     // Load coaches section
     if (section === 'coaches') {
-        loadAndDisplayCoaches();
+        await loadAndDisplayCoaches();
+    }
+    
+    // Load students section
+    if (section === 'students') {
+        await loadAndDisplayStudents();
     }
     
     // Load dashboard when navigating to it
@@ -7711,7 +7780,246 @@ document.addEventListener('click', function(event) {
     }
 });
 
-      
+      // ===== STUDENTS DISPLAY FUNCTIONS =====
+async function loadAndDisplayStudents() {
+    const container = document.getElementById('students-container');
+    
+    try {
+        container.innerHTML = '<div class="loading">📚 Loading students...</div>';
+        
+        console.log('🔍 Fetching students from Firestore...');
+        
+        // Fetch all students from Firestore
+        const studentsSnapshot = await db.collection('users')
+            .where('userType', '==', 'student')
+            .get();
+        
+        console.log('📊 Found students:', studentsSnapshot.size);
+        
+        if (studentsSnapshot.empty) {
+            container.innerHTML = `
+                <div style="text-align: center; padding: 40px; color: #666;">
+                    <div style="font-size: 3rem; margin-bottom: 20px;">🎓</div>
+                    <h3>No students registered yet</h3>
+                    <p>Be the first to join as a student!</p>
+                </div>
+            `;
+            return;
+        }
+        
+        const students = [];
+        studentsSnapshot.forEach(doc => {
+            const data = doc.data();
+            console.log('👤 Student:', doc.id, data.name, data.photoURL);
+            students.push({ id: doc.id, ...data });
+        });
+        
+        // Sort students (newest first)
+        students.sort((a, b) => {
+            if (!a.createdAt) return 1;
+            if (!b.createdAt) return -1;
+            return b.createdAt.toDate() - a.createdAt.toDate();
+        });
+        
+        // Calculate stats
+        const totalStudents = students.length;
+        const countries = [...new Set(students.filter(s => s.country).map(s => s.country))].length;
+        const avgAge = students.filter(s => s.age).length > 0 
+            ? Math.round(students.filter(s => s.age).reduce((sum, s) => sum + (s.age || 0), 0) / students.filter(s => s.age).length)
+            : 0;
+        
+        // Display stats and table
+        container.innerHTML = `
+            <!-- Stats Cards -->
+            <div class="coach-stats">
+                <div class="coach-stat-card">
+                    <div class="stat-number">${totalStudents}</div>
+                    <div class="stat-label">Total Students</div>
+                </div>
+                <div class="coach-stat-card">
+                    <div class="stat-number">${countries}</div>
+                    <div class="stat-label">Countries</div>
+                </div>
+                <div class="coach-stat-card">
+                    <div class="stat-number">${avgAge || 'N/A'}</div>
+                    <div class="stat-label">Average Age</div>
+                </div>
+            </div>
+            
+            <!-- Students Table -->
+            <div class="coaches-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>🎓 Student</th>
+                            <th>🆔 Student ID</th>
+                            <th>🌍 Country</th>
+                            <th>📅 Member Since</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${students.map(student => {
+                            // Generate Student ID (WB-2025-XXXX)
+                            const studentId = `WB-2025-${student.id.slice(-4).toUpperCase()}`;
+                            
+                            // Determine avatar display
+                            let avatarStyle = '';
+                            let avatarText = '';
+                            
+                            if (student.photoURL) {
+                                avatarStyle = `style="background-image: url('${student.photoURL}'); background-size: cover; background-position: center;"`;
+                                avatarText = '';
+                            } else {
+                                const initial = (student.name || 'S').charAt(0).toUpperCase();
+                                avatarStyle = '';
+                                avatarText = initial;
+                            }
+                            
+                            // Format join date
+                            let joinDate = 'Recently';
+                            if (student.createdAt) {
+                                joinDate = student.createdAt.toDate().toLocaleDateString('en-US', { 
+                                    year: 'numeric', 
+                                    month: 'short'
+                                });
+                            }
+                            
+                            return `
+                                <tr onclick="showStudentDetailById('${student.id}')" style="cursor: pointer;">
+                                    <td>
+                                        <div class="coach-profile-cell">
+                                            <div class="coach-avatar" ${avatarStyle}>${avatarText}</div>
+                                            <div class="coach-name">${student.name || 'Student'}</div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span style="font-family: monospace; background: #e3f2fd; padding: 5px 10px; border-radius: 5px; font-weight: bold; color: #0d3b66;">
+                                            ${studentId}
+                                        </span>
+                                    </td>
+                                    <td>${student.country || 'N/A'}</td>
+                                    <td>${joinDate}</td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            </div>
+            
+            <div style="margin-top: 30px; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px;">
+                <h3 style="color: white; margin-bottom: 10px;">🌟 Growing Community</h3>
+                <p style="color: rgba(255,255,255,0.95); line-height: 1.6;">
+                    Our students are learning from coaches around the world, building vocabulary skills 
+                    through interactive quizzes, spelling challenges, and personalized practice sessions.
+                    Click on any student to view their profile.
+                </p>
+            </div>
+        `;
+        
+    } catch (error) {
+        console.error('❌ Error loading students:', error);
+        container.innerHTML = `
+            <div class="feedback error">
+                ❌ Error loading students. Please try refreshing the page.
+                <br><br>
+                <strong>Error details:</strong> ${error.message}
+                <br><br>
+                <button class="practice-btn" onclick="loadAndDisplayStudents()">🔄 Retry</button>
+            </div>
+        `;
+    }
+}
+
+// Load and show student profile modal
+async function showStudentDetailById(studentId) {
+    try {
+        console.log('📋 Loading student details for:', studentId);
+        const studentDoc = await db.collection('users').doc(studentId).get();
+        
+        if (studentDoc.exists) {
+            const student = { id: studentDoc.id, ...studentDoc.data() };
+            console.log('Student data loaded:', student);
+            showStudentDetail(student);
+        } else {
+            console.error('❌ Student not found');
+            alert('Student profile not found');
+        }
+    } catch (error) {
+        console.error('❌ Error loading student details:', error);
+        alert('Unable to load student details: ' + error.message);
+    }
+}
+
+// Display student detail modal
+function showStudentDetail(student) {
+    console.log('Displaying student modal:', student.name);
+    const modal = document.getElementById('studentDetailModal');
+    
+    // Generate Student ID
+    const studentId = `WB-2025-${student.id.slice(-4).toUpperCase()}`;
+    
+    // Update avatar with photo
+    const avatar = document.getElementById('modal-student-avatar');
+    if (student.photoURL) {
+        console.log('🖼️ Setting photo URL:', student.photoURL);
+        avatar.style.backgroundImage = `url('${student.photoURL}')`;
+        avatar.style.backgroundSize = 'cover';
+        avatar.style.backgroundPosition = 'center';
+        avatar.textContent = '';
+    } else {
+        console.log('🔤 No photo URL, using initial');
+        avatar.style.backgroundImage = 'none';
+        avatar.textContent = (student.name || 'S').charAt(0).toUpperCase();
+    }
+    
+    // Update name
+    document.getElementById('modal-student-name').textContent = student.name || 'Student';
+    
+    // Update Student ID (both places)
+    document.getElementById('modal-student-id').textContent = studentId;
+    document.getElementById('modal-student-id-display').textContent = studentId;
+    
+    // Update email
+    document.getElementById('modal-student-email').textContent = student.email || 'N/A';
+    
+    // Update age
+    const ageRow = document.getElementById('modal-student-age-row');
+    if (student.age) {
+        ageRow.style.display = 'flex';
+        document.getElementById('modal-student-age').textContent = student.age + ' years old';
+    } else {
+        ageRow.style.display = 'none';
+    }
+    
+    // Update country
+    document.getElementById('modal-student-country').textContent = student.country || 'N/A';
+    
+    // Update joined date
+    if (student.createdAt) {
+        const joinDate = student.createdAt.toDate();
+        document.getElementById('modal-student-joined').textContent = 
+            joinDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    } else {
+        document.getElementById('modal-student-joined').textContent = 'Recently';
+    }
+    
+    // Show modal
+    modal.classList.add('active');
+    console.log('Modal displayed');
+}
+
+// Close student detail modal
+function closeStudentDetailModal() {
+    document.getElementById('studentDetailModal').classList.remove('active');
+}
+
+// Close modal when clicking outside
+document.addEventListener('click', function(event) {
+    const modal = document.getElementById('studentDetailModal');
+    if (event.target === modal) {
+        closeStudentDetailModal();
+    }
+});
     </script>
 </body>
 </html>
