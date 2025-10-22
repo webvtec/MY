@@ -2186,7 +2186,7 @@ a[href*="whatsapp.com/channel"]:hover {
     <div class="sidebar-item sidebar-item-home" onclick="navigateTo('home')">HOME</div>
     <div class="sidebar-item" onclick="navigateTo('word-database')">WORD DATABASE</div>
     <div class="sidebar-item" onclick="navigateTo('coaches')">BOOK COACHES</div>
-    <div class="sidebar-item" onclick="navigateTo('students')">STUDENTS</div>
+    <div class="sidebar-item" onclick="try { navigateTo('students'); } catch(e) { alert('Error: ' + e.message); console.error(e); }">STUDENTS</div>
     <div class="sidebar-item" onclick="()">CONTACT US</div>
     <div class="sidebar-item" onclick="navigateTo('about')">ABOUT US</div>
     <div class="sidebar-item sign-in" id="sidebar-signin" onclick="showAuthModal()">SIGN IN</div>
@@ -7800,17 +7800,18 @@ function generateStudentID(userId) {
 async function loadAndDisplayStudents() {
     const container = document.getElementById('students-container');
     
+    if (!container) {
+        alert('❌ ERROR: students-container element not found in HTML!');
+        console.error('students-container is missing from DOM');
+        return;
+    }
+    
     try {
         container.innerHTML = '<div class="loading">📚 Loading students...</div>';
         
-        console.log('🔍 Fetching students from Firestore...');
-        
-        // Fetch all students from Firestore
         const studentsSnapshot = await db.collection('users')
             .where('userType', '==', 'student')
             .get();
-        
-        console.log('📊 Found students:', studentsSnapshot.size);
         
         if (studentsSnapshot.empty) {
             container.innerHTML = `
@@ -7827,23 +7828,18 @@ async function loadAndDisplayStudents() {
         studentsSnapshot.forEach(doc => {
             const data = doc.data();
             const studentId = generateStudentID(doc.id);
-            console.log('👤 Student:', doc.id, data.name, studentId);
             students.push({ id: doc.id, studentId: studentId, ...data });
         });
         
-        // Sort students (newest first)
         students.sort((a, b) => {
             if (!a.createdAt) return 1;
             if (!b.createdAt) return -1;
             return b.createdAt.toDate() - a.createdAt.toDate();
         });
         
-        // Calculate stats
         const totalStudents = students.length;
         
-        // Display stats and table
         container.innerHTML = `
-            <!-- Stats Cards -->
             <div class="coach-stats">
                 <div class="coach-stat-card">
                     <div class="stat-number">${totalStudents}</div>
@@ -7851,7 +7847,6 @@ async function loadAndDisplayStudents() {
                 </div>
             </div>
             
-            <!-- Students Table -->
             <div class="coaches-table">
                 <table>
                     <thead>
@@ -7863,7 +7858,6 @@ async function loadAndDisplayStudents() {
                     </thead>
                     <tbody>
                         ${students.map(student => {
-                            // Determine avatar display
                             let avatarStyle = '';
                             let avatarText = '';
                             
@@ -7904,12 +7898,17 @@ async function loadAndDisplayStudents() {
         `;
         
     } catch (error) {
-        console.error('❌ Error loading students:', error);
+        const errorMsg = `❌ ERROR: ${error.message}\n\nCode: ${error.code || 'Unknown'}\n\nStack: ${error.stack}`;
+        alert(errorMsg);
+        console.error('Full error:', error);
+        
         container.innerHTML = `
-            <div class="feedback error">
-                ❌ Error loading students. Please try refreshing the page.
+            <div class="feedback error" style="white-space: pre-wrap;">
+                ❌ Error loading students
                 <br><br>
-                <strong>Error details:</strong> ${error.message}
+                <strong>Error:</strong> ${error.message}
+                <br>
+                <strong>Code:</strong> ${error.code || 'Unknown'}
                 <br><br>
                 <button class="practice-btn" onclick="loadAndDisplayStudents()">🔄 Retry</button>
             </div>
