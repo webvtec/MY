@@ -2517,15 +2517,6 @@ a[href*="whatsapp.com/channel"]:hover {
 
 </div>
 
-    <!-- Active Challenge Section (Global Modal) -->
-    <div id="active-challenge-section" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 5000; overflow-y: auto; padding: 20px;">
-        <div style="max-width: 800px; margin: 0 auto; position: relative; background: white; border-radius: 15px; padding: 30px; margin-top: 50px;">
-            <button onclick="exitChallenge()" style="position: absolute; top: 15px; right: 15px; background: #dc3545; color: white; border: none; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 1.5rem; display: flex; align-items: center; justify-content: center; z-index: 10;">×</button>
-            <div id="active-challenge-content">
-                <!-- Challenge content will be inserted here -->
-            </div>
-        </div>
-    </div>
 
     
     <!-- Word Detail Modal -->
@@ -8765,9 +8756,16 @@ async function startLiveChallenge(challengeId) {
         myScore = 0;
         opponentScore = 0;
         
+        // ✅ HIDE the online users and incoming challenges sections
         document.getElementById('online-users-section').style.display = 'none';
         document.getElementById('incoming-challenges-section').style.display = 'none';
-        document.getElementById('active-challenge-section').style.display = 'flex';
+        
+        // ✅ SHOW the challenge directly in the live-spelling-mode div (NOT a modal)
+        const liveSpellingMode = document.getElementById('live-spelling-mode');
+        const welcomeSection = liveSpellingMode.querySelector('.welcome-section');
+        
+        // Clear welcome section content and show challenge
+        welcomeSection.innerHTML = '<div id="live-challenge-container"></div>';
         
         // ✅ Start challenge timeout (5 minutes max)
         startChallengeTimeout(challengeId);
@@ -8810,6 +8808,7 @@ async function startLiveChallenge(challengeId) {
     }
 }
 
+        
 function loadChallengeWord() {
     if (!challengeWords || challengeWords.length === 0) {
         alert('No words available for challenge');
@@ -8817,97 +8816,109 @@ function loadChallengeWord() {
     }
     
     const word = challengeWords[currentChallengeIndex];
-    const container = document.getElementById('active-challenge-content') || document.getElementById('active-challenge-section');
+    const container = document.getElementById('live-challenge-container');
+    
+    if (!container) {
+        console.error('❌ live-challenge-container not found');
+        return;
+    }
     
     const opponentName = activeChallenge.challenger.id === currentUser.uid ? 
         activeChallenge.opponent.name : activeChallenge.challenger.name;
     
     container.innerHTML = `
-        <h2 style="color: #0d3b66; margin-bottom: 20px;">⚔️ Live Battle!</h2>
-        
-        <div class="challenge-score-card">
-            <div class="player-score">
-                <div class="name">You</div>
-                <div class="score">${myScore}</div>
-            </div>
-            <div style="font-size: 2rem; align-self: center;">VS</div>
-            <div class="player-score">
-                <div class="name">${opponentName}</div>
-                <div class="score">${opponentScore}</div>
-            </div>
-        </div>
-        
-        <div class="quiz-question-card">
-            <h3>Word ${currentChallengeIndex + 1} of ${challengeWords.length}</h3>
+        <div style="background: white; padding: 30px; border-radius: 15px; box-shadow: 0 5px 25px rgba(0,0,0,0.1);">
+            <h2 style="color: #0d3b66; margin-bottom: 20px; text-align: center;">⚔️ Live Spelling Battle!</h2>
             
-           <div style="text-align: center; margin: 30px 0;">
-    <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
-        <button class="practice-btn" onclick="speakChallengeWord()" 
-                style="font-size: 1.1rem; padding: 15px 30px;">
-            🔊 Play Word
-        </button>
-        <button class="practice-btn" onclick="speakChallengeWordInSentence()" 
-                style="font-size: 1.1rem; padding: 15px 30px; background: #17a2b8;">
-            💬 Use in Sentence
-        </button>
-    </div>
-</div>
-            
-            <div class="form-group" style="margin: 30px 0;">
-                <label style="font-size: 1.2rem;">Type what you hear:</label>
-                <input type="text" id="challenge-spelling-input" 
-                       placeholder="Use the keyboard below..." 
-                       style="width: 100%; padding: 15px; font-size: 1.3rem; text-align: center; border: 3px solid #0d3b66; border-radius: 8px; margin-top: 10px;"
-                       readonly>
-            </div>
-            
-            <div class="virtual-keyboard">
-                <div class="keyboard-row">
-                    <button class="keyboard-key" onclick="typeChallengeKey('Q')">Q</button>
-                    <button class="keyboard-key" onclick="typeChallengeKey('W')">W</button>
-                    <button class="keyboard-key" onclick="typeChallengeKey('E')">E</button>
-                    <button class="keyboard-key" onclick="typeChallengeKey('R')">R</button>
-                    <button class="keyboard-key" onclick="typeChallengeKey('T')">T</button>
-                    <button class="keyboard-key" onclick="typeChallengeKey('Y')">Y</button>
-                    <button class="keyboard-key" onclick="typeChallengeKey('U')">U</button>
-                    <button class="keyboard-key" onclick="typeChallengeKey('I')">I</button>
-                    <button class="keyboard-key" onclick="typeChallengeKey('O')">O</button>
-                    <button class="keyboard-key" onclick="typeChallengeKey('P')">P</button>
+            <div class="challenge-score-card">
+                <div class="player-score">
+                    <div class="name">You</div>
+                    <div class="score">${myScore}</div>
                 </div>
-                <div class="keyboard-row">
-                    <button class="keyboard-key" onclick="typeChallengeKey('A')">A</button>
-                    <button class="keyboard-key" onclick="typeChallengeKey('S')">S</button>
-                    <button class="keyboard-key" onclick="typeChallengeKey('D')">D</button>
-                    <button class="keyboard-key" onclick="typeChallengeKey('F')">F</button>
-                    <button class="keyboard-key" onclick="typeChallengeKey('G')">G</button>
-                    <button class="keyboard-key" onclick="typeChallengeKey('H')">H</button>
-                    <button class="keyboard-key" onclick="typeChallengeKey('J')">J</button>
-                    <button class="keyboard-key" onclick="typeChallengeKey('K')">K</button>
-                    <button class="keyboard-key" onclick="typeChallengeKey('L')">L</button>
-                </div>
-                <div class="keyboard-row">
-                    <button class="keyboard-key" onclick="typeChallengeKey('Z')">Z</button>
-                    <button class="keyboard-key" onclick="typeChallengeKey('X')">X</button>
-                    <button class="keyboard-key" onclick="typeChallengeKey('C')">C</button>
-                    <button class="keyboard-key" onclick="typeChallengeKey('V')">V</button>
-                    <button class="keyboard-key" onclick="typeChallengeKey('B')">B</button>
-                    <button class="keyboard-key" onclick="typeChallengeKey('N')">N</button>
-                    <button class="keyboard-key" onclick="typeChallengeKey('M')">M</button>
-                </div>
-                <div class="keyboard-row">
-                    <button class="keyboard-key backspace" onclick="backspaceChallengeKey()">⌫ Delete</button>
-                    <button class="keyboard-key space" onclick="typeChallengeKey(' ')">Space</button>
-                    <button class="keyboard-key enter" onclick="submitChallengeAnswer()">✓ Enter</button>
+                <div style="font-size: 2rem; align-self: center;">VS</div>
+                <div class="player-score">
+                    <div class="name">${opponentName}</div>
+                    <div class="score">${opponentScore}</div>
                 </div>
             </div>
             
-            <div id="challenge-feedback" style="margin-top: 20px;"></div>
+            <div class="quiz-question-card">
+                <h3>Word ${currentChallengeIndex + 1} of ${challengeWords.length}</h3>
+                
+                <div style="text-align: center; margin: 30px 0;">
+                    <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                        <button class="practice-btn" onclick="speakChallengeWord()" 
+                                style="font-size: 1.1rem; padding: 15px 30px;">
+                            🔊 Play Word
+                        </button>
+                        <button class="practice-btn" onclick="speakChallengeWordInSentence()" 
+                                style="font-size: 1.1rem; padding: 15px 30px; background: #17a2b8;">
+                            💬 Use in Sentence
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="form-group" style="margin: 30px 0;">
+                    <label style="font-size: 1.2rem;">Type what you hear:</label>
+                    <input type="text" id="challenge-spelling-input" 
+                           placeholder="Use the keyboard below..." 
+                           style="width: 100%; padding: 15px; font-size: 1.3rem; text-align: center; border: 3px solid #0d3b66; border-radius: 8px; margin-top: 10px;"
+                           readonly>
+                </div>
+                
+                <div class="virtual-keyboard">
+                    <div class="keyboard-row">
+                        <button class="keyboard-key" onclick="typeChallengeKey('Q')">Q</button>
+                        <button class="keyboard-key" onclick="typeChallengeKey('W')">W</button>
+                        <button class="keyboard-key" onclick="typeChallengeKey('E')">E</button>
+                        <button class="keyboard-key" onclick="typeChallengeKey('R')">R</button>
+                        <button class="keyboard-key" onclick="typeChallengeKey('T')">T</button>
+                        <button class="keyboard-key" onclick="typeChallengeKey('Y')">Y</button>
+                        <button class="keyboard-key" onclick="typeChallengeKey('U')">U</button>
+                        <button class="keyboard-key" onclick="typeChallengeKey('I')">I</button>
+                        <button class="keyboard-key" onclick="typeChallengeKey('O')">O</button>
+                        <button class="keyboard-key" onclick="typeChallengeKey('P')">P</button>
+                    </div>
+                    <div class="keyboard-row">
+                        <button class="keyboard-key" onclick="typeChallengeKey('A')">A</button>
+                        <button class="keyboard-key" onclick="typeChallengeKey('S')">S</button>
+                        <button class="keyboard-key" onclick="typeChallengeKey('D')">D</button>
+                        <button class="keyboard-key" onclick="typeChallengeKey('F')">F</button>
+                        <button class="keyboard-key" onclick="typeChallengeKey('G')">G</button>
+                        <button class="keyboard-key" onclick="typeChallengeKey('H')">H</button>
+                        <button class="keyboard-key" onclick="typeChallengeKey('J')">J</button>
+                        <button class="keyboard-key" onclick="typeChallengeKey('K')">K</button>
+                        <button class="keyboard-key" onclick="typeChallengeKey('L')">L</button>
+                    </div>
+                    <div class="keyboard-row">
+                        <button class="keyboard-key" onclick="typeChallengeKey('Z')">Z</button>
+                        <button class="keyboard-key" onclick="typeChallengeKey('X')">X</button>
+                        <button class="keyboard-key" onclick="typeChallengeKey('C')">C</button>
+                        <button class="keyboard-key" onclick="typeChallengeKey('V')">V</button>
+                        <button class="keyboard-key" onclick="typeChallengeKey('B')">B</button>
+                        <button class="keyboard-key" onclick="typeChallengeKey('N')">N</button>
+                        <button class="keyboard-key" onclick="typeChallengeKey('M')">M</button>
+                    </div>
+                    <div class="keyboard-row">
+                        <button class="keyboard-key backspace" onclick="backspaceChallengeKey()">⌫ Delete</button>
+                        <button class="keyboard-key space" onclick="typeChallengeKey(' ')">Space</button>
+                        <button class="keyboard-key enter" onclick="submitChallengeAnswer()">✓ Enter</button>
+                    </div>
+                </div>
+                
+                <div id="challenge-feedback" style="margin-top: 20px;"></div>
+            </div>
+            
+            <div style="text-align: center; margin-top: 20px;">
+                <button class="practice-btn" onclick="exitChallenge()" style="background: #dc3545;">
+                    🚪 Exit Challenge
+                </button>
+            </div>
         </div>
     `;
     
     setTimeout(() => speakChallengeWord(), 500);
 }
-
 function speakChallengeWord() {
     if (!challengeWords || !challengeWords[currentChallengeIndex]) return;
     
@@ -9074,14 +9085,21 @@ function showChallengeResults(challenge) {
     const won = myFinalScore > opponentFinalScore;
     const tied = myFinalScore === opponentFinalScore;
     
-    const container = document.getElementById('active-challenge-content') || document.getElementById('active-challenge-section');
+    const container = document.getElementById('live-challenge-container');
+    
+    if (!container) {
+        console.error('❌ live-challenge-container not found');
+        return;
+    }
     
     container.innerHTML = `
-        <div class="quiz-question-card" style="text-align: center;">
+        <div style="background: white; padding: 40px; border-radius: 15px; box-shadow: 0 5px 25px rgba(0,0,0,0.1); text-align: center;">
             <div style="font-size: 4rem; margin: 20px 0;">
                 ${won ? '🏆' : tied ? '🤝' : '😔'}
             </div>
-            <h2>${won ? 'You Win!' : tied ? "It's a Tie!" : 'You Lost'}</h2>
+            <h2 style="color: #0d3b66; font-size: 2.5rem; margin-bottom: 20px;">
+                ${won ? 'Victory!' : tied ? "It's a Tie!" : 'Better Luck Next Time'}
+            </h2>
             
             <div class="challenge-score-card">
                 <div class="player-score">
@@ -9095,7 +9113,7 @@ function showChallengeResults(challenge) {
                 </div>
             </div>
             
-            <button class="practice-btn" onclick="exitChallenge()" style="margin-top: 30px; font-size: 1.1rem;">
+            <button class="practice-btn" onclick="exitChallenge()" style="margin-top: 30px; font-size: 1.2rem; padding: 15px 40px;">
                 🏠 Back to Lobby
             </button>
         </div>
@@ -9113,14 +9131,36 @@ function exitChallenge() {
     opponentScore = 0;
     shownPopupIds.clear();
     
-    document.getElementById('active-challenge-section').style.display = 'none';
+    // ✅ Show the online users section again
     document.getElementById('online-users-section').style.display = 'block';
     document.getElementById('incoming-challenges-section').style.display = 'none';
+    
+    // ✅ Restore the welcome section content
+    const liveSpellingMode = document.getElementById('live-spelling-mode');
+    const welcomeSection = liveSpellingMode.querySelector('.welcome-section');
+    
+    welcomeSection.innerHTML = `
+        <h2>🏆 Live Spelling Challenges</h2>
+        <p style="margin: 20px 0;">Challenge other students to spelling battles in real-time!</p>
+        
+        <!-- Online Users Section -->
+        <div id="online-users-section">
+            <h3 style="color: #0d3b66; margin: 20px 0;">👥 Online Students (<span id="online-count">0</span>)</h3>
+            <div id="online-users-list" class="favorites-grid">
+                <div class="loading">Loading online users...</div>
+            </div>
+        </div>
+        
+        <!-- Incoming Challenges -->
+        <div id="incoming-challenges-section" style="margin-top: 30px; display: none;">
+            <h3 style="color: #dc3545; margin: 20px 0;">⚡ Incoming Challenges</h3>
+            <div id="incoming-challenges-list"></div>
+        </div>
+    `;
     
     loadOnlineUsers();
 }
 
- // ✅ NEW FUNCTIONS - ADD THESE
 
 // Start challenge timeout
 function startChallengeTimeout(challengeId) {
@@ -9222,12 +9262,17 @@ async function endChallengeByOpponentOffline(challengeId) {
 
 // Show abandoned challenge screen
 function showChallengeAbandoned(challenge) {
-    const container = document.getElementById('active-challenge-content') || document.getElementById('active-challenge-section');
+    const container = document.getElementById('live-challenge-container');
+    
+    if (!container) {
+        console.error('❌ live-challenge-container not found');
+        return;
+    }
     
     container.innerHTML = `
-        <div class="quiz-question-card" style="text-align: center;">
+        <div style="background: white; padding: 40px; border-radius: 15px; box-shadow: 0 5px 25px rgba(0,0,0,0.1); text-align: center;">
             <div style="font-size: 4rem; margin: 20px 0;">🚫</div>
-            <h2>Challenge Abandoned</h2>
+            <h2 style="color: #0d3b66; font-size: 2rem; margin-bottom: 15px;">Challenge Abandoned</h2>
             <p style="font-size: 1.2rem; margin: 20px 0; color: #666;">
                 ${challenge.endReason === 'opponent_offline' ? 
                     'Your opponent went offline.' : 
@@ -9241,11 +9286,11 @@ function showChallengeAbandoned(challenge) {
                 </div>
             </div>
             
-            <p style="margin: 20px 0; font-size: 1.1rem; color: #28a745; font-weight: bold;">
+            <p style="margin: 20px 0; font-size: 1.3rem; color: #28a745; font-weight: bold;">
                 🏆 You win by default!
             </p>
             
-            <button class="practice-btn" onclick="exitChallenge()" style="margin-top: 30px; font-size: 1.1rem;">
+            <button class="practice-btn" onclick="exitChallenge()" style="margin-top: 30px; font-size: 1.2rem; padding: 15px 40px;">
                 🏠 Back to Lobby
             </button>
         </div>
