@@ -8350,6 +8350,7 @@ function displayOnlineUsers(users) {
 }
 
 // Send challenge to another user
+// Send challenge to another user
 async function sendChallenge(opponentId, opponentName) {
     if (!currentUser) return;
     
@@ -8372,7 +8373,7 @@ async function sendChallenge(opponentId, opponentName) {
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
             
-            alert('✅ Challenge sent! Waiting for response...');
+            alert('✅ Challenge sent! Waiting for response...\n\nYou will automatically enter the game when they accept.');
         } catch (error) {
             console.error('Error sending challenge:', error);
             alert('Failed to send challenge. Please try again.');
@@ -8381,10 +8382,11 @@ async function sendChallenge(opponentId, opponentName) {
 }
 
 // Listen for incoming challenges
-// Listen for incoming challenges
+// Listen for incoming challenges (both as opponent and as challenger)
 function listenForChallenges() {
     if (!currentUser) return;
     
+    // Listen for challenges where I'm the OPPONENT (someone challenged me)
     db.collection('challenges')
         .where('opponent.id', '==', currentUser.uid)
         .where('status', '==', 'pending')
@@ -8395,15 +8397,29 @@ function listenForChallenges() {
             });
             
             if (challenges.length > 0) {
-                // Show popup notification anywhere on site
-                showChallengePopup(challenges[0]); // Show first challenge as popup
+                showChallengePopup(challenges[0]);
                 displayIncomingChallenges(challenges);
             } else {
                 document.getElementById('incoming-challenges-section').style.display = 'none';
-                // Remove popup if no challenges
                 const existingPopup = document.getElementById('challenge-popup-notification');
                 if (existingPopup) existingPopup.remove();
             }
+        });
+    
+    // Listen for challenges where I'm the CHALLENGER (I challenged someone and they accepted)
+    db.collection('challenges')
+        .where('challenger.id', '==', currentUser.uid)
+        .where('status', '==', 'active')
+        .onSnapshot(snapshot => {
+            snapshot.forEach(doc => {
+                const challenge = doc.data();
+                // Auto-start the challenge for the challenger
+                if (!activeChallenge || activeChallenge.id !== doc.id) {
+                    navigateTo('spelling');
+                    switchSpellingMode('live');
+                    startLiveChallenge(doc.id);
+                }
+            });
         });
 }
 
@@ -8437,6 +8453,8 @@ function displayIncomingChallenges(challenges) {
 async function acceptChallenge(challengeId) {
     try {
         const challengeRef = db.collection('challenges').doc(challengeId);
+        const challengeDoc = await challengeRef.get();
+        const challengeData = challengeDoc.data();
         
         // Generate 5 random words for the challenge
         if (!selectedGameLevel) {
@@ -8450,19 +8468,22 @@ async function acceptChallenge(challengeId) {
         const shuffled = [...levelWords[selectedGameLevel]].sort(() => 0.5 - Math.random());
         const words = shuffled.slice(0, 5);
         
+        // Update challenge to active status
         await challengeRef.update({
             status: 'active',
             words: words,
             scores: {
                 [currentUser.uid]: 0,
-                challenger: 0
+                [challengeData.challenger.id]: 0
             },
             currentWord: 0,
             startedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
         
-        // Automatically start the challenge (no need to navigate, already done in acceptChallengeFromPopup)
+        // Start the challenge immediately for the person who accepted
         startLiveChallenge(challengeId);
+        
+        // The challenger will be auto-started via the listener in listenForChallenges()
     } catch (error) {
         console.error('Error accepting challenge:', error);
         alert('Failed to accept challenge. Please try again.');
@@ -8768,7 +8789,7 @@ async function acceptChallengeFromPopup(challengeId) {
     // Switch to live spelling mode
     switchSpellingMode('live');
     
-    // Accept the challenge
+    // Accept the challenge (this will also start the game)
     await acceptChallenge(challengeId);
 }
 
