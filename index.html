@@ -2166,6 +2166,159 @@ a[href*="whatsapp.com/channel"]:hover {
     }
 }
 
+
+    /* ===== LIVE SPELLING STYLES ===== */
+.online-user-card {
+    background: white;
+    border: 2px solid #0d3b66;
+    border-radius: 10px;
+    padding: 20px;
+    margin: 15px 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: all 0.3s;
+    cursor: pointer;
+}
+
+.online-user-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+}
+
+.online-user-info {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex: 1;
+}
+
+.online-status-dot {
+    width: 12px;
+    height: 12px;
+    background: #28a745;
+    border-radius: 50%;
+    animation: pulse-online 2s infinite;
+    box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7);
+}
+
+@keyframes pulse-online {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7);
+    }
+    50% {
+        box-shadow: 0 0 0 10px rgba(40, 167, 69, 0);
+    }
+}
+
+.challenge-btn {
+    padding: 12px 25px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 25px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s;
+    box-shadow: 0 4px 10px rgba(102, 126, 234, 0.3);
+}
+
+.challenge-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(102, 126, 234, 0.5);
+}
+
+.challenge-btn:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.pending-challenge-card {
+    background: white;
+    border: 2px solid #ffc107;
+    border-radius: 10px;
+    padding: 20px;
+    margin: 15px 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.challenge-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.accept-btn {
+    padding: 10px 20px;
+    background: #28a745;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.accept-btn:hover {
+    background: #218838;
+    transform: translateY(-2px);
+}
+
+.decline-btn {
+    padding: 10px 20px;
+    background: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.decline-btn:hover {
+    background: #c82333;
+    transform: translateY(-2px);
+}
+
+.waiting-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.8);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.waiting-content {
+    background: white;
+    padding: 40px;
+    border-radius: 20px;
+    text-align: center;
+    max-width: 400px;
+}
+
+.waiting-spinner {
+    width: 60px;
+    height: 60px;
+    border: 6px solid #f3f3f3;
+    border-top: 6px solid #0d3b66;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 20px auto;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
     </style>
 </head>
 <body>
@@ -2935,13 +3088,57 @@ a[href*="whatsapp.com/channel"]:hover {
         <div id="unscramble-results" style="display: none;"></div>
     </div>
 </div>
-                <!-- Live Spelling Mode -->
-                <div id="live-spelling-mode" class="quiz-mode">
-                    <div class="welcome-section">
-                        <h2>🏆 Live Spelling</h2>
-                        <p>Coming soon! Compete with other students in real-time spelling competitions.</p>
+               <!-- Live Spelling Mode -->
+<div id="live-spelling-mode" class="quiz-mode">
+    <!-- Online Users Display -->
+    <div id="online-users-container" style="display: block;">
+        <div class="welcome-section">
+            <h2>🏆 Live Spelling Challenge</h2>
+            <p style="margin: 20px 0;">Challenge other students to a spelling duel! Students currently online:</p>
+            
+            <div id="online-users-list" style="margin-top: 30px;">
+                <div class="loading">Loading online students...</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Pending Challenges -->
+    <div id="pending-challenges-container" style="display: none; margin-top: 30px;">
+        <div class="welcome-section" style="background: #fff3cd; border-left: 4px solid #ffc107;">
+            <h3 style="color: #856404; margin-bottom: 15px;">⏳ Pending Challenges</h3>
+            <div id="pending-challenges-list"></div>
+        </div>
+    </div>
+    
+    <!-- Active Challenge Game -->
+    <div id="live-challenge-game" style="display: none;">
+        <div class="quiz-question-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
+                <div style="flex: 1;">
+                    <h3 style="color: #0d3b66; margin: 0;">🆚 Challenge Match</h3>
+                    <p style="margin: 5px 0; color: #666;">
+                        <strong id="opponent-name">Opponent</strong>
+                    </p>
+                </div>
+                <div style="text-align: right;">
+                    <div style="font-size: 1.2rem; font-weight: bold; color: #0d3b66;">
+                        <span id="your-challenge-score">0</span> - <span id="opponent-challenge-score">0</span>
+                    </div>
+                    <div style="font-size: 0.9rem; color: #666;">
+                        Word <span id="challenge-word-number">1</span> of 5
                     </div>
                 </div>
+            </div>
+            
+            <div id="challenge-spelling-content">
+                <!-- Challenge content will be inserted here -->
+            </div>
+        </div>
+    </div>
+    
+    <!-- Challenge Results -->
+    <div id="challenge-results" style="display: none;"></div>
+</div>
 
                 <!-- Spelling Leaderboard Mode -->
                 <div id="leaderboard-spelling-mode" class="quiz-mode">
@@ -3352,20 +3549,23 @@ a[href*="whatsapp.com/channel"]:hover {
     </div>
 </div>
     <script>
-        // ===== FIREBASE CONFIGURATION =====
-        const firebaseConfig = {
-            apiKey: "AIzaSyCDdnDKsCUaCK4L95G57AC9-BjCqJiIywA",
-            authDomain: "wordbiz-coaching-academy.firebaseapp.com",
-            projectId: "wordbiz-coaching-academy",
-            storageBucket: "wordbiz-coaching-academy.firebasestorage.app",
-            messagingSenderId: "829294789081",
-            appId: "1:829294789081:web:501ae4d3d6f3694a40d9c8"
-        };
+       // ===== FIREBASE CONFIGURATION =====
+const firebaseConfig = {
+    apiKey: "AIzaSyCDdnDKsCUaCK4L95G57AC9-BjCqJiIywA",
+    authDomain: "wordbiz-coaching-academy.firebaseapp.com",
+    projectId: "wordbiz-coaching-academy",
+    storageBucket: "wordbiz-coaching-academy.firebasestorage.app",
+    messagingSenderId: "829294789081",
+    appId: "1:829294789081:web:501ae4d3d6f3694a40d9c8",
+    databaseURL: "https://wordbiz-coaching-academy-default-rtdb.firebaseio.com" // ADD THIS LINE
+};
 
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
-        const auth = firebase.auth();
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const auth = firebase.auth();
+const rtdb = firebase.database(); // ADD THIS LINE FOR REALTIME DATABASE
 
+        
         // ===== CLOUD FUNCTION URL =====
         const CLOUD_FUNCTION_URL = 'https://getworddefinition-998744778737.us-central1.run.app';
         
@@ -3387,6 +3587,16 @@ let quizStartTime = null;
 let quizAnswerTimes = [];
 let quizDifficulty = 'medium'; // track difficulty
 let questionStartTime = null;
+
+
+// ===== LIVE SPELLING VARIABLES =====
+let onlineUsersRef = null;
+let onlineUsersListener = null;
+let currentUserPresenceRef = null;
+let challengesRef = null;
+let challengesListener = null;
+let activeChallenge = null;
+let challengeWordsRef = null;
 
 // ===== LEVEL-BASED WORD LOADING =====
 let currentLevel = '';
@@ -8088,6 +8298,534 @@ document.addEventListener('click', function(event) {
         closeStudentDetailModal();
     }
 });
+
+
+
+// ===== LIVE SPELLING FUNCTIONS =====
+
+// Initialize online presence when user signs in
+async function initializeOnlinePresence() {
+    if (!currentUser) return;
+    
+    // Reference to online users
+    onlineUsersRef = rtdb.ref('onlineUsers');
+    currentUserPresenceRef = rtdb.ref(`onlineUsers/${currentUser.uid}`);
+    
+    // Get user data
+    const userDoc = await db.collection('users').doc(currentUser.uid).get();
+    const userData = userDoc.data();
+    
+    // Set user as online
+    await currentUserPresenceRef.set({
+        name: userData.name || currentUser.displayName || 'Student',
+        photoURL: currentUser.photoURL || null,
+        email: currentUser.email,
+        lastSeen: firebase.database.ServerValue.TIMESTAMP
+    });
+    
+    // Remove user when they disconnect
+    currentUserPresenceRef.onDisconnect().remove();
+    
+    // Update lastSeen every 30 seconds
+    setInterval(() => {
+        if (currentUserPresenceRef) {
+            currentUserPresenceRef.update({
+                lastSeen: firebase.database.ServerValue.TIMESTAMP
+            });
+        }
+    }, 30000);
+}
+
+// Load online users
+function loadOnlineUsers() {
+    if (!currentUser || !onlineUsersRef) return;
+    
+    const listContainer = document.getElementById('online-users-list');
+    
+    if (onlineUsersListener) {
+        onlineUsersRef.off('value', onlineUsersListener);
+    }
+    
+    onlineUsersListener = onlineUsersRef.on('value', (snapshot) => {
+        const users = snapshot.val();
+        
+        if (!users) {
+            listContainer.innerHTML = '<div class="loading">No students online right now. Check back later!</div>';
+            return;
+        }
+        
+        const onlineUsers = Object.entries(users)
+            .filter(([uid, user]) => uid !== currentUser.uid) // Exclude current user
+            .map(([uid, user]) => ({ uid, ...user }));
+        
+        if (onlineUsers.length === 0) {
+            listContainer.innerHTML = '<div class="loading">No other students online right now. Check back later!</div>';
+            return;
+        }
+        
+        listContainer.innerHTML = onlineUsers.map(user => {
+            let avatarHTML = '';
+            if (user.photoURL) {
+                avatarHTML = `<div class="coach-avatar" style="background-image: url('${user.photoURL}'); background-size: cover; background-position: center;"></div>`;
+            } else {
+                const initial = (user.name || 'S').charAt(0).toUpperCase();
+                avatarHTML = `<div class="coach-avatar">${initial}</div>`;
+            }
+            
+            return `
+                <div class="online-user-card">
+                    <div class="online-user-info">
+                        <div class="online-status-dot"></div>
+                        ${avatarHTML}
+                        <div>
+                            <div style="font-size: 1.2rem; font-weight: bold; color: #0d3b66;">${user.name}</div>
+                            <div style="font-size: 0.9rem; color: #666;">Online now</div>
+                        </div>
+                    </div>
+                    <button class="challenge-btn" onclick="sendChallenge('${user.uid}', '${user.name.replace(/'/g, "\\'")}')">
+                        ⚔️ Challenge
+                    </button>
+                </div>
+            `;
+        }).join('');
+    });
+}
+
+// Send a challenge to another user
+async function sendChallenge(opponentId, opponentName) {
+    if (!currentUser) return;
+    
+    try {
+        // Get current user data
+        const userDoc = await db.collection('users').doc(currentUser.uid).get();
+        const userData = userDoc.data();
+        
+        // Create challenge in Realtime Database
+        const challengeRef = rtdb.ref('challenges').push();
+        const challengeId = challengeRef.key;
+        
+        await challengeRef.set({
+            challengerId: currentUser.uid,
+            challengerName: userData.name || currentUser.displayName || 'Student',
+            challengerPhoto: currentUser.photoURL || null,
+            opponentId: opponentId,
+            opponentName: opponentName,
+            status: 'pending',
+            createdAt: firebase.database.ServerValue.TIMESTAMP
+        });
+        
+        // Show waiting overlay
+        showWaitingOverlay(opponentName, challengeId);
+        
+    } catch (error) {
+        console.error('Error sending challenge:', error);
+        alert('Failed to send challenge: ' + error.message);
+    }
+}
+
+// Show waiting overlay
+function showWaitingOverlay(opponentName, challengeId) {
+    const overlay = document.createElement('div');
+    overlay.className = 'waiting-overlay';
+    overlay.id = 'waiting-overlay';
+    overlay.innerHTML = `
+        <div class="waiting-content">
+            <h2 style="color: #0d3b66; margin-bottom: 20px;">⚔️ Challenge Sent!</h2>
+            <p style="font-size: 1.1rem; margin-bottom: 20px;">
+                Waiting for <strong>${opponentName}</strong> to accept...
+            </p>
+            <div class="waiting-spinner"></div>
+            <button class="practice-btn" onclick="cancelChallenge('${challengeId}')" style="background: #dc3545; margin-top: 20px;">
+                Cancel Challenge
+            </button>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+    
+    // Listen for challenge status
+    const challengeRef = rtdb.ref(`challenges/${challengeId}`);
+    challengeRef.on('value', async (snapshot) => {
+        const challenge = snapshot.val();
+        
+        if (!challenge) {
+            closeWaitingOverlay();
+            return;
+        }
+        
+        if (challenge.status === 'accepted') {
+            challengeRef.off();
+            closeWaitingOverlay();
+            await startChallengeGame(challengeId, challenge);
+        } else if (challenge.status === 'declined') {
+            challengeRef.off();
+            closeWaitingOverlay();
+            alert(`${opponentName} declined your challenge.`);
+        }
+    });
+}
+
+function closeWaitingOverlay() {
+    const overlay = document.getElementById('waiting-overlay');
+    if (overlay) overlay.remove();
+}
+
+async function cancelChallenge(challengeId) {
+    await rtdb.ref(`challenges/${challengeId}`).remove();
+    closeWaitingOverlay();
+}
+
+// Listen for incoming challenges
+function listenForChallenges() {
+    if (!currentUser) return;
+    
+    challengesRef = rtdb.ref('challenges');
+    
+    if (challengesListener) {
+        challengesRef.off('child_added', challengesListener);
+    }
+    
+    challengesListener = challengesRef.on('child_added', (snapshot) => {
+        const challenge = snapshot.val();
+        const challengeId = snapshot.key;
+        
+        if (challenge.opponentId === currentUser.uid && challenge.status === 'pending') {
+            showChallengeNotification(challengeId, challenge);
+        }
+    });
+}
+
+// Show challenge notification
+function showChallengeNotification(challengeId, challenge) {
+    const container = document.getElementById('pending-challenges-container');
+    const listContainer = document.getElementById('pending-challenges-list');
+    
+    container.style.display = 'block';
+    
+    let avatarHTML = '';
+    if (challenge.challengerPhoto) {
+        avatarHTML = `<div class="coach-avatar" style="background-image: url('${challenge.challengerPhoto}'); background-size: cover; background-position: center;"></div>`;
+    } else {
+        const initial = (challenge.challengerName || 'S').charAt(0).toUpperCase();
+        avatarHTML = `<div class="coach-avatar">${initial}</div>`;
+    }
+    
+    const challengeCard = document.createElement('div');
+    challengeCard.className = 'pending-challenge-card';
+    challengeCard.id = `challenge-${challengeId}`;
+    challengeCard.innerHTML = `
+        <div class="online-user-info">
+            ${avatarHTML}
+            <div>
+                <div style="font-size: 1.2rem; font-weight: bold; color: #0d3b66;">
+                    ${challenge.challengerName}
+                </div>
+                <div style="font-size: 0.9rem; color: #666;">
+                    has challenged you to a spelling duel!
+                </div>
+            </div>
+        </div>
+        <div class="challenge-actions">
+            <button class="accept-btn" onclick="acceptChallenge('${challengeId}')">
+                ✅ Accept
+            </button>
+            <button class="decline-btn" onclick="declineChallenge('${challengeId}')">
+                ❌ Decline
+            </button>
+        </div>
+    `;
+    
+    listContainer.appendChild(challengeCard);
+}
+
+async function acceptChallenge(challengeId) {
+    try {
+        await rtdb.ref(`challenges/${challengeId}`).update({
+            status: 'accepted'
+        });
+        
+        // Remove notification
+        const card = document.getElementById(`challenge-${challengeId}`);
+        if (card) card.remove();
+        
+        // Start the game
+        const challengeSnapshot = await rtdb.ref(`challenges/${challengeId}`).once('value');
+        const challenge = challengeSnapshot.val();
+        
+        await startChallengeGame(challengeId, challenge);
+        
+    } catch (error) {
+        console.error('Error accepting challenge:', error);
+        alert('Failed to accept challenge: ' + error.message);
+    }
+}
+
+async function declineChallenge(challengeId) {
+    try {
+        await rtdb.ref(`challenges/${challengeId}`).update({
+            status: 'declined'
+        });
+        
+        // Remove notification
+        const card = document.getElementById(`challenge-${challengeId}`);
+        if (card) card.remove();
+        
+    } catch (error) {
+        console.error('Error declining challenge:', error);
+    }
+}
+
+// Start the challenge game
+async function startChallengeGame(challengeId, challenge) {
+    activeChallenge = {
+        id: challengeId,
+        ...challenge
+    };
+    
+    // Determine if current user is challenger or opponent
+    const isChallenger = currentUser.uid === challenge.challengerId;
+    const opponentName = isChallenger ? challenge.opponentName : challenge.challengerName;
+    
+    // Hide online users and show game
+    document.getElementById('online-users-container').style.display = 'none';
+    document.getElementById('pending-challenges-container').style.display = 'none';
+    document.getElementById('live-challenge-game').style.display = 'block';
+    
+    document.getElementById('opponent-name').textContent = opponentName;
+    document.getElementById('your-challenge-score').textContent = '0';
+    document.getElementById('opponent-challenge-score').textContent = '0';
+    document.getElementById('challenge-word-number').textContent = '1';
+    
+    // If challenger, generate words and store them
+    if (isChallenger) {
+        // Load words from current level or random level
+        const level = selectedGameLevel || 'foundation';
+        if (levelWords[level].length === 0) {
+            await loadLevelWords(level);
+        }
+        
+        // Select 5 random words
+        const shuffled = [...levelWords[level]].sort(() => 0.5 - Math.random());
+        const words = shuffled.slice(0, 5);
+        
+        // Store words in database
+        await rtdb.ref(`challenges/${challengeId}/words`).set(words);
+        await rtdb.ref(`challenges/${challengeId}/currentWordIndex`).set(0);
+        await rtdb.ref(`challenges/${challengeId}/scores`).set({
+            [challenge.challengerId]: 0,
+            [challenge.opponentId]: 0
+        });
+    }
+    
+    // Listen for game updates
+    listenForChallengeUpdates(challengeId);
+    
+    // Load first word
+    loadChallengeWord(challengeId, 0);
+}
+
+function listenForChallengeUpdates(challengeId) {
+    const challengeRef = rtdb.ref(`challenges/${challengeId}`);
+    
+    // Listen for score updates
+    challengeRef.child('scores').on('value', (snapshot) => {
+        const scores = snapshot.val();
+        if (!scores) return;
+        
+        const myScore = scores[currentUser.uid] || 0;
+        const opponentId = activeChallenge.challengerId === currentUser.uid ? 
+            activeChallenge.opponentId : activeChallenge.challengerId;
+        const opponentScore = scores[opponentId] || 0;
+        
+        document.getElementById('your-challenge-score').textContent = myScore;
+        document.getElementById('opponent-challenge-score').textContent = opponentScore;
+    });
+    
+    // Listen for word index updates
+    challengeRef.child('currentWordIndex').on('value', async (snapshot) => {
+        const wordIndex = snapshot.val();
+        if (wordIndex === null) return;
+        
+        document.getElementById('challenge-word-number').textContent = wordIndex + 1;
+        
+        if (wordIndex >= 5) {
+            // Game over
+            await endChallengeGame(challengeId);
+        } else {
+            await loadChallengeWord(challengeId, wordIndex);
+        }
+    });
+}
+
+async function loadChallengeWord(challengeId, wordIndex) {
+    try {
+        // Get words from database
+        const wordsSnapshot = await rtdb.ref(`challenges/${challengeId}/words`).once('value');
+        const words = wordsSnapshot.val();
+        
+        if (!words || wordIndex >= words.length) return;
+        
+        const word = words[wordIndex];
+        
+        const contentDiv = document.getElementById('challenge-spelling-content');
+        contentDiv.innerHTML = `
+            <div style="text-align: center; margin: 30px 0;">
+                <button class="practice-btn" onclick="speakChallengeWord('${word}')" style="font-size: 1.1rem; padding: 15px 30px;">
+                    🔊 Play Word
+                </button>
+            </div>
+            
+            <div class="form-group" style="margin: 30px 0;">
+                <label style="font-size: 1.2rem;">Type what you hear:</label>
+                <input type="text" id="challenge-spelling-input" 
+                       placeholder="Use the keyboard below..." 
+                       style="width: 100%; padding: 15px; font-size: 1.3rem; text-align: center; border: 3px solid #0d3b66; border-radius: 8px; margin-top: 10px;"
+                       readonly>
+            </div>
+            
+            <!-- Virtual Keyboard -->
+            <div class="virtual-keyboard">
+                <div class="keyboard-row">
+                    <button class="keyboard-key" onclick="typeChallengeKey('Q')">Q</button>
+                    <button class="keyboard-key" onclick="typeChallengeKey('W')">W</button>
+                    <button class="keyboard-key" onclick="typeChallengeKey('E')">E</button>
+                    <button class="keyboard-key" onclick="typeChallengeKey('R')">R</button>
+                    <button class="keyboard-key" onclick="typeChallengeKey('T')">T</button>
+                    <button class="keyboard-key" onclick="typeChallengeKey('Y')">Y</button>
+                    <button class="keyboard-key" onclick="typeChallengeKey('U')">U</button>
+                    <button class="keyboard-key" onclick="typeChallengeKey('I')">I</button>
+                    <button class="keyboard-key" onclick="typeChallengeKey('O')">O</button>
+                    <button class="keyboard-key" onclick="typeChallengeKey('P')">P</button>
+                </div>
+                <div class="keyboard-row">
+                    <button class="keyboard-key" onclick="typeChallengeKey('A')">A</button>
+                    <button class="keyboard-key" onclick="typeChallengeKey('S')">S</button>
+                    <button class="keyboard-key" onclick="typeChallengeKey('D')">D</button>
+                    <button class="keyboard-key" onclick="typeChallengeKey('F')">F</button>
+                    <button class="keyboard-key" onclick="typeChallengeKey('G')">G</button>
+                    <button class="keyboard-key" onclick="typeChallengeKey('H')">H</button>
+                    <button class="keyboard-key" onclick="typeChallengeKey('J')">J</button>
+                    <button class="keyboard-key" onclick="typeChallengeKey('K')">K</button>
+                    <button class="keyboard-key" onclick="typeChallengeKey('L')">L</button>
+                </div>
+                <div class="keyboard-row">
+                    <button class="keyboard-key" onclick="typeChallengeKey('Z')">Z</button>
+                    <button class="keyboard-key" onclick="typeChallengeKey('X')">X</button>
+                    <button class="keyboard-key" onclick="typeChallengeKey('C')">C</button>
+                    <button class="keyboard-key" onclick="typeChallengeKey('V')">V</button>
+                    <button class="keyboard-key" onclick="typeChallengeKey('B')">B</button>
+                    <button class="keyboard-key" onclick="typeChallengeKey('N')">N</button>
+                    <button class="keyboard-key" onclick="typeChallengeKey('M')">M</button>
+                </div>
+                <div class="keyboard-row">
+                    <button class="keyboard-key backspace" onclick="backspaceChallengeKey()">⌫ Delete</button>
+                    <button class="keyboard-key space" onclick="typeChallengeKey(' ')">Space</button>
+                    <button class="keyboard-key enter" onclick="submitChallengeSpelling('${challengeId}', '${word}', ${wordIndex})">✓ Enter</button>
+                </div>
+            </div>
+            
+            <div id="challenge-feedback" style="margin-top: 20px;"></div>
+        `;
+        
+        // Auto-play the word
+        setTimeout(() => speakChallengeWord(word), 500);
+        
+    } catch (error) {
+        console.error('Error loading challenge word:', error);
+    }
+}
+
+function speakChallengeWord(word) {
+    const utterance = new SpeechSynthesisUtterance(word);
+    utterance.rate = 0.7;
+    utterance.pitch = 1;
+    utterance.volume = 1;
+    
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utterance);
+}
+
+function typeChallengeKey(letter) {
+    const input = document.getElementById('challenge-spelling-input');
+    if (input.disabled) return;
+    input.value += letter.toLowerCase();
+}
+
+function backspaceChallengeKey() {
+    const input = document.getElementById('challenge-spelling-input');
+    if (input.disabled) return;
+    input.value = input.value.slice(0, -1);
+}
+
+async function submitChallengeSpelling(challengeId, correctWord, wordIndex) {
+    const input = document.getElementById('challenge-spelling-input');
+    const userAnswer = input.value.trim().toLowerCase();
+    const feedbackDiv = document.getElementById('challenge-feedback');
+    
+    if (!userAnswer) {
+        feedbackDiv.innerHTML = '<div class="feedback error">⚠️ Please type a word before submitting</div>';
+        return;
+    }
+    
+    input.disabled = true;
+    
+    const isCorrect = userAnswer === correctWord.toLowerCase();
+    
+    // Update score
+    if (isCorrect) {
+        const scoresRef = rtdb.ref(`challenges/${challengeId}/scores/${currentUser.uid}`);
+        const currentScoreSnapshot = await scoresRef.once('value');
+        const currentScore = currentScoreSnapshot.val() || 0;
+        await scoresRef.set(currentScore + 1);
+        
+        feedbackDiv.innerHTML = `
+            <div class="feedback success">
+                ✅ <strong>Correct!</strong> The word is: <strong>${correctWord}</strong>
+            </div>
+        `;
+    } else {
+        feedbackDiv.innerHTML = `
+            <div class="feedback error">
+                ❌ <strong>Incorrect.</strong> The word is: <strong>${correctWord}</strong>
+            </div>
+        `;
+    }
+    
+    // Wait 3 seconds then move to next word
+    setTimeout(async () => {
+        // Increment word index (only one person should do this)
+        const isChallenger = currentUser.uid === activeChallenge.challengerId;
+        if (isChallenger) {
+            await rtdb.ref(`challenges/${challengeId}/currentWordIndex`).set(wordIndex + 1);
+        }
+    }, 3000);
+}
+
+async function endChallengeGame(challengeId) {
+    try {
+        // Get final scores
+        const scoresSnapshot = await rtdb.ref(`challenges/${challengeId}/scores`).once('value');
+        const scores = scoresSnapshot.val();
+        
+        const myScore = scores[currentUser.uid] || 0;
+        const opponentId = activeChallenge.challengerId === currentUser.uid ? 
+            activeChallenge.opponentId : activeChallenge.challengerId;
+        const opponentScore = scores[opponentId] || 0;
+        const opponentName = activeChallenge.challengerId === currentUser.uid ? 
+            activeChallenge.opponentName : activeChallenge.challengerName;
+        
+        // Determine winner
+        let resultMessage = '';
+        let emoji = '';
+        
+        if (myScore > opponentScore) {
+            resultMessage = `🏆 You Won! ${myScore} - ${opponentScore}`;
+            emoji = '🎉';
+        } else if (myScore < opponentScore) {
+            resultMessage = `You Lost. ${myScore} - ${opponentScore}`;
+            emoji = '😔';
+        } else {
+            resultMessage = `It's a Tie! ${myScore} - ${opponentScore}`;
+            emoji = '
     </script>
 </body>
 </html>
