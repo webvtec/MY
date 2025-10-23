@@ -2246,6 +2246,23 @@ a[href*="whatsapp.com/channel"]:hover {
     margin: 10px 0;
 }
 
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(400px);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-10px); }
+    75% { transform: translateX(10px); }
+}
     </style>
 </head>
 <body>
@@ -8364,6 +8381,7 @@ async function sendChallenge(opponentId, opponentName) {
 }
 
 // Listen for incoming challenges
+// Listen for incoming challenges
 function listenForChallenges() {
     if (!currentUser) return;
     
@@ -8377,9 +8395,14 @@ function listenForChallenges() {
             });
             
             if (challenges.length > 0) {
+                // Show popup notification anywhere on site
+                showChallengePopup(challenges[0]); // Show first challenge as popup
                 displayIncomingChallenges(challenges);
             } else {
                 document.getElementById('incoming-challenges-section').style.display = 'none';
+                // Remove popup if no challenges
+                const existingPopup = document.getElementById('challenge-popup-notification');
+                if (existingPopup) existingPopup.remove();
             }
         });
 }
@@ -8410,6 +8433,7 @@ function displayIncomingChallenges(challenges) {
 }
 
 // Accept challenge
+// Accept challenge
 async function acceptChallenge(challengeId) {
     try {
         const challengeRef = db.collection('challenges').doc(challengeId);
@@ -8437,6 +8461,7 @@ async function acceptChallenge(challengeId) {
             startedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
         
+        // Automatically start the challenge (no need to navigate, already done in acceptChallengeFromPopup)
         startLiveChallenge(challengeId);
     } catch (error) {
         console.error('Error accepting challenge:', error);
@@ -8487,6 +8512,7 @@ async function startLiveChallenge(challengeId) {
 }
 
 // Load challenge word
+// Load challenge word
 function loadChallengeWord() {
     const word = challengeWords[currentChallengeIndex];
     const container = document.getElementById('active-challenge-section');
@@ -8520,15 +8546,53 @@ function loadChallengeWord() {
             </div>
             
             <div class="form-group" style="margin: 30px 0;">
+                <label style="font-size: 1.2rem;">Type what you hear:</label>
                 <input type="text" id="challenge-spelling-input" 
-                       placeholder="Type the word..." 
-                       style="width: 100%; padding: 15px; font-size: 1.3rem; text-align: center; border: 3px solid #0d3b66; border-radius: 8px;">
+                       placeholder="Use the keyboard below..." 
+                       style="width: 100%; padding: 15px; font-size: 1.3rem; text-align: center; border: 3px solid #0d3b66; border-radius: 8px; margin-top: 10px;"
+                       readonly>
             </div>
             
-            <button class="practice-btn" onclick="submitChallengeAnswer()" 
-                    style="width: 100%; font-size: 1.2rem; padding: 15px;">
-                ✓ Submit
-            </button>
+            <!-- Virtual Keyboard -->
+            <div class="virtual-keyboard">
+                <div class="keyboard-row">
+                    <button class="keyboard-key" onclick="typeChallengeKey('Q')">Q</button>
+                    <button class="keyboard-key" onclick="typeChallengeKey('W')">W</button>
+                    <button class="keyboard-key" onclick="typeChallengeKey('E')">E</button>
+                    <button class="keyboard-key" onclick="typeChallengeKey('R')">R</button>
+                    <button class="keyboard-key" onclick="typeChallengeKey('T')">T</button>
+                    <button class="keyboard-key" onclick="typeChallengeKey('Y')">Y</button>
+                    <button class="keyboard-key" onclick="typeChallengeKey('U')">U</button>
+                    <button class="keyboard-key" onclick="typeChallengeKey('I')">I</button>
+                    <button class="keyboard-key" onclick="typeChallengeKey('O')">O</button>
+                    <button class="keyboard-key" onclick="typeChallengeKey('P')">P</button>
+                </div>
+                <div class="keyboard-row">
+                    <button class="keyboard-key" onclick="typeChallengeKey('A')">A</button>
+                    <button class="keyboard-key" onclick="typeChallengeKey('S')">S</button>
+                    <button class="keyboard-key" onclick="typeChallengeKey('D')">D</button>
+                    <button class="keyboard-key" onclick="typeChallengeKey('F')">F</button>
+                    <button class="keyboard-key" onclick="typeChallengeKey('G')">G</button>
+                    <button class="keyboard-key" onclick="typeChallengeKey('H')">H</button>
+                    <button class="keyboard-key" onclick="typeChallengeKey('J')">J</button>
+                    <button class="keyboard-key" onclick="typeChallengeKey('K')">K</button>
+                    <button class="keyboard-key" onclick="typeChallengeKey('L')">L</button>
+                </div>
+                <div class="keyboard-row">
+                    <button class="keyboard-key" onclick="typeChallengeKey('Z')">Z</button>
+                    <button class="keyboard-key" onclick="typeChallengeKey('X')">X</button>
+                    <button class="keyboard-key" onclick="typeChallengeKey('C')">C</button>
+                    <button class="keyboard-key" onclick="typeChallengeKey('V')">V</button>
+                    <button class="keyboard-key" onclick="typeChallengeKey('B')">B</button>
+                    <button class="keyboard-key" onclick="typeChallengeKey('N')">N</button>
+                    <button class="keyboard-key" onclick="typeChallengeKey('M')">M</button>
+                </div>
+                <div class="keyboard-row">
+                    <button class="keyboard-key backspace" onclick="backspaceChallengeKey()">⌫ Delete</button>
+                    <button class="keyboard-key space" onclick="typeChallengeKey(' ')">Space</button>
+                    <button class="keyboard-key enter" onclick="submitChallengeAnswer()">✓ Enter</button>
+                </div>
+            </div>
             
             <div id="challenge-feedback" style="margin-top: 20px;"></div>
         </div>
@@ -8536,16 +8600,7 @@ function loadChallengeWord() {
     
     // Auto-play word
     setTimeout(() => speakChallengeWord(), 500);
-    
-    // Focus input
-    document.getElementById('challenge-spelling-input').focus();
-    
-    // Allow Enter key to submit
-    document.getElementById('challenge-spelling-input').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') submitChallengeAnswer();
-    });
 }
-
 function speakChallengeWord() {
     const word = challengeWords[currentChallengeIndex];
     const utterance = new SpeechSynthesisUtterance(word);
@@ -8640,6 +8695,103 @@ function exitChallenge() {
     document.getElementById('active-challenge-section').style.display = 'none';
     document.getElementById('online-users-section').style.display = 'block';
     loadOnlineUsers();
+}
+
+
+// Show challenge popup notification (appears anywhere on site)
+function showChallengePopup(challenge) {
+    // Remove existing popup if any
+    const existingPopup = document.getElementById('challenge-popup-notification');
+    if (existingPopup) existingPopup.remove();
+    
+    // Create popup
+    const popup = document.createElement('div');
+    popup.id = 'challenge-popup-notification';
+    popup.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: linear-gradient(135deg, #ff6b6b, #ee5a6f);
+        color: white;
+        padding: 25px;
+        border-radius: 15px;
+        box-shadow: 0 10px 40px rgba(255,107,107,0.5);
+        z-index: 9999;
+        min-width: 320px;
+        animation: slideInRight 0.5s ease-out, shake 0.5s ease-in-out 0.5s;
+    `;
+    
+    let avatarHTML = '';
+    if (challenge.challenger.photoURL) {
+        avatarHTML = `<div style="width: 50px; height: 50px; border-radius: 50%; background-image: url('${challenge.challenger.photoURL}'); background-size: cover; background-position: center; margin: 0 auto 10px;"></div>`;
+    } else {
+        const initial = (challenge.challenger.name || 'S').charAt(0).toUpperCase();
+        avatarHTML = `<div style="width: 50px; height: 50px; border-radius: 50%; background: #ffd700; color: #0d3b66; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: bold; margin: 0 auto 10px;">${initial}</div>`;
+    }
+    
+    popup.innerHTML = `
+        <div style="text-align: center;">
+            ${avatarHTML}
+            <h3 style="margin: 0 0 10px 0; font-size: 1.3rem;">⚔️ SPELLING CHALLENGE!</h3>
+            <p style="margin: 10px 0; font-size: 1.1rem;"><strong>${challenge.challenger.name}</strong> challenges you!</p>
+            <p style="margin: 10px 0; font-size: 0.9rem; opacity: 0.9;">Ready for a spelling battle?</p>
+            <div style="display: flex; gap: 10px; justify-content: center; margin-top: 15px;">
+                <button onclick="acceptChallengeFromPopup('${challenge.challengeId || challenge.id}')" 
+                        style="padding: 12px 25px; background: #28a745; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 1rem;">
+                    ✅ Accept
+                </button>
+                <button onclick="declineChallengeFromPopup('${challenge.challengeId || challenge.id}')" 
+                        style="padding: 12px 25px; background: rgba(255,255,255,0.3); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 1rem;">
+                    ❌ Decline
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(popup);
+    
+    // Play notification sound (optional)
+    const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OScTgwOUKng7rlgGwU7k9nyz3g');
+    audio.volume = 0.3;
+    audio.play().catch(() => {}); // Ignore errors if autoplay blocked
+}
+
+// Accept challenge from popup and navigate to game
+async function acceptChallengeFromPopup(challengeId) {
+    // Remove popup
+    const popup = document.getElementById('challenge-popup-notification');
+    if (popup) popup.remove();
+    
+    // Navigate to spelling section first
+    navigateTo('spelling');
+    
+    // Switch to live spelling mode
+    switchSpellingMode('live');
+    
+    // Accept the challenge
+    await acceptChallenge(challengeId);
+}
+
+// Decline challenge from popup
+async function declineChallengeFromPopup(challengeId) {
+    // Remove popup
+    const popup = document.getElementById('challenge-popup-notification');
+    if (popup) popup.remove();
+    
+    // Decline the challenge
+    await declineChallenge(challengeId);
+}
+
+function typeChallengeKey(letter) {
+    const input = document.getElementById('challenge-spelling-input');
+    if (!input) return;
+    input.value += letter.toLowerCase();
+}
+
+function backspaceChallengeKey() {
+    const input = document.getElementById('challenge-spelling-input');
+    if (!input) return;
+    input.value = input.value.slice(0, -1);
 }
     </script>
 </body>
