@@ -2298,6 +2298,81 @@ a[href*="whatsapp.com/channel"]:hover {
         top: -200px;
     }
 }
+
+
+
+ /* Custom Popup Styles */
+.custom-popup {
+    display: none;
+    position: fixed;
+    top: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 25px 35px;
+    border-radius: 15px;
+    box-shadow: 0 10px 40px rgba(102, 126, 234, 0.6);
+    z-index: 9999;
+    min-width: 400px;
+    max-width: 90%;
+    animation: slideDown 0.5s ease-out;
+    text-align: center;
+}
+
+.custom-popup.show {
+    display: block;
+}
+
+@keyframes slideDown {
+    from {
+        top: -100px;
+        opacity: 0;
+    }
+    to {
+        top: 80px;
+        opacity: 1;
+    }
+}
+
+.custom-popup h3 {
+    margin: 0 0 15px 0;
+    font-size: 1.5rem;
+    color: white;
+}
+
+.custom-popup p {
+    margin: 10px 0;
+    font-size: 1.1rem;
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.95);
+}
+
+.custom-popup .popup-icon {
+    font-size: 3rem;
+    margin-bottom: 15px;
+    animation: bounce 1s infinite;
+}
+
+@keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+}
+
+.popup-spinner {
+    display: inline-block;
+    width: 30px;
+    height: 30px;
+    border: 4px solid rgba(255, 255, 255, 0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-top: 15px;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}       
     </style>
 </head>
 <body>
@@ -3503,7 +3578,13 @@ a[href*="whatsapp.com/channel"]:hover {
     </div>
 </div>
 
-    
+    <!-- Custom Popup -->
+<div class="custom-popup" id="customPopup">
+    <div class="popup-icon" id="popupIcon">⚡</div>
+    <h3 id="popupTitle">Challenge Sent!</h3>
+    <p id="popupMessage">Waiting for response...</p>
+    <div class="popup-spinner" id="popupSpinner"></div>
+</div>
     <script>
         // ===== FIREBASE CONFIGURATION =====
         const firebaseConfig = {
@@ -8464,30 +8545,41 @@ function displayOnlineUsers(users) {
 async function sendChallenge(opponentId, opponentName) {
     if (!currentUser) return;
     
-    if (confirm(`Challenge ${opponentName} to a spelling battle?`)) {
-        try {
-            const challengeRef = db.collection('challenges').doc();
-            
-            await challengeRef.set({
-                challengeId: challengeRef.id,
-                challenger: {
-                    id: currentUser.uid,
-                    name: currentUser.displayName || 'Student',
-                    photoURL: currentUser.photoURL || null
-                },
-                opponent: {
-                    id: opponentId,
-                    name: opponentName
-                },
-                status: 'pending',
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
-            });
-            
-            alert('✅ Challenge sent! Waiting for response...\n\nYou will automatically enter the game when they accept.');
-        } catch (error) {
-            console.error('Error sending challenge:', error);
-            alert('Failed to send challenge. Please try again.');
-        }
+    try {
+        const challengeRef = db.collection('challenges').doc();
+        
+        await challengeRef.set({
+            challengeId: challengeRef.id,
+            challenger: {
+                id: currentUser.uid,
+                name: currentUser.displayName || 'Student',
+                photoURL: currentUser.photoURL || null
+            },
+            opponent: {
+                id: opponentId,
+                name: opponentName
+            },
+            status: 'pending',
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        // ✅ Show custom popup instead of alert
+        showCustomPopup(
+            '⚔️',
+            'Challenge Sent!',
+            `Waiting for <strong>${opponentName}</strong> to respond...<br><br>You will automatically enter the challenge when they accept.`,
+            true
+        );
+        
+    } catch (error) {
+        console.error('Error sending challenge:', error);
+        showCustomPopup(
+            '❌',
+            'Challenge Failed',
+            'Unable to send challenge. Please try again.',
+            false
+        );
+        autoHidePopup(3000);
     }
 }
 
@@ -9162,7 +9254,28 @@ function showChallengeResults(challenge) {
     `;
 }
 
-function exitChallenge() {
+async function exitChallenge() {
+    try {
+        // ✅ If user exits during active challenge, opponent wins
+        if (activeChallenge && activeChallenge.status === 'active') {
+            const opponentId = activeChallenge.challenger.id === currentUser.uid ? 
+                activeChallenge.opponent.id : activeChallenge.challenger.id;
+            
+            // Update challenge status to abandoned with winner
+            await db.collection('challenges').doc(activeChallenge.id).update({
+                status: 'abandoned',
+                endReason: 'opponent_left',
+                winner: opponentId,
+                loser: currentUser.uid,
+                endedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            
+            console.log('✅ Challenge abandoned - opponent wins');
+        }
+    } catch (error) {
+        console.error('Error updating challenge on exit:', error);
+    }
+    
     // ✅ Clear all timers
     clearChallengeTimers();
     
@@ -9223,6 +9336,7 @@ function exitChallenge() {
     loadOnlineUsers();
 }
 
+        
 // Start challenge timeout
 function startChallengeTimeout(challengeId) {
     challengeTimeoutTimer = setTimeout(async () => {
@@ -9330,14 +9444,24 @@ function showChallengeAbandoned(challenge) {
         return;
     }
     
+    // ✅ Check if current user is the winner
+    const iWon = challenge.winner === currentUser.uid;
+    
+    let message = '';
+    if (challenge.endReason === 'opponent_left') {
+        message = 'Your opponent left the challenge.';
+    } else if (challenge.endReason === 'opponent_offline') {
+        message = 'Your opponent went offline.';
+    } else {
+        message = 'The challenge was cancelled.';
+    }
+    
     container.innerHTML = `
         <div style="background: white; padding: 40px; border-radius: 15px; box-shadow: 0 5px 25px rgba(0,0,0,0.1); text-align: center;">
-            <div style="font-size: 4rem; margin: 20px 0;">🚫</div>
-            <h2 style="color: #0d3b66; font-size: 2rem; margin-bottom: 15px;">Challenge Abandoned</h2>
+            <div style="font-size: 4rem; margin: 20px 0;">${iWon ? '🏆' : '🚫'}</div>
+            <h2 style="color: #0d3b66; font-size: 2rem; margin-bottom: 15px;">Challenge Ended</h2>
             <p style="font-size: 1.2rem; margin: 20px 0; color: #666;">
-                ${challenge.endReason === 'opponent_offline' ? 
-                    'Your opponent went offline.' : 
-                    'The challenge was cancelled.'}
+                ${message}
             </p>
             
             <div class="challenge-score-card">
@@ -9347,9 +9471,15 @@ function showChallengeAbandoned(challenge) {
                 </div>
             </div>
             
-            <p style="margin: 20px 0; font-size: 1.3rem; color: #28a745; font-weight: bold;">
-                🏆 You win by default!
-            </p>
+            ${iWon ? `
+                <p style="margin: 20px 0; font-size: 1.5rem; color: #28a745; font-weight: bold;">
+                    🎉 You win by default!
+                </p>
+            ` : `
+                <p style="margin: 20px 0; font-size: 1.2rem; color: #dc3545; font-weight: bold;">
+                    You left the challenge
+                </p>
+            `}
             
             <button class="practice-btn" onclick="exitChallenge()" style="margin-top: 30px; font-size: 1.2rem; padding: 15px 40px;">
                 🏠 Back to Lobby
@@ -9358,6 +9488,7 @@ function showChallengeAbandoned(challenge) {
     `;
 }
 
+        
 // Cleanup old challenges (run on page load)
 // Cleanup old challenges (run on page load)
 async function cleanupOldChallenges() {
@@ -9392,6 +9523,35 @@ async function cleanupOldChallenges() {
         // Don't throw error - this is not critical
     }
 } 
+
+   // Show custom popup
+function showCustomPopup(icon, title, message, showSpinner = true) {
+    const popup = document.getElementById('customPopup');
+    const popupIcon = document.getElementById('popupIcon');
+    const popupTitle = document.getElementById('popupTitle');
+    const popupMessage = document.getElementById('popupMessage');
+    const popupSpinner = document.getElementById('popupSpinner');
+    
+    popupIcon.textContent = icon;
+    popupTitle.textContent = title;
+    popupMessage.innerHTML = message;
+    popupSpinner.style.display = showSpinner ? 'inline-block' : 'none';
+    
+    popup.classList.add('show');
+}
+
+// Hide custom popup
+function hideCustomPopup() {
+    const popup = document.getElementById('customPopup');
+    popup.classList.remove('show');
+}
+
+// Auto-hide popup after delay
+function autoHidePopup(delay = 3000) {
+    setTimeout(() => {
+        hideCustomPopup();
+    }, delay);
+}     
     </script>
 </body>
 </html>
