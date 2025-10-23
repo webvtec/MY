@@ -2301,23 +2301,23 @@ a[href*="whatsapp.com/channel"]:hover {
 
 
 
- /* Custom Popup Styles */
+ /* Custom Popup Styles - Simplified */
 .custom-popup {
     display: none;
     position: fixed;
-    top: 80px;
+    top: 90px;
     left: 50%;
     transform: translateX(-50%);
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
-    padding: 25px 35px;
-    border-radius: 15px;
-    box-shadow: 0 10px 40px rgba(102, 126, 234, 0.6);
+    padding: 15px 30px;
+    border-radius: 10px;
+    box-shadow: 0 5px 20px rgba(102, 126, 234, 0.5);
     z-index: 9999;
-    min-width: 400px;
-    max-width: 90%;
-    animation: slideDown 0.5s ease-out;
+    animation: slideDown 0.3s ease-out;
     text-align: center;
+    font-size: 1.1rem;
+    font-weight: bold;
 }
 
 .custom-popup.show {
@@ -2326,53 +2326,14 @@ a[href*="whatsapp.com/channel"]:hover {
 
 @keyframes slideDown {
     from {
-        top: -100px;
+        top: 50px;
         opacity: 0;
     }
     to {
-        top: 80px;
+        top: 90px;
         opacity: 1;
     }
 }
-
-.custom-popup h3 {
-    margin: 0 0 15px 0;
-    font-size: 1.5rem;
-    color: white;
-}
-
-.custom-popup p {
-    margin: 10px 0;
-    font-size: 1.1rem;
-    line-height: 1.6;
-    color: rgba(255, 255, 255, 0.95);
-}
-
-.custom-popup .popup-icon {
-    font-size: 3rem;
-    margin-bottom: 15px;
-    animation: bounce 1s infinite;
-}
-
-@keyframes bounce {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-10px); }
-}
-
-.popup-spinner {
-    display: inline-block;
-    width: 30px;
-    height: 30px;
-    border: 4px solid rgba(255, 255, 255, 0.3);
-    border-top-color: white;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-    margin-top: 15px;
-}
-
-@keyframes spin {
-    to { transform: rotate(360deg); }
-}       
     </style>
 </head>
 <body>
@@ -3578,13 +3539,9 @@ a[href*="whatsapp.com/channel"]:hover {
     </div>
 </div>
 
-    <!-- Custom Popup -->
-<div class="custom-popup" id="customPopup">
-    <div class="popup-icon" id="popupIcon">⚡</div>
-    <h3 id="popupTitle">Challenge Sent!</h3>
-    <p id="popupMessage">Waiting for response...</p>
-    <div class="popup-spinner" id="popupSpinner"></div>
-</div>
+   <!-- Custom Popup -->
+<div class="custom-popup" id="customPopup"></div>
+    
     <script>
         // ===== FIREBASE CONFIGURATION =====
         const firebaseConfig = {
@@ -8563,23 +8520,13 @@ async function sendChallenge(opponentId, opponentName) {
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
         
-        // ✅ Show custom popup instead of alert
-        showCustomPopup(
-            '⚔️',
-            'Challenge Sent!',
-            `Waiting for <strong>${opponentName}</strong> to respond...<br><br>You will automatically enter the challenge when they accept.`,
-            true
-        );
+        // ✅ Simple message: SENT TO [name]
+        showCustomPopup(`⚔️ SENT TO ${opponentName.toUpperCase()}`);
         
     } catch (error) {
         console.error('Error sending challenge:', error);
-        showCustomPopup(
-            '❌',
-            'Challenge Failed',
-            'Unable to send challenge. Please try again.',
-            false
-        );
-        autoHidePopup(3000);
+        showCustomPopup('❌ FAILED TO SEND');
+        setTimeout(() => hideCustomPopup(), 2000);
     }
 }
 
@@ -8623,7 +8570,6 @@ function listenForChallenges() {
 function listenForMyChallengesAccepted() {
     if (!currentUser) return;
     
-    // Detach existing listener
     if (myChallengeListener) {
         myChallengeListener();
     }
@@ -8634,18 +8580,16 @@ function listenForMyChallengesAccepted() {
             snapshot.docChanges().forEach(change => {
                 const challenge = { id: change.doc.id, ...change.doc.data() };
                 
-                // Handle when challenge becomes active
                 if (change.type === 'modified' && challenge.status === 'active') {
-                    // Only start if not already in an active challenge
                     if (!activeChallenge || activeChallenge.id !== challenge.id) {
-                        // Show notification
+                        // ✅ Hide popup immediately when accepted
+                        hideCustomPopup();
+                        
                         showBottomNotification(`${challenge.opponent.name} accepted your challenge! Starting game...`, 'success');
                         
-                        // Navigate to spelling section
                         navigateTo('spelling');
                         switchSpellingMode('live');
                         
-                        // Start the challenge
                         startLiveChallenge(change.doc.id);
                     }
                 }
@@ -9525,18 +9469,10 @@ async function cleanupOldChallenges() {
 } 
 
    // Show custom popup
-function showCustomPopup(icon, title, message, showSpinner = true) {
+// Show custom popup - simplified
+function showCustomPopup(message) {
     const popup = document.getElementById('customPopup');
-    const popupIcon = document.getElementById('popupIcon');
-    const popupTitle = document.getElementById('popupTitle');
-    const popupMessage = document.getElementById('popupMessage');
-    const popupSpinner = document.getElementById('popupSpinner');
-    
-    popupIcon.textContent = icon;
-    popupTitle.textContent = title;
-    popupMessage.innerHTML = message;
-    popupSpinner.style.display = showSpinner ? 'inline-block' : 'none';
-    
+    popup.textContent = message;
     popup.classList.add('show');
 }
 
@@ -9546,6 +9482,7 @@ function hideCustomPopup() {
     popup.classList.remove('show');
 }
 
+        
 // Auto-hide popup after delay
 function autoHidePopup(delay = 3000) {
     setTimeout(() => {
