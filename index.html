@@ -8237,6 +8237,13 @@ document.addEventListener('click', function(event) {
 
 // ===== LIVE SPELLING FUNCTIONS =====
 
+// Add these missing global variables at the top of your script (around line 840)
+// Find where you have: let selectedGameLevel = '';
+// Add these RIGHT AFTER:
+let challengeListener = null;
+let myChallengeListener = null;
+let shownPopupIds = new Set();
+
 async function initializeOnlinePresence() {
     if (!currentUser) return;
     
@@ -8251,32 +8258,48 @@ async function initializeOnlinePresence() {
         lastSeen: firebase.firestore.FieldValue.serverTimestamp()
     });
     
-    // Listen for incoming challenges (when someone challenges me)
+    // Listen for incoming challenges
     listenForChallenges();
     
-    // Listen for MY challenges being accepted (when I challenged someone)
+    // Listen for MY challenges being accepted
     listenForMyChallengesAccepted();
     
     // Update presence every 30 seconds
     setInterval(async () => {
         if (currentUser && presenceRef) {
-            await presenceRef.update({
-                lastSeen: firebase.firestore.FieldValue.serverTimestamp()
-            });
+            try {
+                await presenceRef.update({
+                    lastSeen: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            } catch (error) {
+                console.error('Error updating presence:', error);
+            }
         }
     }, 30000);
 }
 
-        
-// Remove user from online when they leave
 async function removeOnlinePresence() {
-    if (presenceRef) {
-        await presenceRef.delete();
-        presenceRef = null;
+    try {
+        // Remove challenge listeners
+        if (challengeListener) {
+            challengeListener();
+            challengeListener = null;
+        }
+        if (myChallengeListener) {
+            myChallengeListener();
+            myChallengeListener = null;
+        }
+        
+        // Remove from online users
+        if (presenceRef) {
+            await presenceRef.delete();
+            presenceRef = null;
+        }
+    } catch (error) {
+        console.error('Error removing presence:', error);
     }
 }
 
-// Load and display online users
 async function loadOnlineUsers() {
     if (!currentUser) {
         document.getElementById('online-users-list').innerHTML = 
@@ -8285,14 +8308,12 @@ async function loadOnlineUsers() {
     }
     
     try {
-        // Listen to online users in real-time
-        db.collection('onlineUsers')
-            .where('userId', '!=', currentUser.uid) // Exclude current user
+        onlineUsersRef = db.collection('onlineUsers')
+            .where('userId', '!=', currentUser.uid)
             .onSnapshot(snapshot => {
                 const users = [];
                 snapshot.forEach(doc => {
                     const data = doc.data();
-                    // Only show users online in last 2 minutes
                     const lastSeen = data.lastSeen?.toDate() || new Date(0);
                     const now = new Date();
                     const diffMinutes = (now - lastSeen) / 1000 / 60;
@@ -8320,31 +8341,26 @@ async function loadOnlineUsers() {
     }
 }
 
-// Display online users
 function displayOnlineUsers(users) {
     const container = document.getElementById('online-users-list');
     
     container.innerHTML = users.map(user => {
-        let avatarStyle = '';
-        let avatarText = '';
+        let avatarHTML = '';
         
         if (user.photoURL) {
-            avatarStyle = `style="background-image: url('${user.photoURL}'); background-size: cover; background-position: center; width: 60px; height: 60px; border-radius: 50%; margin: 0 auto 10px;"`;
+            avatarHTML = `<div style="background-image: url('${user.photoURL}'); background-size: cover; background-position: center; width: 60px; height: 60px; border-radius: 50%; margin: 0 auto 10px;"></div>`;
         } else {
             const initial = (user.name || 'S').charAt(0).toUpperCase();
-            avatarText = initial;
+            avatarHTML = `<div class="user-avatar" style="margin: 0 auto 10px;">${initial}</div>`;
         }
         
         return `
-            <div class="online-user-card" onclick="sendChallenge('${user.userId}', '${user.name}')">
-                ${user.photoURL ? 
-                    `<div ${avatarStyle}></div>` : 
-                    `<div class="user-avatar" style="margin: 0 auto 10px;">${avatarText}</div>`
-                }
+            <div class="online-user-card" data-user-id="${user.userId}" data-user-name="${user.name}" onclick="sendChallenge(this.dataset.userId, this.dataset.userName)">
+                ${avatarHTML}
                 <h3 style="color: #0d3b66; margin: 10px 0;">${user.name}</h3>
                 <span class="online-status"></span>
                 <span style="color: #28a745; font-weight: bold;">Online</span>
-                <button class="practice-btn" style="margin-top: 15px; font-size: 0.9rem; padding: 10px 20px;">
+                <button class="practice-btn" style="margin-top: 15px; font-size: 0.9rem; padding: 10px 20px; pointer-events: none;">
                     ⚔️ Challenge
                 </button>
             </div>
@@ -8352,8 +8368,6 @@ function displayOnlineUsers(users) {
     }).join('');
 }
 
-// Send challenge to another user
-// Send challenge to another user
 async function sendChallenge(opponentId, opponentName) {
     if (!currentUser) return;
     
@@ -8384,12 +8398,15 @@ async function sendChallenge(opponentId, opponentName) {
     }
 }
 
-// Listen for incoming challenges
 function listenForChallenges() {
     if (!currentUser) return;
     
-    // Only listen for challenges where I'm the OPPONENT (someone challenged me)
-    db.collection('challenges')
+    // Detach existing listener
+    if (challengeListener) {
+        challengeListener();
+    }
+    
+    challengeListener = db.collection('challenges')
         .where('opponent.id', '==', currentUser.uid)
         .onSnapshot(snapshot => {
             snapshot.docChanges().forEach(change => {
@@ -8397,12 +8414,9 @@ function listenForChallenges() {
                 
                 if (change.type === 'added' || change.type === 'modified') {
                     if (challenge.status === 'pending') {
-                        // Show popup for pending challenges
                         showChallengePopup(challenge);
                         displayIncomingChallenges([challenge]);
                     } else if (challenge.status === 'active') {
-                        // Only auto-enter if I'm the one who accepted (opponent)
-                        // This will only trigger for the person who clicked accept
                         if (!activeChallenge || activeChallenge.id !== challenge.id) {
                             navigateTo('spelling');
                             switchSpellingMode('live');
@@ -8414,10 +8428,42 @@ function listenForChallenges() {
         });
 }
 
-// Display incoming challenges
+function listenForMyChallengesAccepted() {
+    if (!currentUser) return;
+    
+    // Detach existing listener
+    if (myChallengeListener) {
+        myChallengeListener();
+    }
+    
+    myChallengeListener = db.collection('challenges')
+        .where('challenger.id', '==', currentUser.uid)
+        .where('status', '==', 'active')
+        .onSnapshot(snapshot => {
+            snapshot.docChanges().forEach(change => {
+                if (change.type === 'modified') {
+                    const challenge = change.doc.data();
+                    
+                    if (challenge.acceptedBy && !activeChallenge) {
+                        alert(`${challenge.opponent.name} accepted your challenge! Starting game...`);
+                        
+                        navigateTo('spelling');
+                        switchSpellingMode('live');
+                        startLiveChallenge(change.doc.id);
+                    }
+                }
+            });
+        });
+}
+
 function displayIncomingChallenges(challenges) {
     const section = document.getElementById('incoming-challenges-section');
     const container = document.getElementById('incoming-challenges-list');
+    
+    if (challenges.length === 0) {
+        section.style.display = 'none';
+        return;
+    }
     
     section.style.display = 'block';
     
@@ -8439,16 +8485,21 @@ function displayIncomingChallenges(challenges) {
     `).join('');
 }
 
-// Accept challenge
 async function acceptChallenge(challengeId) {
     try {
         const challengeRef = db.collection('challenges').doc(challengeId);
         const challengeDoc = await challengeRef.get();
+        
+        if (!challengeDoc.exists) {
+            alert('Challenge not found');
+            return;
+        }
+        
         const challengeData = challengeDoc.data();
         
-        // Generate 5 random words for the challenge
+        // Generate 5 random words
         if (!selectedGameLevel) {
-            selectedGameLevel = 'foundation'; // Default level
+            selectedGameLevel = 'foundation';
         }
         
         if (levelWords[selectedGameLevel].length === 0) {
@@ -8458,7 +8509,6 @@ async function acceptChallenge(challengeId) {
         const shuffled = [...levelWords[selectedGameLevel]].sort(() => 0.5 - Math.random());
         const words = shuffled.slice(0, 5);
         
-        // Update challenge to active status
         await challengeRef.update({
             status: 'active',
             words: words,
@@ -8467,12 +8517,9 @@ async function acceptChallenge(challengeId) {
                 [challengeData.challenger.id]: 0
             },
             currentWord: 0,
-            acceptedBy: currentUser.uid, // Track who accepted
+            acceptedBy: currentUser.uid,
             startedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
-        
-        // The opponent (person who accepted) enters immediately
-        // The listener will handle this automatically
         
     } catch (error) {
         console.error('Error accepting challenge:', error);
@@ -8480,79 +8527,138 @@ async function acceptChallenge(challengeId) {
     }
 }
 
-
-      // Listen for MY challenges being accepted (I'm the challenger)
-function listenForMyChallengesAccepted() {
-    if (!currentUser) return;
-    
-    db.collection('challenges')
-        .where('challenger.id', '==', currentUser.uid)
-        .where('status', '==', 'active')
-        .onSnapshot(snapshot => {
-            snapshot.docChanges().forEach(change => {
-                if (change.type === 'modified') {
-                    const challenge = change.doc.data();
-                    
-                    // Only enter if someone just accepted (not already in game)
-                    if (challenge.acceptedBy && !activeChallenge) {
-                        // Show notification
-                        alert(`${challenge.opponent.name} accepted your challenge! Starting game...`);
-                        
-                        // Auto-navigate to the challenge
-                        navigateTo('spelling');
-                        switchSpellingMode('live');
-                        startLiveChallenge(change.doc.id);
-                    }
-                }
-            });
-        });
+async function declineChallenge(challengeId) {
+    try {
+        await db.collection('challenges').doc(challengeId).delete();
+        
+        const section = document.getElementById('incoming-challenges-section');
+        section.style.display = 'none';
+        
+        alert('Challenge declined.');
+    } catch (error) {
+        console.error('Error declining challenge:', error);
+        alert('Failed to decline challenge.');
+    }
 }
 
-        
-async function declineChallengeFromPopup(challengeId) {
-    // Remove popup
+function showChallengePopup(challenge) {
+    const challengeId = challenge.challengeId || challenge.id;
+    
+    // Prevent duplicate popups
+    if (shownPopupIds.has(challengeId)) return;
+    shownPopupIds.add(challengeId);
+    
+    const existingPopup = document.getElementById('challenge-popup-notification');
+    if (existingPopup) existingPopup.remove();
+    
+    const popup = document.createElement('div');
+    popup.id = 'challenge-popup-notification';
+    popup.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: linear-gradient(135deg, #ff6b6b, #ee5a6f);
+        color: white;
+        padding: 25px;
+        border-radius: 15px;
+        box-shadow: 0 10px 40px rgba(255,107,107,0.5);
+        z-index: 9999;
+        min-width: 320px;
+        animation: slideInRight 0.5s ease-out;
+    `;
+    
+    let avatarHTML = '';
+    if (challenge.challenger.photoURL) {
+        avatarHTML = `<div style="width: 50px; height: 50px; border-radius: 50%; background-image: url('${challenge.challenger.photoURL}'); background-size: cover; background-position: center; margin: 0 auto 10px;"></div>`;
+    } else {
+        const initial = (challenge.challenger.name || 'S').charAt(0).toUpperCase();
+        avatarHTML = `<div style="width: 50px; height: 50px; border-radius: 50%; background: #ffd700; color: #0d3b66; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: bold; margin: 0 auto 10px;">${initial}</div>`;
+    }
+    
+    popup.innerHTML = `
+        <div style="text-align: center;">
+            ${avatarHTML}
+            <h3 style="margin: 0 0 10px 0; font-size: 1.3rem;">⚔️ SPELLING CHALLENGE!</h3>
+            <p style="margin: 10px 0; font-size: 1.1rem;"><strong>${challenge.challenger.name}</strong> challenges you!</p>
+            <p style="margin: 10px 0; font-size: 0.9rem; opacity: 0.9;">Ready for a spelling battle?</p>
+            <div style="display: flex; gap: 10px; justify-content: center; margin-top: 15px;">
+                <button onclick="acceptChallengeFromPopup('${challengeId}')" 
+                        style="padding: 12px 25px; background: #28a745; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 1rem;">
+                    ✅ Accept
+                </button>
+                <button onclick="declineChallengeFromPopup('${challengeId}')" 
+                        style="padding: 12px 25px; background: rgba(255,255,255,0.3); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 1rem;">
+                    ❌ Decline
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(popup);
+}
+
+async function acceptChallengeFromPopup(challengeId) {
     const popup = document.getElementById('challenge-popup-notification');
     if (popup) popup.remove();
     
-    // Clear from tracking
     shownPopupIds.delete(challengeId);
     
-    // Decline the challenge
+    navigateTo('spelling');
+    switchSpellingMode('live');
+    
+    await acceptChallenge(challengeId);
+}
+
+async function declineChallengeFromPopup(challengeId) {
+    const popup = document.getElementById('challenge-popup-notification');
+    if (popup) popup.remove();
+    
+    shownPopupIds.delete(challengeId);
+    
     await declineChallenge(challengeId);
 }
 
-// Start live challenge
 async function startLiveChallenge(challengeId) {
-    const challengeDoc = await db.collection('challenges').doc(challengeId).get();
-    const challenge = challengeDoc.data();
-    
-    activeChallenge = { id: challengeId, ...challenge };
-    challengeWords = challenge.words;
-    currentChallengeIndex = 0;
-    myScore = 0;
-    opponentScore = 0;
-    
-    // Hide online users section
-    document.getElementById('online-users-section').style.display = 'none';
-    document.getElementById('incoming-challenges-section').style.display = 'none';
-    
-    // Show challenge section
-    document.getElementById('active-challenge-section').style.display = 'block';
-    
-    // Listen for score updates
-    db.collection('challenges').doc(challengeId).onSnapshot(doc => {
-        const data = doc.data();
-        if (data.status === 'completed') {
-            showChallengeResults(data);
+    try {
+        const challengeDoc = await db.collection('challenges').doc(challengeId).get();
+        
+        if (!challengeDoc.exists) {
+            alert('Challenge not found');
+            return;
         }
-    });
-    
-    loadChallengeWord();
+        
+        const challenge = challengeDoc.data();
+        
+        activeChallenge = { id: challengeId, ...challenge };
+        challengeWords = challenge.words || [];
+        currentChallengeIndex = 0;
+        myScore = 0;
+        opponentScore = 0;
+        
+        document.getElementById('online-users-section').style.display = 'none';
+        document.getElementById('incoming-challenges-section').style.display = 'none';
+        document.getElementById('active-challenge-section').style.display = 'block';
+        
+        db.collection('challenges').doc(challengeId).onSnapshot(doc => {
+            const data = doc.data();
+            if (data && data.status === 'completed') {
+                showChallengeResults(data);
+            }
+        });
+        
+        loadChallengeWord();
+    } catch (error) {
+        console.error('Error starting challenge:', error);
+        alert('Failed to start challenge');
+    }
 }
 
-// Load challenge word
-// Load challenge word
 function loadChallengeWord() {
+    if (!challengeWords || challengeWords.length === 0) {
+        alert('No words available for challenge');
+        return;
+    }
+    
     const word = challengeWords[currentChallengeIndex];
     const container = document.getElementById('active-challenge-section');
     
@@ -8592,7 +8698,6 @@ function loadChallengeWord() {
                        readonly>
             </div>
             
-            <!-- Virtual Keyboard -->
             <div class="virtual-keyboard">
                 <div class="keyboard-row">
                     <button class="keyboard-key" onclick="typeChallengeKey('Q')">Q</button>
@@ -8637,10 +8742,12 @@ function loadChallengeWord() {
         </div>
     `;
     
-    // Auto-play word
     setTimeout(() => speakChallengeWord(), 500);
 }
+
 function speakChallengeWord() {
+    if (!challengeWords || !challengeWords[currentChallengeIndex]) return;
+    
     const word = challengeWords[currentChallengeIndex];
     const utterance = new SpeechSynthesisUtterance(word);
     utterance.rate = 0.7;
@@ -8648,8 +8755,23 @@ function speakChallengeWord() {
     window.speechSynthesis.speak(utterance);
 }
 
+function typeChallengeKey(letter) {
+    const input = document.getElementById('challenge-spelling-input');
+    if (!input) return;
+    input.value += letter.toLowerCase();
+}
+
+function backspaceChallengeKey() {
+    const input = document.getElementById('challenge-spelling-input');
+    if (!input) return;
+    input.value = input.value.slice(0, -1);
+}
+
 async function submitChallengeAnswer() {
-    const userAnswer = document.getElementById('challenge-spelling-input').value.trim().toLowerCase();
+    const input = document.getElementById('challenge-spelling-input');
+    if (!input) return;
+    
+    const userAnswer = input.value.trim().toLowerCase();
     const correctWord = challengeWords[currentChallengeIndex].toLowerCase();
     const feedbackDiv = document.getElementById('challenge-feedback');
     
@@ -8667,14 +8789,16 @@ async function submitChallengeAnswer() {
         feedbackDiv.innerHTML = `<div class="feedback error">❌ Wrong! Correct: ${correctWord}</div>`;
     }
     
-    // Update score in Firestore
-    const challengeRef = db.collection('challenges').doc(activeChallenge.id);
-    const scoreKey = `scores.${currentUser.uid}`;
-    await challengeRef.update({
-        [scoreKey]: myScore
-    });
+    try {
+        const challengeRef = db.collection('challenges').doc(activeChallenge.id);
+        const scoreKey = `scores.${currentUser.uid}`;
+        await challengeRef.update({
+            [scoreKey]: myScore
+        });
+    } catch (error) {
+        console.error('Error updating score:', error);
+    }
     
-    // Next word or finish
     setTimeout(() => {
         currentChallengeIndex++;
         if (currentChallengeIndex < challengeWords.length) {
@@ -8686,9 +8810,13 @@ async function submitChallengeAnswer() {
 }
 
 async function finishChallenge() {
-    await db.collection('challenges').doc(activeChallenge.id).update({
-        status: 'completed'
-    });
+    try {
+        await db.collection('challenges').doc(activeChallenge.id).update({
+            status: 'completed'
+        });
+    } catch (error) {
+        console.error('Error finishing challenge:', error);
+    }
 }
 
 function showChallengeResults(challenge) {
@@ -8731,106 +8859,17 @@ function showChallengeResults(challenge) {
 
 function exitChallenge() {
     activeChallenge = null;
+    challengeWords = [];
+    currentChallengeIndex = 0;
+    myScore = 0;
+    opponentScore = 0;
+    shownPopupIds.clear();
+    
     document.getElementById('active-challenge-section').style.display = 'none';
     document.getElementById('online-users-section').style.display = 'block';
+    document.getElementById('incoming-challenges-section').style.display = 'none';
+    
     loadOnlineUsers();
-}
-
-
-// Show challenge popup notification (appears anywhere on site)
-function showChallengePopup(challenge) {
-    // Remove existing popup if any
-    const existingPopup = document.getElementById('challenge-popup-notification');
-    if (existingPopup) existingPopup.remove();
-    
-    // Create popup
-    const popup = document.createElement('div');
-    popup.id = 'challenge-popup-notification';
-    popup.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        background: linear-gradient(135deg, #ff6b6b, #ee5a6f);
-        color: white;
-        padding: 25px;
-        border-radius: 15px;
-        box-shadow: 0 10px 40px rgba(255,107,107,0.5);
-        z-index: 9999;
-        min-width: 320px;
-        animation: slideInRight 0.5s ease-out, shake 0.5s ease-in-out 0.5s;
-    `;
-    
-    let avatarHTML = '';
-    if (challenge.challenger.photoURL) {
-        avatarHTML = `<div style="width: 50px; height: 50px; border-radius: 50%; background-image: url('${challenge.challenger.photoURL}'); background-size: cover; background-position: center; margin: 0 auto 10px;"></div>`;
-    } else {
-        const initial = (challenge.challenger.name || 'S').charAt(0).toUpperCase();
-        avatarHTML = `<div style="width: 50px; height: 50px; border-radius: 50%; background: #ffd700; color: #0d3b66; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: bold; margin: 0 auto 10px;">${initial}</div>`;
-    }
-    
-    popup.innerHTML = `
-        <div style="text-align: center;">
-            ${avatarHTML}
-            <h3 style="margin: 0 0 10px 0; font-size: 1.3rem;">⚔️ SPELLING CHALLENGE!</h3>
-            <p style="margin: 10px 0; font-size: 1.1rem;"><strong>${challenge.challenger.name}</strong> challenges you!</p>
-            <p style="margin: 10px 0; font-size: 0.9rem; opacity: 0.9;">Ready for a spelling battle?</p>
-            <div style="display: flex; gap: 10px; justify-content: center; margin-top: 15px;">
-                <button onclick="acceptChallengeFromPopup('${challenge.challengeId || challenge.id}')" 
-                        style="padding: 12px 25px; background: #28a745; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 1rem;">
-                    ✅ Accept
-                </button>
-                <button onclick="declineChallengeFromPopup('${challenge.challengeId || challenge.id}')" 
-                        style="padding: 12px 25px; background: rgba(255,255,255,0.3); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 1rem;">
-                    ❌ Decline
-                </button>
-            </div>
-        </div>
-    `;
-    
-    document.body.appendChild(popup);
-    
-    // Play notification sound (optional)
-    const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OScTgwOUKng7rlgGwU7k9nyz3g');
-    audio.volume = 0.3;
-    audio.play().catch(() => {}); // Ignore errors if autoplay blocked
-}
-
-// Accept challenge from popup and navigate to game
-async function acceptChallengeFromPopup(challengeId) {
-    // Remove popup
-    const popup = document.getElementById('challenge-popup-notification');
-    if (popup) popup.remove();
-    
-    // Navigate to spelling section first
-    navigateTo('spelling');
-    
-    // Switch to live spelling mode
-    switchSpellingMode('live');
-    
-    // Accept the challenge (this will also start the game)
-    await acceptChallenge(challengeId);
-}
-
-// Decline challenge from popup
-async function declineChallengeFromPopup(challengeId) {
-    // Remove popup
-    const popup = document.getElementById('challenge-popup-notification');
-    if (popup) popup.remove();
-    
-    // Decline the challenge
-    await declineChallenge(challengeId);
-}
-
-function typeChallengeKey(letter) {
-    const input = document.getElementById('challenge-spelling-input');
-    if (!input) return;
-    input.value += letter.toLowerCase();
-}
-
-function backspaceChallengeKey() {
-    const input = document.getElementById('challenge-spelling-input');
-    if (!input) return;
-    input.value = input.value.slice(0, -1);
 }
     </script>
 </body>
