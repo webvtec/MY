@@ -3564,6 +3564,7 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const auth = firebase.auth();
 const rtdb = firebase.database(); // ADD THIS LINE FOR REALTIME DATABASE
+auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
 
         
         // ===== CLOUD FUNCTION URL =====
@@ -3654,54 +3655,52 @@ auth.onAuthStateChanged(async user => {
     if (user) {
         currentUser = user;
         
-        console.log('👤 User signed in:', user.email);
-        console.log('🖼️ Auth photoURL:', user.photoURL);
-        
-        // Check if profile is complete
-        const userRef = db.collection('users').doc(user.uid);
-        const userDoc = await userRef.get();
-        
-        if (!userDoc.exists) {
-            // User authenticated but no Firestore doc - sign them out
+        try {
+            // Check if profile exists in Firestore
+            const userRef = db.collection('users').doc(user.uid);
+            const userDoc = await userRef.get();
+            
+            if (!userDoc.exists) {
+                await auth.signOut();
+                alert('Account error. Please sign up again.');
+                return;
+            }
+            
+            const userData = userDoc.data();
+            
+            // AUTO-SYNC: If Firebase Auth has photoURL but Firestore doesn't, update it
+            if (user.photoURL && !userData.photoURL) {
+                await userRef.update({
+                    photoURL: user.photoURL
+                });
+            }
+            
+            // Check if profile is complete
+            if (!userData.profileComplete) {
+                showVerificationModal(userData);
+                return;
+            }
+            
+            updateUIForAuthenticatedUser(user);
+            
+            // Load all user data
+            await cleanupInvalidFavorites();
+            
+            await Promise.all([
+                loadUserFavorites(user.uid),
+                loadUserIncorrect(user.uid),
+                loadUserSpellingFavorites(user.uid),
+                loadUserSpellingIncorrect(user.uid)
+            ]);
+            
+            // If user is on dashboard, refresh it
+            if (document.getElementById('student-dashboard-section').classList.contains('active')) {
+                loadUserDashboard();
+            }
+            
+        } catch (error) {
+            console.error('Error in auth state handler:', error);
             await auth.signOut();
-            alert('Account error. Please sign up again.');
-            return;
-        }
-        
-        const userData = userDoc.data();
-        console.log('📄 Firestore photoURL:', userData.photoURL);
-        
-        // ✅ AUTO-SYNC: If Firebase Auth has photoURL but Firestore doesn't, update it
-        if (user.photoURL && !userData.photoURL) {
-            console.log('🔄 Syncing photoURL to Firestore...');
-            await userRef.update({
-                photoURL: user.photoURL
-            });
-            console.log('✅ PhotoURL synced!');
-        }
-        
-        if (!userData.profileComplete) {
-            // Force verification modal
-            showVerificationModal(userData);
-            return;
-        }
-        
-        updateUIForAuthenticatedUser(user);
-        
-        // Load all user data
-        await cleanupInvalidFavorites();
-        
-        // Load collections in parallel
-        await Promise.all([
-            loadUserFavorites(user.uid),
-            loadUserIncorrect(user.uid),
-            loadUserSpellingFavorites(user.uid),
-            loadUserSpellingIncorrect(user.uid)
-        ]);
-        
-        // If user is on dashboard, refresh it
-        if (document.getElementById('student-dashboard-section').classList.contains('active')) {
-            loadUserDashboard();
         }
     } else {
         currentUser = null;
@@ -4657,29 +4656,34 @@ function backToUserTypeSelection() {
 
 async function handleSignIn(event) {
     event.preventDefault();
-    const email = document.getElementById('signin-email').value;
+    const email = document.getElementById('signin-email').value.trim();
     const password = document.getElementById('signin-password').value;
     const errorDiv = document.getElementById('signin-error');
+
+    errorDiv.style.display = 'none';
+    
+    if (!email || !password) {
+        errorDiv.textContent = 'Please enter both email and password';
+        errorDiv.style.display = 'block';
+        return;
+    }
 
     try {
         const userCredential = await auth.signInWithEmailAndPassword(email, password);
         const user = userCredential.user;
         
-        // Check if user document exists in Firestore
         const userDoc = await db.collection('users').doc(user.uid).get();
         
         if (!userDoc.exists) {
-            // User signed in but no profile exists - sign them out
             await auth.signOut();
             errorDiv.textContent = 'No account found with this email. Please sign up first.';
             errorDiv.style.display = 'block';
             return;
         }
         
-        // Check if profile is complete
         const userData = userDoc.data();
+        
         if (!userData.profileComplete) {
-            // Show verification modal
             closeAuthModal();
             showVerificationModal(userData);
             return;
@@ -4687,6 +4691,7 @@ async function handleSignIn(event) {
         
         closeAuthModal();
         errorDiv.style.display = 'none';
+        
     } catch (error) {
         if (error.code === 'auth/user-not-found') {
             errorDiv.textContent = 'No account found with this email. Please sign up first.';
@@ -4694,8 +4699,10 @@ async function handleSignIn(event) {
             errorDiv.textContent = 'Incorrect password. Please try again.';
         } else if (error.code === 'auth/invalid-email') {
             errorDiv.textContent = 'Invalid email address.';
+        } else if (error.code === 'auth/too-many-requests') {
+            errorDiv.textContent = 'Too many failed attempts. Please try again later.';
         } else {
-            errorDiv.textContent = error.message;
+            errorDiv.textContent = 'Sign in failed: ' + error.message;
         }
         errorDiv.style.display = 'block';
     }
@@ -5304,7 +5311,7 @@ async function handleVerification(event) {
 }
         
         
-        function updateUIForAuthenticatedUser(user) {
+       function updateUIForAuthenticatedUser(user) {
     const displayName = user.displayName || user.email.split('@')[0];
     const photoURL = user.photoURL;
     
@@ -5326,7 +5333,7 @@ async function handleVerification(event) {
     document.getElementById('sidebar-signin').style.display = 'none';
     document.getElementById('sidebar-signout').style.display = 'block';
     
-    // ✅ ADD THIS: Initialize online presence for live spelling
+    // Initialize online presence for live spelling
     initializeOnlinePresence();
 }
         
