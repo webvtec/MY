@@ -2263,6 +2263,41 @@ a[href*="whatsapp.com/channel"]:hover {
     25% { transform: translateX(-10px); }
     75% { transform: translateX(10px); }
 }
+
+
+   /* Bottom Center Notification */
+.bottom-notification {
+    position: fixed;
+    bottom: -200px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(135deg, #28a745, #20c997);
+    color: white;
+    padding: 20px 30px;
+    border-radius: 15px;
+    box-shadow: 0 10px 40px rgba(40, 167, 69, 0.5);
+    z-index: 9999;
+    min-width: 350px;
+    max-width: 500px;
+    text-align: center;
+    animation: slideUpNotification 0.5s ease-out forwards;
+}
+
+@keyframes slideUpNotification {
+    to {
+        bottom: 30px;
+    }
+}
+
+.bottom-notification.hide {
+    animation: slideDownNotification 0.5s ease-out forwards;
+}
+
+@keyframes slideDownNotification {
+    to {
+        bottom: -200px;
+    }
+}     
     </style>
 </head>
 <body>
@@ -2480,6 +2515,19 @@ a[href*="whatsapp.com/channel"]:hover {
         </div>
     </div>
 
+</div>
+
+    <!-- Active Challenge Section (Global Modal) -->
+    <div id="active-challenge-section" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 5000; overflow-y: auto; padding: 20px;">
+        <div style="max-width: 800px; margin: 0 auto; position: relative; background: white; border-radius: 15px; padding: 30px; margin-top: 50px;">
+            <button onclick="exitChallenge()" style="position: absolute; top: 15px; right: 15px; background: #dc3545; color: white; border: none; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 1.5rem; display: flex; align-items: center; justify-content: center; z-index: 10;">×</button>
+            <div id="active-challenge-content">
+                <!-- Challenge content will be inserted here -->
+            </div>
+        </div>
+    </div>
+
+    
     <!-- Word Detail Modal -->
     <div class="modal" id="wordModal">
         <div class="modal-content">
@@ -3052,10 +3100,6 @@ a[href*="whatsapp.com/channel"]:hover {
             <div id="incoming-challenges-list"></div>
         </div>
         
-        <!-- Active Challenge -->
-        <div id="active-challenge-section" style="display: none;">
-            <!-- Challenge UI will be inserted here -->
-        </div>
     </div>
 </div>
 
@@ -3585,7 +3629,6 @@ let offlineCheckTimer = null;
             });
 
 
-// Listen for auth state changes
 auth.onAuthStateChanged(async user => {
     if (user) {
         currentUser = user;
@@ -3593,12 +3636,10 @@ auth.onAuthStateChanged(async user => {
         console.log('👤 User signed in:', user.email);
         console.log('🖼️ Auth photoURL:', user.photoURL);
         
-        // Check if profile is complete
         const userRef = db.collection('users').doc(user.uid);
         const userDoc = await userRef.get();
         
         if (!userDoc.exists) {
-            // User authenticated but no Firestore doc - sign them out
             await auth.signOut();
             alert('Account error. Please sign up again.');
             return;
@@ -3607,7 +3648,6 @@ auth.onAuthStateChanged(async user => {
         const userData = userDoc.data();
         console.log('📄 Firestore photoURL:', userData.photoURL);
         
-        // ✅ AUTO-SYNC: If Firebase Auth has photoURL but Firestore doesn't, update it
         if (user.photoURL && !userData.photoURL) {
             console.log('🔄 Syncing photoURL to Firestore...');
             await userRef.update({
@@ -3617,17 +3657,14 @@ auth.onAuthStateChanged(async user => {
         }
         
         if (!userData.profileComplete) {
-            // Force verification modal
             showVerificationModal(userData);
             return;
         }
         
         updateUIForAuthenticatedUser(user);
         
-        // Load all user data
         await cleanupInvalidFavorites();
         
-        // Load collections in parallel
         await Promise.all([
             loadUserFavorites(user.uid),
             loadUserIncorrect(user.uid),
@@ -3635,7 +3672,9 @@ auth.onAuthStateChanged(async user => {
             loadUserSpellingIncorrect(user.uid)
         ]);
         
-        // If user is on dashboard, refresh it
+        // ✅ Initialize presence immediately on login
+        await initializeOnlinePresence();
+        
         if (document.getElementById('student-dashboard-section').classList.contains('active')) {
             loadUserDashboard();
         }
@@ -3645,6 +3684,7 @@ auth.onAuthStateChanged(async user => {
     }
 });
     });
+        
         
      // ===== NAVIGATION =====
 async function navigateTo(section, skipSidebarClose = false) {
@@ -8037,7 +8077,7 @@ document.addEventListener('click', function(event) {
     }
 });
 
-      // ===== STUDENTS DISPLAY FUNCTIONS =====
+     
 // ===== STUDENTS DISPLAY FUNCTIONS =====
 async function loadAndDisplayStudents() {
     const container = document.getElementById('students-container');
@@ -8494,7 +8534,7 @@ function listenForMyChallengesAccepted() {
                     // Only start if not already in an active challenge
                     if (!activeChallenge || activeChallenge.id !== challenge.id) {
                         // Show notification
-                        alert(`${challenge.opponent.name} accepted your challenge! Starting game...`);
+                        showBottomNotification(`${challenge.opponent.name} accepted your challenge! Starting game...`, 'success');
                         
                         // Navigate to spelling section
                         navigateTo('spelling');
@@ -8506,6 +8546,36 @@ function listenForMyChallengesAccepted() {
                 }
             });
         });
+}
+
+function showBottomNotification(message, type = 'success') {
+    // Remove existing notification if any
+    const existing = document.getElementById('bottom-notification');
+    if (existing) existing.remove();
+    
+    const notification = document.createElement('div');
+    notification.id = 'bottom-notification';
+    notification.className = 'bottom-notification';
+    
+    const bgColor = type === 'success' ? 
+        'linear-gradient(135deg, #28a745, #20c997)' : 
+        'linear-gradient(135deg, #ff6b6b, #ee5a6f)';
+    
+    notification.style.background = bgColor;
+    
+    notification.innerHTML = `
+        <div style="font-size: 1.2rem; font-weight: bold; margin-bottom: 5px;">
+            ${type === 'success' ? '✅' : '⚡'} ${message}
+        </div>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Auto-hide after 4 seconds
+    setTimeout(() => {
+        notification.classList.add('hide');
+        setTimeout(() => notification.remove(), 500);
+    }, 4000);
 }
 
         
@@ -8697,7 +8767,7 @@ async function startLiveChallenge(challengeId) {
         
         document.getElementById('online-users-section').style.display = 'none';
         document.getElementById('incoming-challenges-section').style.display = 'none';
-        document.getElementById('active-challenge-section').style.display = 'block';
+        document.getElementById('active-challenge-section').style.display = 'flex';
         
         // ✅ Start challenge timeout (5 minutes max)
         startChallengeTimeout(challengeId);
@@ -8747,7 +8817,7 @@ function loadChallengeWord() {
     }
     
     const word = challengeWords[currentChallengeIndex];
-    const container = document.getElementById('active-challenge-section');
+    const container = document.getElementById('active-challenge-content') || document.getElementById('active-challenge-section');
     
     const opponentName = activeChallenge.challenger.id === currentUser.uid ? 
         activeChallenge.opponent.name : activeChallenge.challenger.name;
@@ -8770,12 +8840,18 @@ function loadChallengeWord() {
         <div class="quiz-question-card">
             <h3>Word ${currentChallengeIndex + 1} of ${challengeWords.length}</h3>
             
-            <div style="text-align: center; margin: 30px 0;">
-                <button class="practice-btn" onclick="speakChallengeWord()" 
-                        style="font-size: 1.1rem; padding: 15px 30px;">
-                    🔊 Play Word
-                </button>
-            </div>
+           <div style="text-align: center; margin: 30px 0;">
+    <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+        <button class="practice-btn" onclick="speakChallengeWord()" 
+                style="font-size: 1.1rem; padding: 15px 30px;">
+            🔊 Play Word
+        </button>
+        <button class="practice-btn" onclick="speakChallengeWordInSentence()" 
+                style="font-size: 1.1rem; padding: 15px 30px; background: #17a2b8;">
+            💬 Use in Sentence
+        </button>
+    </div>
+</div>
             
             <div class="form-group" style="margin: 30px 0;">
                 <label style="font-size: 1.2rem;">Type what you hear:</label>
@@ -8841,6 +8917,80 @@ function speakChallengeWord() {
     window.speechSynthesis.cancel();
     window.speechSynthesis.speak(utterance);
 }
+
+ async function speakChallengeWordInSentence() {
+    if (!challengeWords || !challengeWords[currentChallengeIndex]) return;
+    
+    const word = challengeWords[currentChallengeIndex];
+    
+    const btn = event?.target;
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = '⏳ Loading...';
+    }
+    
+    try {
+        const wordRef = db.collection('dictionary').doc(word.toLowerCase());
+        const wordDoc = await wordRef.get();
+        
+        let exampleSentence = null;
+        
+        if (wordDoc.exists) {
+            const data = wordDoc.data();
+            if (data.meanings && data.meanings.length > 0) {
+                for (let meaning of data.meanings) {
+                    if (meaning.example) {
+                        exampleSentence = meaning.example;
+                        break;
+                    }
+                }
+            }
+        }
+        
+        if (!exampleSentence) {
+            const response = await fetch(CLOUD_FUNCTION_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ data: { word: word } })
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                if (data.result && data.result.meanings && data.result.meanings.length > 0) {
+                    for (let meaning of data.result.meanings) {
+                        if (meaning.example) {
+                            exampleSentence = meaning.example;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        
+        if (!exampleSentence) {
+            exampleSentence = `The word is ${word}.`;
+        }
+        
+        const utterance = new SpeechSynthesisUtterance(exampleSentence);
+        utterance.rate = 0.8;
+        utterance.pitch = 1;
+        utterance.volume = 1;
+        
+        window.speechSynthesis.cancel();
+        window.speechSynthesis.speak(utterance);
+        
+    } catch (error) {
+        console.error('Error getting sentence:', error);
+        const utterance = new SpeechSynthesisUtterance(`The word is ${word}.`);
+        utterance.rate = 0.8;
+        window.speechSynthesis.speak(utterance);
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = '💬 Use in Sentence';
+        }
+    }
+}       
 
 function typeChallengeKey(letter) {
     const input = document.getElementById('challenge-spelling-input');
@@ -8924,7 +9074,7 @@ function showChallengeResults(challenge) {
     const won = myFinalScore > opponentFinalScore;
     const tied = myFinalScore === opponentFinalScore;
     
-    const container = document.getElementById('active-challenge-section');
+    const container = document.getElementById('active-challenge-content') || document.getElementById('active-challenge-section');
     
     container.innerHTML = `
         <div class="quiz-question-card" style="text-align: center;">
@@ -9072,7 +9222,7 @@ async function endChallengeByOpponentOffline(challengeId) {
 
 // Show abandoned challenge screen
 function showChallengeAbandoned(challenge) {
-    const container = document.getElementById('active-challenge-section');
+    const container = document.getElementById('active-challenge-content') || document.getElementById('active-challenge-section');
     
     container.innerHTML = `
         <div class="quiz-question-card" style="text-align: center;">
