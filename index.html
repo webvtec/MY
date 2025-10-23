@@ -3486,7 +3486,8 @@ a[href*="whatsapp.com/channel"]:hover {
 
         // ===== CLOUD FUNCTION URL =====
         const CLOUD_FUNCTION_URL = 'https://getworddefinition-998744778737.us-central1.run.app';
-        
+
+
         // ===== GLOBAL VARIABLES =====
 let allWords = [];
 let currentLetter = '';
@@ -3505,6 +3506,12 @@ let quizStartTime = null;
 let quizAnswerTimes = [];
 let quizDifficulty = 'medium'; // track difficulty
 let questionStartTime = null;
+
+// ===== LIVE SPELLING GLOBALS =====
+let challengeListener = null;
+let myChallengeListener = null;
+let shownPopupIds = new Set();
+let presenceInitialized = false; // ✅ NEW: Prevent duplicate presence initialization
 
 // ===== LEVEL-BASED WORD LOADING =====
 let currentLevel = '';
@@ -3540,16 +3547,13 @@ let currentLetterOrder = [];
 let hintsUsed = 0;
 let draggedElement = null;
 
-
-
-// ID Verification variables
+// ===== ID VERIFICATION VARIABLES =====
 let uploadedIDFile = null;
 let uploadedIDBase64 = null;
 let isCoachVerification = false;
 let idVerificationPassed = false;
 
-
-// Live Spelling Variables
+// ===== LIVE SPELLING VARIABLES =====
 let onlineUsersRef = null;
 let challengesRef = null;
 let activeChallenge = null;
@@ -3558,6 +3562,7 @@ let currentChallengeIndex = 0;
 let myScore = 0;
 let opponentScore = 0;
 let presenceRef = null;
+      
         // ===== INITIALIZE =====
         document.addEventListener('DOMContentLoaded', function() {
             initializeAlphabet();
@@ -5212,7 +5217,7 @@ async function handleVerification(event) {
 }
         
         
-        function updateUIForAuthenticatedUser(user) {
+       function updateUIForAuthenticatedUser(user) {
     const displayName = user.displayName || user.email.split('@')[0];
     const photoURL = user.photoURL;
     
@@ -5234,9 +5239,10 @@ async function handleVerification(event) {
     document.getElementById('sidebar-signin').style.display = 'none';
     document.getElementById('sidebar-signout').style.display = 'block';
     
-    // Initialize online presence for live challenges
-    initializeOnlinePresence();
+    // ✅ REMOVED: Do NOT initialize presence here
+    // Let it be initialized only when user goes to Live Spelling
 }
+
         
        function updateUIForGuestUser() {
     document.getElementById('sidebarUserName').textContent = 'Guest';
@@ -6601,7 +6607,7 @@ function startSpellingPractice() {
     selectedGameLevel = '';
 }
 
-       function switchSpellingMode(mode) {
+      function switchSpellingMode(mode) {
     // Update active tab
     const tabs = document.querySelectorAll('#spelling-section .quiz-tab');
     tabs.forEach((tab, index) => {
@@ -6625,8 +6631,9 @@ function startSpellingPractice() {
         document.getElementById('unscramble-mode').classList.add('active');
     } else if (mode === 'live') {
         document.getElementById('live-spelling-mode').classList.add('active');
-        // Initialize live spelling when switching to this mode
+        
         if (currentUser) {
+            // ✅ Only initialize once
             initializeOnlinePresence();
             loadOnlineUsers();
         } else {
@@ -8236,50 +8243,62 @@ document.addEventListener('click', function(event) {
 });
 
 // ===== LIVE SPELLING FUNCTIONS =====
-
-// Add these missing global variables at the top of your script (around line 840)
-// Find where you have: let selectedGameLevel = '';
-// Add these RIGHT AFTER:
-let challengeListener = null;
-let myChallengeListener = null;
-let shownPopupIds = new Set();
+let presenceInitialized = false;
 
 async function initializeOnlinePresence() {
     if (!currentUser) return;
     
-    // Set user as online
-    presenceRef = db.collection('onlineUsers').doc(currentUser.uid);
+    // ✅ CRITICAL: Prevent multiple initializations
+    if (presenceInitialized) {
+        console.log('Presence already initialized');
+        return;
+    }
     
-    await presenceRef.set({
-        userId: currentUser.uid,
-        name: currentUser.displayName || 'Student',
-        photoURL: currentUser.photoURL || null,
-        status: 'online',
-        lastSeen: firebase.firestore.FieldValue.serverTimestamp()
-    });
+    presenceInitialized = true;
+    console.log('✅ Initializing online presence for:', currentUser.uid);
     
-    // Listen for incoming challenges
-    listenForChallenges();
-    
-    // Listen for MY challenges being accepted
-    listenForMyChallengesAccepted();
-    
-    // Update presence every 30 seconds
-    setInterval(async () => {
-        if (currentUser && presenceRef) {
-            try {
-                await presenceRef.update({
-                    lastSeen: firebase.firestore.FieldValue.serverTimestamp()
-                });
-            } catch (error) {
-                console.error('Error updating presence:', error);
+    try {
+        // Set user as online
+        presenceRef = db.collection('onlineUsers').doc(currentUser.uid);
+        
+        await presenceRef.set({
+            userId: currentUser.uid,
+            name: currentUser.displayName || 'Student',
+            photoURL: currentUser.photoURL || null,
+            status: 'online',
+            lastSeen: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        // Listen for incoming challenges (only once)
+        listenForChallenges();
+        
+        // Listen for MY challenges being accepted (only once)
+        listenForMyChallengesAccepted();
+        
+        // Update presence every 30 seconds
+        setInterval(async () => {
+            if (currentUser && presenceRef) {
+                try {
+                    await presenceRef.update({
+                        lastSeen: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                } catch (error) {
+                    console.error('Error updating presence:', error);
+                }
             }
-        }
-    }, 30000);
+        }, 30000);
+        
+        console.log('✅ Presence initialized successfully');
+    } catch (error) {
+        console.error('❌ Error initializing presence:', error);
+        presenceInitialized = false; // Reset on error
+    }
 }
 
 async function removeOnlinePresence() {
     try {
+        console.log('🧹 Removing online presence...');
+        
         // Remove challenge listeners
         if (challengeListener) {
             challengeListener();
@@ -8289,16 +8308,27 @@ async function removeOnlinePresence() {
             myChallengeListener();
             myChallengeListener = null;
         }
+        if (onlineUsersRef) {
+            onlineUsersRef();
+            onlineUsersRef = null;
+        }
         
         // Remove from online users
         if (presenceRef) {
             await presenceRef.delete();
             presenceRef = null;
         }
+        
+        // Reset flag
+        presenceInitialized = false;
+        
+        console.log('✅ Presence removed successfully');
     } catch (error) {
         console.error('Error removing presence:', error);
     }
 }
+        
+
 
 async function loadOnlineUsers() {
     if (!currentUser) {
