@@ -3562,11 +3562,23 @@ let currentChallengeIndex = 0;
 let myScore = 0;
 let opponentScore = 0;
 let presenceRef = null;
+
+// ✅ Challenge timeout constants
+const CHALLENGE_TIMEOUT = 5 * 60 * 1000; // 5 minutes max per challenge
+const TURN_TIMEOUT = 60 * 1000; // 60 seconds per turn
+const OFFLINE_CHECK_INTERVAL = 10 * 1000; // Check every 10 seconds
+
+let challengeTimeoutTimer = null;
+let turnTimeoutTimer = null;
+let offlineCheckTimer = null;
       
-        // ===== INITIALIZE =====
+       // ===== INITIALIZE =====
         document.addEventListener('DOMContentLoaded', function() {
             initializeAlphabet();
             initializeSpeechRecognition();
+            
+            // ✅ Cleanup old challenges on page load
+            cleanupOldChallenges();
             
             document.getElementById('searchInput').addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') searchWord();
@@ -8667,10 +8679,37 @@ async function startLiveChallenge(challengeId) {
         document.getElementById('incoming-challenges-section').style.display = 'none';
         document.getElementById('active-challenge-section').style.display = 'block';
         
+        // ✅ Start challenge timeout (5 minutes max)
+        startChallengeTimeout(challengeId);
+        
+        // ✅ Start offline detection
+        startOfflineDetection(challengeId);
+        
+        // Listen for challenge updates
         db.collection('challenges').doc(challengeId).onSnapshot(doc => {
             const data = doc.data();
-            if (data && data.status === 'completed') {
-                showChallengeResults(data);
+            
+            if (!data) return;
+            
+            // Check if challenge was ended by opponent
+            if (data.status === 'completed' || data.status === 'abandoned') {
+                clearChallengeTimers();
+                if (data.status === 'abandoned') {
+                    showChallengeAbandoned(data);
+                } else {
+                    showChallengeResults(data);
+                }
+            }
+            
+            // Update opponent score in real-time
+            const opponentId = activeChallenge.challenger.id === currentUser.uid ? 
+                activeChallenge.opponent.id : activeChallenge.challenger.id;
+            opponentScore = data.scores?.[opponentId] || 0;
+            
+            // Update score display if element exists
+            const scoreElements = document.querySelectorAll('.player-score .score');
+            if (scoreElements.length > 1) {
+                scoreElements[1].textContent = opponentScore;
             }
         });
         
@@ -8808,6 +8847,9 @@ async function submitChallengeAnswer() {
         return;
     }
     
+    // ✅ Disable input while processing
+    input.disabled = true;
+    
     const isCorrect = userAnswer === correctWord;
     
     if (isCorrect) {
@@ -8820,8 +8862,11 @@ async function submitChallengeAnswer() {
     try {
         const challengeRef = db.collection('challenges').doc(activeChallenge.id);
         const scoreKey = `scores.${currentUser.uid}`;
+        
+        // ✅ Update score and timestamp
         await challengeRef.update({
-            [scoreKey]: myScore
+            [scoreKey]: myScore,
+            [`lastAnswerTime.${currentUser.uid}`]: firebase.firestore.FieldValue.serverTimestamp()
         });
     } catch (error) {
         console.error('Error updating score:', error);
@@ -8830,6 +8875,7 @@ async function submitChallengeAnswer() {
     setTimeout(() => {
         currentChallengeIndex++;
         if (currentChallengeIndex < challengeWords.length) {
+            input.disabled = false;
             loadChallengeWord();
         } else {
             finishChallenge();
@@ -8837,6 +8883,7 @@ async function submitChallengeAnswer() {
     }, 2000);
 }
 
+        
 async function finishChallenge() {
     try {
         await db.collection('challenges').doc(activeChallenge.id).update({
@@ -8886,6 +8933,9 @@ function showChallengeResults(challenge) {
 }
 
 function exitChallenge() {
+    // ✅ Clear all timers
+    clearChallengeTimers();
+    
     activeChallenge = null;
     challengeWords = [];
     currentChallengeIndex = 0;
@@ -8899,6 +8949,158 @@ function exitChallenge() {
     
     loadOnlineUsers();
 }
+
+ // ✅ NEW FUNCTIONS - ADD THESE
+
+// Start challenge timeout
+function startChallengeTimeout(challengeId) {
+    challengeTimeoutTimer = setTimeout(async () => {
+        console.log('⏰ Challenge timeout reached');
+        await endChallengeByTimeout(challengeId);
+    }, CHALLENGE_TIMEOUT);
+}
+
+// Start offline detection
+function startOfflineDetection(challengeId) {
+    offlineCheckTimer = setInterval(async () => {
+        if (!activeChallenge) {
+            clearInterval(offlineCheckTimer);
+            return;
+        }
+        
+        const opponentId = activeChallenge.challenger.id === currentUser.uid ? 
+            activeChallenge.opponent.id : activeChallenge.challenger.id;
+        
+        // Check if opponent is still online
+        try {
+            const opponentPresence = await db.collection('onlineUsers').doc(opponentId).get();
+            
+            if (!opponentPresence.exists) {
+                console.log('🚫 Opponent went offline');
+                await endChallengeByOpponentOffline(challengeId);
+                return;
+            }
+            
+            const lastSeen = opponentPresence.data().lastSeen?.toDate();
+            if (!lastSeen) return;
+            
+            const now = new Date();
+            const diffMinutes = (now - lastSeen) / 1000 / 60;
+            
+            if (diffMinutes > 2) {
+                console.log('🚫 Opponent inactive for 2+ minutes');
+                await endChallengeByOpponentOffline(challengeId);
+            }
+        } catch (error) {
+            console.error('Error checking opponent presence:', error);
+        }
+    }, OFFLINE_CHECK_INTERVAL);
+}
+
+// Clear all challenge timers
+function clearChallengeTimers() {
+    if (challengeTimeoutTimer) {
+        clearTimeout(challengeTimeoutTimer);
+        challengeTimeoutTimer = null;
+    }
+    if (turnTimeoutTimer) {
+        clearTimeout(turnTimeoutTimer);
+        turnTimeoutTimer = null;
+    }
+    if (offlineCheckTimer) {
+        clearInterval(offlineCheckTimer);
+        offlineCheckTimer = null;
+    }
+}
+
+// End challenge by timeout
+async function endChallengeByTimeout(challengeId) {
+    try {
+        clearChallengeTimers();
+        
+        await db.collection('challenges').doc(challengeId).update({
+            status: 'completed',
+            endReason: 'timeout',
+            endedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        const challengeDoc = await db.collection('challenges').doc(challengeId).get();
+        if (challengeDoc.exists) {
+            showChallengeResults(challengeDoc.data());
+        }
+    } catch (error) {
+        console.error('Error ending challenge by timeout:', error);
+    }
+}
+
+// End challenge by opponent offline
+async function endChallengeByOpponentOffline(challengeId) {
+    try {
+        clearChallengeTimers();
+        
+        await db.collection('challenges').doc(challengeId).update({
+            status: 'abandoned',
+            endReason: 'opponent_offline',
+            winner: currentUser.uid,
+            endedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+    } catch (error) {
+        console.error('Error ending challenge by opponent offline:', error);
+    }
+}
+
+// Show abandoned challenge screen
+function showChallengeAbandoned(challenge) {
+    const container = document.getElementById('active-challenge-section');
+    
+    container.innerHTML = `
+        <div class="quiz-question-card" style="text-align: center;">
+            <div style="font-size: 4rem; margin: 20px 0;">🚫</div>
+            <h2>Challenge Abandoned</h2>
+            <p style="font-size: 1.2rem; margin: 20px 0; color: #666;">
+                ${challenge.endReason === 'opponent_offline' ? 
+                    'Your opponent went offline.' : 
+                    'The challenge was cancelled.'}
+            </p>
+            
+            <div class="challenge-score-card">
+                <div class="player-score">
+                    <div class="name">Your Score</div>
+                    <div class="score">${myScore}</div>
+                </div>
+            </div>
+            
+            <p style="margin: 20px 0; font-size: 1.1rem; color: #28a745; font-weight: bold;">
+                🏆 You win by default!
+            </p>
+            
+            <button class="practice-btn" onclick="exitChallenge()" style="margin-top: 30px; font-size: 1.1rem;">
+                🏠 Back to Lobby
+            </button>
+        </div>
+    `;
+}
+
+// Cleanup old challenges (run on page load)
+async function cleanupOldChallenges() {
+    try {
+        const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        
+        const oldChallenges = await db.collection('challenges')
+            .where('createdAt', '<', firebase.firestore.Timestamp.fromDate(oneDayAgo))
+            .get();
+        
+        const deletePromises = oldChallenges.docs.map(doc => doc.ref.delete());
+        await Promise.all(deletePromises);
+        
+        if (oldChallenges.size > 0) {
+            console.log(`🧹 Cleaned up ${oldChallenges.size} old challenges`);
+        }
+    } catch (error) {
+        console.error('Error cleaning up old challenges:', error);
+    }
+}       
     </script>
 </body>
 </html>
