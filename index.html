@@ -8763,6 +8763,13 @@ async function startLiveChallenge(challengeId) {
     try {
         console.log('🎮 Starting live challenge:', challengeId);
         
+        // ✅ CRITICAL: Detach online users listener before starting challenge
+        if (onlineUsersRef) {
+            onlineUsersRef();
+            onlineUsersRef = null;
+            console.log('✅ Detached online users listener');
+        }
+        
         const challengeDoc = await db.collection('challenges').doc(challengeId).get();
         
         if (!challengeDoc.exists) {
@@ -8785,7 +8792,7 @@ async function startLiveChallenge(challengeId) {
         if (onlineUsersSection) onlineUsersSection.style.display = 'none';
         if (incomingChallengesSection) incomingChallengesSection.style.display = 'none';
         
-        // ✅ SHOW the challenge directly in the live-spelling-mode div (NOT a modal)
+        // ✅ SHOW the challenge directly in the live-spelling-mode div
         const liveSpellingMode = document.getElementById('live-spelling-mode');
         if (!liveSpellingMode) {
             console.error('❌ live-spelling-mode not found');
@@ -8795,14 +8802,12 @@ async function startLiveChallenge(challengeId) {
         
         let welcomeSection = liveSpellingMode.querySelector('.welcome-section');
         
-        // If welcome section doesn't exist, create it
         if (!welcomeSection) {
             welcomeSection = document.createElement('div');
             welcomeSection.className = 'welcome-section';
             liveSpellingMode.appendChild(welcomeSection);
         }
         
-        // Clear welcome section content and show challenge
         welcomeSection.innerHTML = '<div id="live-challenge-container"></div>';
         
         // ✅ Start challenge timeout (5 minutes max)
@@ -8817,7 +8822,6 @@ async function startLiveChallenge(challengeId) {
             
             if (!data) return;
             
-            // Check if challenge was ended by opponent
             if (data.status === 'completed' || data.status === 'abandoned') {
                 clearChallengeTimers();
                 if (data.status === 'abandoned') {
@@ -8828,12 +8832,11 @@ async function startLiveChallenge(challengeId) {
                 return;
             }
             
-            // Update opponent score in real-time
             const opponentId = activeChallenge.challenger.id === currentUser.uid ? 
                 activeChallenge.opponent.id : activeChallenge.challenger.id;
             opponentScore = data.scores?.[opponentId] || 0;
             
-            // ✅ FIXED: Check if elements exist before updating
+            // ✅ Check if elements exist before updating
             const scoreElements = document.querySelectorAll('.player-score .score');
             if (scoreElements && scoreElements.length > 1) {
                 scoreElements[1].textContent = opponentScore;
@@ -8846,7 +8849,7 @@ async function startLiveChallenge(challengeId) {
         alert('Failed to start challenge: ' + error.message);
     }
 }
-
+        
         
 function loadChallengeWord() {
     if (!challengeWords || challengeWords.length === 0) {
@@ -9191,7 +9194,6 @@ function exitChallenge() {
     
     let welcomeSection = liveSpellingMode.querySelector('.welcome-section');
     
-    // If welcome section doesn't exist, create it
     if (!welcomeSection) {
         welcomeSection = document.createElement('div');
         welcomeSection.className = 'welcome-section';
@@ -9217,6 +9219,7 @@ function exitChallenge() {
         </div>
     `;
     
+    // ✅ Restart online users listener
     loadOnlineUsers();
 }
 
