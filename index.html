@@ -4766,6 +4766,23 @@ async function handleSignUp(event, userType) {
 }
         
 function signOut() {
+    // Clean up online presence
+    if (currentUserPresenceRef) {
+        currentUserPresenceRef.remove();
+        currentUserPresenceRef = null;
+    }
+    
+    // Remove listeners
+    if (onlineUsersRef && onlineUsersListener) {
+        onlineUsersRef.off('value', onlineUsersListener);
+        onlineUsersListener = null;
+    }
+    
+    if (challengesRef && challengesListener) {
+        challengesRef.off('child_added', challengesListener);
+        challengesListener = null;
+    }
+    
     auth.signOut();
     navigateTo('home');
 }
@@ -5308,7 +5325,11 @@ async function handleVerification(event) {
     
     document.getElementById('sidebar-signin').style.display = 'none';
     document.getElementById('sidebar-signout').style.display = 'block';
+    
+    // ✅ ADD THIS: Initialize online presence for live spelling
+    initializeOnlinePresence();
 }
+        
         
        function updateUIForGuestUser() {
     document.getElementById('sidebarUserName').textContent = 'Guest';
@@ -8307,6 +8328,12 @@ document.addEventListener('click', function(event) {
 async function initializeOnlinePresence() {
     if (!currentUser) return;
     
+    // ✅ Prevent duplicate initialization
+    if (currentUserPresenceRef) {
+        console.log('Online presence already initialized');
+        return;
+    }
+    
     // Reference to online users
     onlineUsersRef = rtdb.ref('onlineUsers');
     currentUserPresenceRef = rtdb.ref(`onlineUsers/${currentUser.uid}`);
@@ -8334,6 +8361,8 @@ async function initializeOnlinePresence() {
             });
         }
     }, 30000);
+    
+    console.log('✅ Online presence initialized');
 }
 
 // Load online users
@@ -8822,10 +8851,95 @@ async function endChallengeGame(challengeId) {
             emoji = '🎉';
         } else if (myScore < opponentScore) {
             resultMessage = `You Lost. ${myScore} - ${opponentScore}`;
-            emoji = '😔';
+            emoji = '😢';
         } else {
             resultMessage = `It's a Tie! ${myScore} - ${opponentScore}`;
-            emoji = '
+            emoji = '🤝';
+        }
+        
+        // Show results
+        const resultsDiv = document.getElementById('challenge-results');
+        resultsDiv.innerHTML = `
+            <div class="quiz-question-card" style="text-align: center;">
+                <div style="font-size: 4rem; margin: 20px 0;">${emoji}</div>
+                <h2>Challenge Complete!</h2>
+                <div class="quiz-score">
+                    You: ${myScore} | ${opponentName}: ${opponentScore}
+                </div>
+                <p style="font-size: 1.5rem; margin: 20px 0; color: #0d3b66;">${resultMessage}</p>
+                
+                <div style="display: flex; gap: 10px; justify-content: center; margin-top: 30px; flex-wrap: wrap;">
+                    <button class="practice-btn" onclick="exitLiveChallenge()">
+                        ← Back to Online Users
+                    </button>
+                    <button class="practice-btn" onclick="navigateTo('home')">
+                        🏠 Home
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('live-challenge-game').style.display = 'none';
+        resultsDiv.style.display = 'block';
+        
+        // Clean up challenge from database
+        await rtdb.ref(`challenges/${challengeId}`).remove();
+        
+        // Stop listening
+        rtdb.ref(`challenges/${challengeId}`).off();
+        
+        activeChallenge = null;
+        
+    } catch (error) {
+        console.error('Error ending challenge:', error);
+        alert('Error ending challenge: ' + error.message);
+    }
+}
+
+    function switchSpellingMode(mode) {
+    // Update active tab
+    const tabs = document.querySelectorAll('#spelling-section .quiz-tab');
+    tabs.forEach((tab, index) => {
+        tab.classList.remove('active');
+        if ((mode === 'practice' && index === 0) ||
+            (mode === 'unscramble' && index === 1) ||
+            (mode === 'live' && index === 2) ||
+            (mode === 'leaderboard' && index === 3)) {
+            tab.classList.add('active');
+        }
+    });
+
+    // Update active mode
+    document.querySelectorAll('#spelling-section .quiz-mode').forEach(m => {
+        m.classList.remove('active');
+    });
+
+    if (mode === 'practice') {
+        document.getElementById('practice-spelling-mode').classList.add('active');
+    } else if (mode === 'unscramble') {
+        document.getElementById('unscramble-mode').classList.add('active');
+    } else if (mode === 'live') {
+        document.getElementById('live-spelling-mode').classList.add('active');
+        
+        // Initialize live mode
+        if (currentUser) {
+            initializeOnlinePresence();
+            loadOnlineUsers();
+            listenForChallenges();
+        } else {
+            document.getElementById('online-users-list').innerHTML = `
+                <div class="loading">
+                    Please sign in to participate in live challenges!
+                    <button class="practice-btn" onclick="showAuthModal()" style="margin-top: 15px;">
+                        Sign In
+                    </button>
+                </div>
+            `;
+        }
+    } else if (mode === 'leaderboard') {
+        document.getElementById('leaderboard-spelling-mode').classList.add('active');
+    }
+}
     </script>
 </body>
 </html>
