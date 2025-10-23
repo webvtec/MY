@@ -8757,12 +8757,28 @@ async function startLiveChallenge(challengeId) {
         opponentScore = 0;
         
         // ✅ HIDE the online users and incoming challenges sections
-        document.getElementById('online-users-section').style.display = 'none';
-        document.getElementById('incoming-challenges-section').style.display = 'none';
+        const onlineUsersSection = document.getElementById('online-users-section');
+        const incomingChallengesSection = document.getElementById('incoming-challenges-section');
+        
+        if (onlineUsersSection) onlineUsersSection.style.display = 'none';
+        if (incomingChallengesSection) incomingChallengesSection.style.display = 'none';
         
         // ✅ SHOW the challenge directly in the live-spelling-mode div (NOT a modal)
         const liveSpellingMode = document.getElementById('live-spelling-mode');
-        const welcomeSection = liveSpellingMode.querySelector('.welcome-section');
+        if (!liveSpellingMode) {
+            console.error('❌ live-spelling-mode not found');
+            alert('Failed to start challenge - page element missing');
+            return;
+        }
+        
+        let welcomeSection = liveSpellingMode.querySelector('.welcome-section');
+        
+        // If welcome section doesn't exist, create it
+        if (!welcomeSection) {
+            welcomeSection = document.createElement('div');
+            welcomeSection.className = 'welcome-section';
+            liveSpellingMode.appendChild(welcomeSection);
+        }
         
         // Clear welcome section content and show challenge
         welcomeSection.innerHTML = '<div id="live-challenge-container"></div>';
@@ -8787,6 +8803,7 @@ async function startLiveChallenge(challengeId) {
                 } else {
                     showChallengeResults(data);
                 }
+                return;
             }
             
             // Update opponent score in real-time
@@ -8794,9 +8811,9 @@ async function startLiveChallenge(challengeId) {
                 activeChallenge.opponent.id : activeChallenge.challenger.id;
             opponentScore = data.scores?.[opponentId] || 0;
             
-            // Update score display if element exists
+            // ✅ FIXED: Check if elements exist before updating
             const scoreElements = document.querySelectorAll('.player-score .score');
-            if (scoreElements.length > 1) {
+            if (scoreElements && scoreElements.length > 1) {
                 scoreElements[1].textContent = opponentScore;
             }
         });
@@ -8804,7 +8821,7 @@ async function startLiveChallenge(challengeId) {
         loadChallengeWord();
     } catch (error) {
         console.error('Error starting challenge:', error);
-        alert('Failed to start challenge');
+        alert('Failed to start challenge: ' + error.message);
     }
 }
 
@@ -9131,13 +9148,33 @@ function exitChallenge() {
     opponentScore = 0;
     shownPopupIds.clear();
     
-    // ✅ Show the online users section again
-    document.getElementById('online-users-section').style.display = 'block';
-    document.getElementById('incoming-challenges-section').style.display = 'none';
+    // ✅ Check if elements exist before trying to modify them
+    const onlineUsersSection = document.getElementById('online-users-section');
+    const incomingChallengesSection = document.getElementById('incoming-challenges-section');
+    
+    if (onlineUsersSection) {
+        onlineUsersSection.style.display = 'block';
+    }
+    
+    if (incomingChallengesSection) {
+        incomingChallengesSection.style.display = 'none';
+    }
     
     // ✅ Restore the welcome section content
     const liveSpellingMode = document.getElementById('live-spelling-mode');
-    const welcomeSection = liveSpellingMode.querySelector('.welcome-section');
+    if (!liveSpellingMode) {
+        console.error('❌ live-spelling-mode not found');
+        return;
+    }
+    
+    let welcomeSection = liveSpellingMode.querySelector('.welcome-section');
+    
+    // If welcome section doesn't exist, create it
+    if (!welcomeSection) {
+        welcomeSection = document.createElement('div');
+        welcomeSection.className = 'welcome-section';
+        liveSpellingMode.appendChild(welcomeSection);
+    }
     
     welcomeSection.innerHTML = `
         <h2>🏆 Live Spelling Challenges</h2>
@@ -9160,7 +9197,6 @@ function exitChallenge() {
     
     loadOnlineUsers();
 }
-
 
 // Start challenge timeout
 function startChallengeTimeout(challengeId) {
@@ -9298,24 +9334,39 @@ function showChallengeAbandoned(challenge) {
 }
 
 // Cleanup old challenges (run on page load)
+// Cleanup old challenges (run on page load)
 async function cleanupOldChallenges() {
+    if (!currentUser) {
+        console.log('⏭️ Skipping cleanup - no user logged in');
+        return;
+    }
+    
     try {
         const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
         
-        const oldChallenges = await db.collection('challenges')
+        // ✅ Only cleanup challenges where current user is involved
+        const myChallenges = await db.collection('challenges')
             .where('createdAt', '<', firebase.firestore.Timestamp.fromDate(oneDayAgo))
             .get();
         
-        const deletePromises = oldChallenges.docs.map(doc => doc.ref.delete());
-        await Promise.all(deletePromises);
+        const deletePromises = [];
+        myChallenges.docs.forEach(doc => {
+            const data = doc.data();
+            // Only delete if I'm the challenger or opponent
+            if (data.challenger?.id === currentUser.uid || data.opponent?.id === currentUser.uid) {
+                deletePromises.push(doc.ref.delete());
+            }
+        });
         
-        if (oldChallenges.size > 0) {
-            console.log(`🧹 Cleaned up ${oldChallenges.size} old challenges`);
+        if (deletePromises.length > 0) {
+            await Promise.all(deletePromises);
+            console.log(`🧹 Cleaned up ${deletePromises.length} old challenges`);
         }
     } catch (error) {
-        console.error('Error cleaning up old challenges:', error);
+        console.log('ℹ️ Could not cleanup old challenges (this is normal):', error.message);
+        // Don't throw error - this is not critical
     }
-}       
+} 
     </script>
 </body>
 </html>
