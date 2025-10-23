@@ -2166,6 +2166,86 @@ a[href*="whatsapp.com/channel"]:hover {
     }
 }
 
+
+/* Live Spelling Styles */
+.online-user-card {
+    background: white;
+    border: 2px solid #0d3b66;
+    border-radius: 10px;
+    padding: 20px;
+    text-align: center;
+    transition: all 0.3s;
+    cursor: pointer;
+}
+
+.online-user-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+}
+
+.online-user-card.offline {
+    opacity: 0.5;
+    border-color: #ccc;
+    cursor: not-allowed;
+}
+
+.online-status {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #28a745;
+    margin-left: 8px;
+    animation: pulse-online 2s infinite;
+}
+
+@keyframes pulse-online {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.challenge-notification {
+    background: linear-gradient(135deg, #ff6b6b, #ee5a6f);
+    color: white;
+    padding: 20px;
+    border-radius: 10px;
+    margin: 10px 0;
+    box-shadow: 0 4px 15px rgba(255,107,107,0.4);
+    animation: shake 0.5s;
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-10px); }
+    75% { transform: translateX(10px); }
+}
+
+.challenge-score-card {
+    display: flex;
+    justify-content: space-around;
+    background: #f9f9f9;
+    padding: 20px;
+    border-radius: 10px;
+    margin: 20px 0;
+}
+
+.player-score {
+    text-align: center;
+}
+
+.player-score .name {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #0d3b66;
+}
+
+.player-score .score {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #28a745;
+    margin: 10px 0;
+}
+
     </style>
 </head>
 <body>
@@ -2936,12 +3016,31 @@ a[href*="whatsapp.com/channel"]:hover {
     </div>
 </div>
                 <!-- Live Spelling Mode -->
-                <div id="live-spelling-mode" class="quiz-mode">
-                    <div class="welcome-section">
-                        <h2>🏆 Live Spelling</h2>
-                        <p>Coming soon! Compete with other students in real-time spelling competitions.</p>
-                    </div>
-                </div>
+<div id="live-spelling-mode" class="quiz-mode">
+    <div class="welcome-section">
+        <h2>🏆 Live Spelling Challenges</h2>
+        <p style="margin: 20px 0;">Challenge other students to spelling battles in real-time!</p>
+        
+        <!-- Online Users Section -->
+        <div id="online-users-section">
+            <h3 style="color: #0d3b66; margin: 20px 0;">👥 Online Students (<span id="online-count">0</span>)</h3>
+            <div id="online-users-list" class="favorites-grid">
+                <div class="loading">Loading online users...</div>
+            </div>
+        </div>
+        
+        <!-- Incoming Challenges -->
+        <div id="incoming-challenges-section" style="margin-top: 30px; display: none;">
+            <h3 style="color: #dc3545; margin: 20px 0;">⚡ Incoming Challenges</h3>
+            <div id="incoming-challenges-list"></div>
+        </div>
+        
+        <!-- Active Challenge -->
+        <div id="active-challenge-section" style="display: none;">
+            <!-- Challenge UI will be inserted here -->
+        </div>
+    </div>
+</div>
 
                 <!-- Spelling Leaderboard Mode -->
                 <div id="leaderboard-spelling-mode" class="quiz-mode">
@@ -3351,6 +3450,8 @@ a[href*="whatsapp.com/channel"]:hover {
         </div>
     </div>
 </div>
+
+    
     <script>
         // ===== FIREBASE CONFIGURATION =====
         const firebaseConfig = {
@@ -3429,6 +3530,17 @@ let uploadedIDFile = null;
 let uploadedIDBase64 = null;
 let isCoachVerification = false;
 let idVerificationPassed = false;
+
+
+// Live Spelling Variables
+let onlineUsersRef = null;
+let challengesRef = null;
+let activeChallenge = null;
+let challengeWords = [];
+let currentChallengeIndex = 0;
+let myScore = 0;
+let opponentScore = 0;
+let presenceRef = null;
         // ===== INITIALIZE =====
         document.addEventListener('DOMContentLoaded', function() {
             initializeAlphabet();
@@ -4556,7 +4668,13 @@ async function handleSignUp(event, userType) {
 }
         
 function signOut() {
+    // Remove online presence before signing out
+    removeOnlinePresence();
+    
+    // Sign out from Firebase
     auth.signOut();
+    
+    // Navigate to home
     navigateTo('home');
 }
 
@@ -5098,6 +5216,9 @@ async function handleVerification(event) {
     
     document.getElementById('sidebar-signin').style.display = 'none';
     document.getElementById('sidebar-signout').style.display = 'block';
+    
+    // Initialize online presence for live challenges
+    initializeOnlinePresence();
 }
         
        function updateUIForGuestUser() {
@@ -6463,7 +6584,7 @@ function startSpellingPractice() {
     selectedGameLevel = '';
 }
 
-        function switchSpellingMode(mode) {
+       function switchSpellingMode(mode) {
     // Update active tab
     const tabs = document.querySelectorAll('#spelling-section .quiz-tab');
     tabs.forEach((tab, index) => {
@@ -6487,6 +6608,14 @@ function startSpellingPractice() {
         document.getElementById('unscramble-mode').classList.add('active');
     } else if (mode === 'live') {
         document.getElementById('live-spelling-mode').classList.add('active');
+        // Initialize live spelling when switching to this mode
+        if (currentUser) {
+            initializeOnlinePresence();
+            loadOnlineUsers();
+        } else {
+            alert('Please sign in to access live challenges');
+            showAuthModal();
+        }
     } else if (mode === 'leaderboard') {
         document.getElementById('leaderboard-spelling-mode').classList.add('active');
     }
@@ -8088,6 +8217,430 @@ document.addEventListener('click', function(event) {
         closeStudentDetailModal();
     }
 });
+
+// ===== LIVE SPELLING FUNCTIONS =====
+
+// Initialize online presence when user signs in
+async function initializeOnlinePresence() {
+    if (!currentUser) return;
+    
+    // Set user as online
+    presenceRef = db.collection('onlineUsers').doc(currentUser.uid);
+    
+    await presenceRef.set({
+        userId: currentUser.uid,
+        name: currentUser.displayName || 'Student',
+        photoURL: currentUser.photoURL || null,
+        status: 'online',
+        lastSeen: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    
+    // Listen for challenges
+    listenForChallenges();
+    
+    // Update presence every 30 seconds
+    setInterval(async () => {
+        if (currentUser && presenceRef) {
+            await presenceRef.update({
+                lastSeen: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        }
+    }, 30000);
+}
+
+// Remove user from online when they leave
+async function removeOnlinePresence() {
+    if (presenceRef) {
+        await presenceRef.delete();
+        presenceRef = null;
+    }
+}
+
+// Load and display online users
+async function loadOnlineUsers() {
+    if (!currentUser) {
+        document.getElementById('online-users-list').innerHTML = 
+            '<div class="loading">Please sign in to see online users</div>';
+        return;
+    }
+    
+    try {
+        // Listen to online users in real-time
+        db.collection('onlineUsers')
+            .where('userId', '!=', currentUser.uid) // Exclude current user
+            .onSnapshot(snapshot => {
+                const users = [];
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    // Only show users online in last 2 minutes
+                    const lastSeen = data.lastSeen?.toDate() || new Date(0);
+                    const now = new Date();
+                    const diffMinutes = (now - lastSeen) / 1000 / 60;
+                    
+                    if (diffMinutes < 2) {
+                        users.push({ id: doc.id, ...data });
+                    }
+                });
+                
+                document.getElementById('online-count').textContent = users.length;
+                
+                if (users.length === 0) {
+                    document.getElementById('online-users-list').innerHTML = `
+                        <div class="loading">
+                            No other students online right now. <br>
+                            Share the app with friends to challenge them!
+                        </div>
+                    `;
+                } else {
+                    displayOnlineUsers(users);
+                }
+            });
+    } catch (error) {
+        console.error('Error loading online users:', error);
+    }
+}
+
+// Display online users
+function displayOnlineUsers(users) {
+    const container = document.getElementById('online-users-list');
+    
+    container.innerHTML = users.map(user => {
+        let avatarStyle = '';
+        let avatarText = '';
+        
+        if (user.photoURL) {
+            avatarStyle = `style="background-image: url('${user.photoURL}'); background-size: cover; background-position: center; width: 60px; height: 60px; border-radius: 50%; margin: 0 auto 10px;"`;
+        } else {
+            const initial = (user.name || 'S').charAt(0).toUpperCase();
+            avatarText = initial;
+        }
+        
+        return `
+            <div class="online-user-card" onclick="sendChallenge('${user.userId}', '${user.name}')">
+                ${user.photoURL ? 
+                    `<div ${avatarStyle}></div>` : 
+                    `<div class="user-avatar" style="margin: 0 auto 10px;">${avatarText}</div>`
+                }
+                <h3 style="color: #0d3b66; margin: 10px 0;">${user.name}</h3>
+                <span class="online-status"></span>
+                <span style="color: #28a745; font-weight: bold;">Online</span>
+                <button class="practice-btn" style="margin-top: 15px; font-size: 0.9rem; padding: 10px 20px;">
+                    ⚔️ Challenge
+                </button>
+            </div>
+        `;
+    }).join('');
+}
+
+// Send challenge to another user
+async function sendChallenge(opponentId, opponentName) {
+    if (!currentUser) return;
+    
+    if (confirm(`Challenge ${opponentName} to a spelling battle?`)) {
+        try {
+            const challengeRef = db.collection('challenges').doc();
+            
+            await challengeRef.set({
+                challengeId: challengeRef.id,
+                challenger: {
+                    id: currentUser.uid,
+                    name: currentUser.displayName || 'Student',
+                    photoURL: currentUser.photoURL || null
+                },
+                opponent: {
+                    id: opponentId,
+                    name: opponentName
+                },
+                status: 'pending',
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            
+            alert('✅ Challenge sent! Waiting for response...');
+        } catch (error) {
+            console.error('Error sending challenge:', error);
+            alert('Failed to send challenge. Please try again.');
+        }
+    }
+}
+
+// Listen for incoming challenges
+function listenForChallenges() {
+    if (!currentUser) return;
+    
+    db.collection('challenges')
+        .where('opponent.id', '==', currentUser.uid)
+        .where('status', '==', 'pending')
+        .onSnapshot(snapshot => {
+            const challenges = [];
+            snapshot.forEach(doc => {
+                challenges.push({ id: doc.id, ...doc.data() });
+            });
+            
+            if (challenges.length > 0) {
+                displayIncomingChallenges(challenges);
+            } else {
+                document.getElementById('incoming-challenges-section').style.display = 'none';
+            }
+        });
+}
+
+// Display incoming challenges
+function displayIncomingChallenges(challenges) {
+    const section = document.getElementById('incoming-challenges-section');
+    const container = document.getElementById('incoming-challenges-list');
+    
+    section.style.display = 'block';
+    
+    container.innerHTML = challenges.map(challenge => `
+        <div class="challenge-notification">
+            <h3 style="margin: 0 0 10px 0;">⚔️ ${challenge.challenger.name} challenges you!</h3>
+            <p style="margin: 10px 0;">Ready for a spelling battle?</p>
+            <div style="display: flex; gap: 10px; justify-content: center; margin-top: 15px;">
+                <button class="practice-btn" onclick="acceptChallenge('${challenge.id}')" 
+                        style="background: #28a745;">
+                    ✅ Accept
+                </button>
+                <button class="practice-btn" onclick="declineChallenge('${challenge.id}')" 
+                        style="background: #dc3545;">
+                    ❌ Decline
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
+
+// Accept challenge
+async function acceptChallenge(challengeId) {
+    try {
+        const challengeRef = db.collection('challenges').doc(challengeId);
+        
+        // Generate 5 random words for the challenge
+        if (!selectedGameLevel) {
+            selectedGameLevel = 'foundation'; // Default level
+        }
+        
+        if (levelWords[selectedGameLevel].length === 0) {
+            await loadLevelWords(selectedGameLevel);
+        }
+        
+        const shuffled = [...levelWords[selectedGameLevel]].sort(() => 0.5 - Math.random());
+        const words = shuffled.slice(0, 5);
+        
+        await challengeRef.update({
+            status: 'active',
+            words: words,
+            scores: {
+                [currentUser.uid]: 0,
+                challenger: 0
+            },
+            currentWord: 0,
+            startedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        startLiveChallenge(challengeId);
+    } catch (error) {
+        console.error('Error accepting challenge:', error);
+        alert('Failed to accept challenge. Please try again.');
+    }
+}
+
+// Decline challenge
+async function declineChallenge(challengeId) {
+    try {
+        await db.collection('challenges').doc(challengeId).update({
+            status: 'declined'
+        });
+        
+        alert('Challenge declined');
+    } catch (error) {
+        console.error('Error declining challenge:', error);
+    }
+}
+
+// Start live challenge
+async function startLiveChallenge(challengeId) {
+    const challengeDoc = await db.collection('challenges').doc(challengeId).get();
+    const challenge = challengeDoc.data();
+    
+    activeChallenge = { id: challengeId, ...challenge };
+    challengeWords = challenge.words;
+    currentChallengeIndex = 0;
+    myScore = 0;
+    opponentScore = 0;
+    
+    // Hide online users section
+    document.getElementById('online-users-section').style.display = 'none';
+    document.getElementById('incoming-challenges-section').style.display = 'none';
+    
+    // Show challenge section
+    document.getElementById('active-challenge-section').style.display = 'block';
+    
+    // Listen for score updates
+    db.collection('challenges').doc(challengeId).onSnapshot(doc => {
+        const data = doc.data();
+        if (data.status === 'completed') {
+            showChallengeResults(data);
+        }
+    });
+    
+    loadChallengeWord();
+}
+
+// Load challenge word
+function loadChallengeWord() {
+    const word = challengeWords[currentChallengeIndex];
+    const container = document.getElementById('active-challenge-section');
+    
+    const opponentName = activeChallenge.challenger.id === currentUser.uid ? 
+        activeChallenge.opponent.name : activeChallenge.challenger.name;
+    
+    container.innerHTML = `
+        <h2 style="color: #0d3b66; margin-bottom: 20px;">⚔️ Live Battle!</h2>
+        
+        <div class="challenge-score-card">
+            <div class="player-score">
+                <div class="name">You</div>
+                <div class="score">${myScore}</div>
+            </div>
+            <div style="font-size: 2rem; align-self: center;">VS</div>
+            <div class="player-score">
+                <div class="name">${opponentName}</div>
+                <div class="score">${opponentScore}</div>
+            </div>
+        </div>
+        
+        <div class="quiz-question-card">
+            <h3>Word ${currentChallengeIndex + 1} of ${challengeWords.length}</h3>
+            
+            <div style="text-align: center; margin: 30px 0;">
+                <button class="practice-btn" onclick="speakChallengeWord()" 
+                        style="font-size: 1.1rem; padding: 15px 30px;">
+                    🔊 Play Word
+                </button>
+            </div>
+            
+            <div class="form-group" style="margin: 30px 0;">
+                <input type="text" id="challenge-spelling-input" 
+                       placeholder="Type the word..." 
+                       style="width: 100%; padding: 15px; font-size: 1.3rem; text-align: center; border: 3px solid #0d3b66; border-radius: 8px;">
+            </div>
+            
+            <button class="practice-btn" onclick="submitChallengeAnswer()" 
+                    style="width: 100%; font-size: 1.2rem; padding: 15px;">
+                ✓ Submit
+            </button>
+            
+            <div id="challenge-feedback" style="margin-top: 20px;"></div>
+        </div>
+    `;
+    
+    // Auto-play word
+    setTimeout(() => speakChallengeWord(), 500);
+    
+    // Focus input
+    document.getElementById('challenge-spelling-input').focus();
+    
+    // Allow Enter key to submit
+    document.getElementById('challenge-spelling-input').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') submitChallengeAnswer();
+    });
+}
+
+function speakChallengeWord() {
+    const word = challengeWords[currentChallengeIndex];
+    const utterance = new SpeechSynthesisUtterance(word);
+    utterance.rate = 0.7;
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utterance);
+}
+
+async function submitChallengeAnswer() {
+    const userAnswer = document.getElementById('challenge-spelling-input').value.trim().toLowerCase();
+    const correctWord = challengeWords[currentChallengeIndex].toLowerCase();
+    const feedbackDiv = document.getElementById('challenge-feedback');
+    
+    if (!userAnswer) {
+        feedbackDiv.innerHTML = '<div class="feedback error">⚠️ Please type a word</div>';
+        return;
+    }
+    
+    const isCorrect = userAnswer === correctWord;
+    
+    if (isCorrect) {
+        myScore++;
+        feedbackDiv.innerHTML = '<div class="feedback success">✅ Correct!</div>';
+    } else {
+        feedbackDiv.innerHTML = `<div class="feedback error">❌ Wrong! Correct: ${correctWord}</div>`;
+    }
+    
+    // Update score in Firestore
+    const challengeRef = db.collection('challenges').doc(activeChallenge.id);
+    const scoreKey = `scores.${currentUser.uid}`;
+    await challengeRef.update({
+        [scoreKey]: myScore
+    });
+    
+    // Next word or finish
+    setTimeout(() => {
+        currentChallengeIndex++;
+        if (currentChallengeIndex < challengeWords.length) {
+            loadChallengeWord();
+        } else {
+            finishChallenge();
+        }
+    }, 2000);
+}
+
+async function finishChallenge() {
+    await db.collection('challenges').doc(activeChallenge.id).update({
+        status: 'completed'
+    });
+}
+
+function showChallengeResults(challenge) {
+    const myId = currentUser.uid;
+    const opponentId = challenge.challenger.id === myId ? challenge.opponent.id : challenge.challenger.id;
+    
+    const myFinalScore = challenge.scores[myId] || 0;
+    const opponentFinalScore = challenge.scores[opponentId] || 0;
+    
+    const won = myFinalScore > opponentFinalScore;
+    const tied = myFinalScore === opponentFinalScore;
+    
+    const container = document.getElementById('active-challenge-section');
+    
+    container.innerHTML = `
+        <div class="quiz-question-card" style="text-align: center;">
+            <div style="font-size: 4rem; margin: 20px 0;">
+                ${won ? '🏆' : tied ? '🤝' : '😔'}
+            </div>
+            <h2>${won ? 'You Win!' : tied ? "It's a Tie!" : 'You Lost'}</h2>
+            
+            <div class="challenge-score-card">
+                <div class="player-score">
+                    <div class="name">You</div>
+                    <div class="score">${myFinalScore}</div>
+                </div>
+                <div style="font-size: 2rem; align-self: center;">-</div>
+                <div class="player-score">
+                    <div class="name">Opponent</div>
+                    <div class="score">${opponentFinalScore}</div>
+                </div>
+            </div>
+            
+            <button class="practice-btn" onclick="exitChallenge()" style="margin-top: 30px; font-size: 1.1rem;">
+                🏠 Back to Lobby
+            </button>
+        </div>
+    `;
+}
+
+function exitChallenge() {
+    activeChallenge = null;
+    document.getElementById('active-challenge-section').style.display = 'none';
+    document.getElementById('online-users-section').style.display = 'block';
+    loadOnlineUsers();
+}
     </script>
 </body>
 </html>
