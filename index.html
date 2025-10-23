@@ -8470,10 +8470,11 @@ async function sendChallenge(opponentId, opponentName) {
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
             
-            alert('✅ Challenge sent! Waiting for response...\n\nYou will automatically enter the game when they accept.');
+            // Show nice top notification instead of alert
+            showTopNotification(`⚔️ Challenge sent to ${opponentName}!<br><span style="font-size: 0.9rem; opacity: 0.9;">Waiting for response... You'll be notified when they accept.</span>`, 'success');
         } catch (error) {
             console.error('Error sending challenge:', error);
-            alert('Failed to send challenge. Please try again.');
+            showTopNotification('❌ Failed to send challenge. Please try again.', 'error');
         }
     }
 }
@@ -8667,62 +8668,37 @@ async function declineChallenge(challengeId) {
     }
 }
 
-function showChallengePopup(challenge) {
-    const challengeId = challenge.challengeId || challenge.id;
+async function sendChallenge(opponentId, opponentName) {
+    if (!currentUser) return;
     
-    // Prevent duplicate popups
-    if (shownPopupIds.has(challengeId)) return;
-    shownPopupIds.add(challengeId);
-    
-    const existingPopup = document.getElementById('challenge-popup-notification');
-    if (existingPopup) existingPopup.remove();
-    
-    const popup = document.createElement('div');
-    popup.id = 'challenge-popup-notification';
-    popup.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        background: linear-gradient(135deg, #ff6b6b, #ee5a6f);
-        color: white;
-        padding: 25px;
-        border-radius: 15px;
-        box-shadow: 0 10px 40px rgba(255,107,107,0.5);
-        z-index: 9999;
-        min-width: 320px;
-        animation: slideInRight 0.5s ease-out;
-    `;
-    
-    let avatarHTML = '';
-    if (challenge.challenger.photoURL) {
-        avatarHTML = `<div style="width: 50px; height: 50px; border-radius: 50%; background-image: url('${challenge.challenger.photoURL}'); background-size: cover; background-position: center; margin: 0 auto 10px;"></div>`;
-    } else {
-        const initial = (challenge.challenger.name || 'S').charAt(0).toUpperCase();
-        avatarHTML = `<div style="width: 50px; height: 50px; border-radius: 50%; background: #ffd700; color: #0d3b66; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: bold; margin: 0 auto 10px;">${initial}</div>`;
+    if (confirm(`Challenge ${opponentName} to a spelling battle?`)) {
+        try {
+            const challengeRef = db.collection('challenges').doc();
+            
+            await challengeRef.set({
+                challengeId: challengeRef.id,
+                challenger: {
+                    id: currentUser.uid,
+                    name: currentUser.displayName || 'Student',
+                    photoURL: currentUser.photoURL || null
+                },
+                opponent: {
+                    id: opponentId,
+                    name: opponentName
+                },
+                status: 'pending',
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            
+            // Show nice top notification instead of alert
+            showTopNotification(`⚔️ Challenge sent to ${opponentName}!<br><span style="font-size: 0.9rem; opacity: 0.9;">Waiting for response... You'll be notified when they accept.</span>`, 'success');
+        } catch (error) {
+            console.error('Error sending challenge:', error);
+            showTopNotification('❌ Failed to send challenge. Please try again.', 'error');
+        }
     }
-    
-    popup.innerHTML = `
-        <div style="text-align: center;">
-            ${avatarHTML}
-            <h3 style="margin: 0 0 10px 0; font-size: 1.3rem;">⚔️ SPELLING CHALLENGE!</h3>
-            <p style="margin: 10px 0; font-size: 1.1rem;"><strong>${challenge.challenger.name}</strong> challenges you!</p>
-            <p style="margin: 10px 0; font-size: 0.9rem; opacity: 0.9;">Ready for a spelling battle?</p>
-            <div style="display: flex; gap: 10px; justify-content: center; margin-top: 15px;">
-                <button onclick="acceptChallengeFromPopup('${challengeId}')" 
-                        style="padding: 12px 25px; background: #28a745; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 1rem;">
-                    ✅ Accept
-                </button>
-                <button onclick="declineChallengeFromPopup('${challengeId}')" 
-                        style="padding: 12px 25px; background: rgba(255,255,255,0.3); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 1rem;">
-                    ❌ Decline
-                </button>
-            </div>
-        </div>
-    `;
-    
-    document.body.appendChild(popup);
 }
-
+        
 async function acceptChallengeFromPopup(challengeId) {
     const popup = document.getElementById('challenge-popup-notification');
     if (popup) popup.remove();
@@ -9271,6 +9247,58 @@ async function cleanupOldChallenges() {
         console.error('Error cleaning up old challenges:', error);
     }
 }       
+
+
+function showTopNotification(message, type = 'success') {
+    // Remove existing notification if any
+    const existing = document.getElementById('top-notification');
+    if (existing) existing.remove();
+    
+    const notification = document.createElement('div');
+    notification.id = 'top-notification';
+    notification.className = 'bottom-notification'; // Reuse existing animation
+    
+    let bgColor;
+    if (type === 'success') {
+        bgColor = 'linear-gradient(135deg, #28a745, #20c997)';
+    } else if (type === 'error') {
+        bgColor = 'linear-gradient(135deg, #dc3545, #c82333)';
+    } else if (type === 'challenge') {
+        bgColor = 'linear-gradient(135deg, #ff6b6b, #ee5a6f)';
+    }
+    
+    notification.style.background = bgColor;
+    notification.innerHTML = `<div style="font-size: 1.1rem; font-weight: bold;">${message}</div>`;
+    
+    document.body.appendChild(notification);
+    
+    // Auto-hide after 5 seconds
+    setTimeout(() => {
+        notification.classList.add('hide');
+        setTimeout(() => notification.remove(), 500);
+    }, 5000);
+}
+
+async function acceptChallengeFromDisplay(challengeId) {
+    const display = document.getElementById('live-challenge-display');
+    if (display) display.remove();
+    
+    shownPopupIds.delete(challengeId);
+    
+    // Accept challenge (which will also start the game)
+    await acceptChallenge(challengeId);
+}
+
+async function declineChallengeFromDisplay(challengeId) {
+    const display = document.getElementById('live-challenge-display');
+    if (display) display.remove();
+    
+    shownPopupIds.delete(challengeId);
+    
+    await declineChallenge(challengeId);
+    
+    showTopNotification('Challenge declined.', 'success');
+}
     </script>
 </body>
 </html>
