@@ -4,6 +4,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WORD BIZ COACHING ACADEMY</title>
@@ -3549,7 +3550,7 @@ a[href*="whatsapp.com/channel"]:hover {
     </div>
 </div>
     <script>
-       // ===== FIREBASE CONFIGURATION =====
+      // ===== FIREBASE CONFIGURATION =====
 const firebaseConfig = {
     apiKey: "AIzaSyCDdnDKsCUaCK4L95G57AC9-BjCqJiIywA",
     authDomain: "wordbiz-coaching-academy.firebaseapp.com",
@@ -3557,20 +3558,25 @@ const firebaseConfig = {
     storageBucket: "wordbiz-coaching-academy.firebasestorage.app",
     messagingSenderId: "829294789081",
     appId: "1:829294789081:web:501ae4d3d6f3694a40d9c8",
-    databaseURL: "https://wordbiz-coaching-academy-default-rtdb.firebaseio.com" // ADD THIS LINE
+    databaseURL: "https://wordbiz-coaching-academy-default-rtdb.firebaseio.com"
 };
 
-firebase.initializeApp(firebaseConfig);
+// Initialize Firebase
+if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+}
+
 const db = firebase.firestore();
 const auth = firebase.auth();
-const rtdb = firebase.database(); // ADD THIS LINE FOR REALTIME DATABASE
-auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+const rtdb = firebase.database();
+auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch((error) => {
+    console.error("Persistence error:", error);
+});
 
-        
-        // ===== CLOUD FUNCTION URL =====
-        const CLOUD_FUNCTION_URL = 'https://getworddefinition-998744778737.us-central1.run.app';
-        
-        // ===== GLOBAL VARIABLES =====
+// ===== CLOUD FUNCTION URL =====
+const CLOUD_FUNCTION_URL = 'https://getworddefinition-998744778737.us-central1.run.app';
+
+// ===== GLOBAL VARIABLES =====
 let allWords = [];
 let currentLetter = '';
 let currentWord = null;
@@ -3586,9 +3592,14 @@ let userSpellingFavorites = [];
 let userSpellingIncorrect = [];
 let quizStartTime = null;
 let quizAnswerTimes = [];
-let quizDifficulty = 'medium'; // track difficulty
+let quizDifficulty = 'medium';
 let questionStartTime = null;
 
+// ID Verification variables
+let uploadedIDFile = null;
+let uploadedIDBase64 = null;
+let isCoachVerification = false;
+let idVerificationPassed = false;
 
 // ===== LIVE SPELLING VARIABLES =====
 let onlineUsersRef = null;
@@ -3598,15 +3609,8 @@ let challengesRef = null;
 let challengesListener = null;
 let activeChallenge = null;
 let challengeWordsRef = null;
-
-// ===== LEVEL-BASED WORD LOADING =====
-let currentLevel = '';
-let levelWords = {
-    foundation: [],
-    challenge: [],
-    advanced: [],
-    championship: []
 };
+    
 
 // Google Docs URLs for each level - REPLACE WITH YOUR ACTUAL GOOGLE DOCS IDs
 const LEVEL_DOCS = {
