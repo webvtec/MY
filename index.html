@@ -6676,9 +6676,9 @@ function startSpellingPractice() {
         document.getElementById('live-spelling-mode').classList.add('active');
         
         if (currentUser) {
-            // ✅ Only initialize once
             initializeOnlinePresence();
-            loadOnlineUsers();
+            // ✅ Small delay to ensure DOM is ready
+            setTimeout(() => loadOnlineUsers(), 100);
         } else {
             alert('Please sign in to access live challenges');
             showAuthModal();
@@ -8349,6 +8349,7 @@ async function removeOnlinePresence() {
             myChallengeListener();
             myChallengeListener = null;
         }
+        // ✅ Add this
         if (onlineUsersRef) {
             onlineUsersRef();
             onlineUsersRef = null;
@@ -8373,12 +8374,20 @@ async function removeOnlinePresence() {
 
 async function loadOnlineUsers() {
     if (!currentUser) {
-        document.getElementById('online-users-list').innerHTML = 
-            '<div class="loading">Please sign in to see online users</div>';
+        const listElement = document.getElementById('online-users-list');
+        if (listElement) {
+            listElement.innerHTML = '<div class="loading">Please sign in to see online users</div>';
+        }
         return;
     }
     
     try {
+        // ✅ Detach existing listener before creating new one
+        if (onlineUsersRef) {
+            onlineUsersRef();
+            onlineUsersRef = null;
+        }
+        
         onlineUsersRef = db.collection('onlineUsers')
             .where('userId', '!=', currentUser.uid)
             .onSnapshot(snapshot => {
@@ -8394,10 +8403,23 @@ async function loadOnlineUsers() {
                     }
                 });
                 
-                document.getElementById('online-count').textContent = users.length;
+                // ✅ Check if elements exist before updating
+                const countElement = document.getElementById('online-count');
+                const listElement = document.getElementById('online-users-list');
+                
+                if (!countElement || !listElement) {
+                    // Elements don't exist, user navigated away - detach listener
+                    if (onlineUsersRef) {
+                        onlineUsersRef();
+                        onlineUsersRef = null;
+                    }
+                    return;
+                }
+                
+                countElement.textContent = users.length;
                 
                 if (users.length === 0) {
-                    document.getElementById('online-users-list').innerHTML = `
+                    listElement.innerHTML = `
                         <div class="loading">
                             No other students online right now. <br>
                             Share the app with friends to challenge them!
