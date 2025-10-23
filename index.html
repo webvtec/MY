@@ -2265,10 +2265,10 @@ a[href*="whatsapp.com/channel"]:hover {
 }
 
 
-   /* Bottom Center Notification */
+   /* Top Center Notification */
 .bottom-notification {
     position: fixed;
-    bottom: -200px;
+    top: -200px;
     left: 50%;
     transform: translateX(-50%);
     background: linear-gradient(135deg, #28a745, #20c997);
@@ -2280,24 +2280,24 @@ a[href*="whatsapp.com/channel"]:hover {
     min-width: 350px;
     max-width: 500px;
     text-align: center;
-    animation: slideUpNotification 0.5s ease-out forwards;
-}
-
-@keyframes slideUpNotification {
-    to {
-        bottom: 30px;
-    }
-}
-
-.bottom-notification.hide {
     animation: slideDownNotification 0.5s ease-out forwards;
 }
 
 @keyframes slideDownNotification {
     to {
-        bottom: -200px;
+        top: 80px;
     }
-}     
+}
+
+.bottom-notification.hide {
+    animation: slideUpNotification 0.5s ease-out forwards;
+}
+
+@keyframes slideUpNotification {
+    to {
+        top: -200px;
+    }
+}
     </style>
 </head>
 <body>
