@@ -8237,7 +8237,6 @@ document.addEventListener('click', function(event) {
 
 // ===== LIVE SPELLING FUNCTIONS =====
 
-// Initialize online presence when user signs in
 async function initializeOnlinePresence() {
     if (!currentUser) return;
     
@@ -8252,8 +8251,11 @@ async function initializeOnlinePresence() {
         lastSeen: firebase.firestore.FieldValue.serverTimestamp()
     });
     
-    // Listen for challenges
+    // Listen for incoming challenges (when someone challenges me)
     listenForChallenges();
+    
+    // Listen for MY challenges being accepted (when I challenged someone)
+    listenForMyChallengesAccepted();
     
     // Update presence every 30 seconds
     setInterval(async () => {
@@ -8265,6 +8267,7 @@ async function initializeOnlinePresence() {
     }, 30000);
 }
 
+        
 // Remove user from online when they leave
 async function removeOnlinePresence() {
     if (presenceRef) {
@@ -8382,42 +8385,30 @@ async function sendChallenge(opponentId, opponentName) {
 }
 
 // Listen for incoming challenges
-// Listen for incoming challenges (both as opponent and as challenger)
 function listenForChallenges() {
     if (!currentUser) return;
     
-    // Listen for challenges where I'm the OPPONENT (someone challenged me)
+    // Only listen for challenges where I'm the OPPONENT (someone challenged me)
     db.collection('challenges')
         .where('opponent.id', '==', currentUser.uid)
-        .where('status', '==', 'pending')
         .onSnapshot(snapshot => {
-            const challenges = [];
-            snapshot.forEach(doc => {
-                challenges.push({ id: doc.id, ...doc.data() });
-            });
-            
-            if (challenges.length > 0) {
-                showChallengePopup(challenges[0]);
-                displayIncomingChallenges(challenges);
-            } else {
-                document.getElementById('incoming-challenges-section').style.display = 'none';
-                const existingPopup = document.getElementById('challenge-popup-notification');
-                if (existingPopup) existingPopup.remove();
-            }
-        });
-    
-    // Listen for challenges where I'm the CHALLENGER (I challenged someone and they accepted)
-    db.collection('challenges')
-        .where('challenger.id', '==', currentUser.uid)
-        .where('status', '==', 'active')
-        .onSnapshot(snapshot => {
-            snapshot.forEach(doc => {
-                const challenge = doc.data();
-                // Auto-start the challenge for the challenger
-                if (!activeChallenge || activeChallenge.id !== doc.id) {
-                    navigateTo('spelling');
-                    switchSpellingMode('live');
-                    startLiveChallenge(doc.id);
+            snapshot.docChanges().forEach(change => {
+                const challenge = { id: change.doc.id, ...change.doc.data() };
+                
+                if (change.type === 'added' || change.type === 'modified') {
+                    if (challenge.status === 'pending') {
+                        // Show popup for pending challenges
+                        showChallengePopup(challenge);
+                        displayIncomingChallenges([challenge]);
+                    } else if (challenge.status === 'active') {
+                        // Only auto-enter if I'm the one who accepted (opponent)
+                        // This will only trigger for the person who clicked accept
+                        if (!activeChallenge || activeChallenge.id !== challenge.id) {
+                            navigateTo('spelling');
+                            switchSpellingMode('live');
+                            startLiveChallenge(challenge.id);
+                        }
+                    }
                 }
             });
         });
@@ -8449,7 +8440,6 @@ function displayIncomingChallenges(challenges) {
 }
 
 // Accept challenge
-// Accept challenge
 async function acceptChallenge(challengeId) {
     try {
         const challengeRef = db.collection('challenges').doc(challengeId);
@@ -8477,30 +8467,58 @@ async function acceptChallenge(challengeId) {
                 [challengeData.challenger.id]: 0
             },
             currentWord: 0,
+            acceptedBy: currentUser.uid, // Track who accepted
             startedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
         
-        // Start the challenge immediately for the person who accepted
-        startLiveChallenge(challengeId);
+        // The opponent (person who accepted) enters immediately
+        // The listener will handle this automatically
         
-        // The challenger will be auto-started via the listener in listenForChallenges()
     } catch (error) {
         console.error('Error accepting challenge:', error);
         alert('Failed to accept challenge. Please try again.');
     }
 }
 
-// Decline challenge
-async function declineChallenge(challengeId) {
-    try {
-        await db.collection('challenges').doc(challengeId).update({
-            status: 'declined'
+
+      // Listen for MY challenges being accepted (I'm the challenger)
+function listenForMyChallengesAccepted() {
+    if (!currentUser) return;
+    
+    db.collection('challenges')
+        .where('challenger.id', '==', currentUser.uid)
+        .where('status', '==', 'active')
+        .onSnapshot(snapshot => {
+            snapshot.docChanges().forEach(change => {
+                if (change.type === 'modified') {
+                    const challenge = change.doc.data();
+                    
+                    // Only enter if someone just accepted (not already in game)
+                    if (challenge.acceptedBy && !activeChallenge) {
+                        // Show notification
+                        alert(`${challenge.opponent.name} accepted your challenge! Starting game...`);
+                        
+                        // Auto-navigate to the challenge
+                        navigateTo('spelling');
+                        switchSpellingMode('live');
+                        startLiveChallenge(change.doc.id);
+                    }
+                }
+            });
         });
+}
+
         
-        alert('Challenge declined');
-    } catch (error) {
-        console.error('Error declining challenge:', error);
-    }
+async function declineChallengeFromPopup(challengeId) {
+    // Remove popup
+    const popup = document.getElementById('challenge-popup-notification');
+    if (popup) popup.remove();
+    
+    // Clear from tracking
+    shownPopupIds.delete(challengeId);
+    
+    // Decline the challenge
+    await declineChallenge(challengeId);
 }
 
 // Start live challenge
