@@ -2369,6 +2369,40 @@ a[href*="whatsapp.com/channel"]:hover {
     100% { transform: rotate(360deg); }
 }
 
+/* Coin Display */
+.coin-display {
+    position: fixed;
+    top: 125px; /* 5px below header (header is ~120px tall) */
+    right: 20px;
+    background: linear-gradient(135deg, #FFD700, #FFA500);
+    color: #0d3b66;
+    padding: 12px 20px;
+    border-radius: 25px;
+    box-shadow: 0 4px 15px rgba(255, 215, 0, 0.4);
+    z-index: 999; /* Below header but above content */
+    display: none;
+    align-items: center;
+    gap: 10px;
+    font-weight: bold;
+    font-size: 1.2rem;
+    border: 3px solid #fff;
+    transition: top 0.3s ease; /* Smooth transition when scrolling */
+}
+
+.coin-display.show {
+    display: flex;
+}
+
+/* When header is sticky and user scrolls, move coin display with header */
+.coin-display.scrolled {
+    top: 65px; /* Adjust based on your header's sticky height */
+}
+
+.coin-icon {
+    font-size: 1.8rem;
+    /* REMOVED SPIN ANIMATION */
+}
+
 /* Coin Animation */
 .coin-earned {
     position: fixed;
@@ -2400,7 +2434,7 @@ a[href*="whatsapp.com/channel"]:hover {
         opacity: 0;
         transform: translate(-50%, -200%) scale(0.8);
     }
-}       
+}
     </style>
 </head>
 <body>
@@ -3725,77 +3759,89 @@ let userCoins = 0;
 const COINS_PER_WIN = 5;
 const MAX_COINS = 1000;
       
-       // ===== INITIALIZE =====
-        document.addEventListener('DOMContentLoaded', function() {
-            initializeAlphabet();
-            initializeSpeechRecognition();
-            
-            // ✅ Cleanup old challenges on page load
-            cleanupOldChallenges();
-            
-            document.getElementById('searchInput').addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') searchWord();
-            });
-
-
-auth.onAuthStateChanged(async user => {
-    if (user) {
-        currentUser = user;
-        
-        console.log('👤 User signed in:', user.email);
-        console.log('🖼️ Auth photoURL:', user.photoURL);
-        
-        const userRef = db.collection('users').doc(user.uid);
-        const userDoc = await userRef.get();
-        
-        if (!userDoc.exists) {
-            await auth.signOut();
-            alert('Account error. Please sign up again.');
-            return;
+      // ===== INITIALIZE =====
+document.addEventListener('DOMContentLoaded', function() {
+    initializeAlphabet();
+    initializeSpeechRecognition();
+    
+    // ✅ Cleanup old challenges on page load
+    cleanupOldChallenges();
+    
+    // ✅ ADD SCROLL LISTENER FOR COIN DISPLAY
+    window.addEventListener('scroll', function() {
+        const coinDisplay = document.getElementById('coinDisplay');
+        if (coinDisplay && coinDisplay.classList.contains('show')) {
+            if (window.scrollY > 50) {
+                coinDisplay.classList.add('scrolled');
+            } else {
+                coinDisplay.classList.remove('scrolled');
+            }
         }
-        
-        const userData = userDoc.data();
-        console.log('📄 Firestore photoURL:', userData.photoURL);
-        
-        if (user.photoURL && !userData.photoURL) {
-            console.log('🔄 Syncing photoURL to Firestore...');
-            await userRef.update({
-                photoURL: user.photoURL
-            });
-            console.log('✅ PhotoURL synced!');
-        }
-        
-        if (!userData.profileComplete) {
-            showVerificationModal(userData);
-            return;
-        }
-        
-        updateUIForAuthenticatedUser(user);
-        
-        // ✅ LOAD USER COINS
-        await loadUserCoins(user.uid);
-        
-        await cleanupInvalidFavorites();
-        
-        await Promise.all([
-            loadUserFavorites(user.uid),
-            loadUserIncorrect(user.uid),
-            loadUserSpellingFavorites(user.uid),
-            loadUserSpellingIncorrect(user.uid)
-        ]);
-        
-        // ✅ Initialize presence immediately on login
-        await initializeOnlinePresence();
-        
-        if (document.getElementById('student-dashboard-section').classList.contains('active')) {
-            loadUserDashboard();
-        }
-    } else {
-        currentUser = null;
-        updateUIForGuestUser();
-    }
-});
     });
+    
+    document.getElementById('searchInput').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') searchWord();
+    });
+
+    auth.onAuthStateChanged(async user => {
+        if (user) {
+            currentUser = user;
+            
+            console.log('👤 User signed in:', user.email);
+            console.log('🖼️ Auth photoURL:', user.photoURL);
+            
+            const userRef = db.collection('users').doc(user.uid);
+            const userDoc = await userRef.get();
+            
+            if (!userDoc.exists) {
+                await auth.signOut();
+                alert('Account error. Please sign up again.');
+                return;
+            }
+            
+            const userData = userDoc.data();
+            console.log('📄 Firestore photoURL:', userData.photoURL);
+            
+            if (user.photoURL && !userData.photoURL) {
+                console.log('🔄 Syncing photoURL to Firestore...');
+                await userRef.update({
+                    photoURL: user.photoURL
+                });
+                console.log('✅ PhotoURL synced!');
+            }
+            
+            if (!userData.profileComplete) {
+                showVerificationModal(userData);
+                return;
+            }
+            
+            updateUIForAuthenticatedUser(user);
+            
+            // ✅ LOAD USER COINS
+            await loadUserCoins(user.uid);
+            
+            await cleanupInvalidFavorites();
+            
+            await Promise.all([
+                loadUserFavorites(user.uid),
+                loadUserIncorrect(user.uid),
+                loadUserSpellingFavorites(user.uid),
+                loadUserSpellingIncorrect(user.uid)
+            ]);
+            
+            // ✅ Initialize presence immediately on login
+            await initializeOnlinePresence();
+            
+            if (document.getElementById('student-dashboard-section').classList.contains('active')) {
+                loadUserDashboard();
+            }
+        } else {
+            currentUser = null;
+            updateUIForGuestUser();
+        }
+});
+});
+  
         
         
      // ===== NAVIGATION =====
@@ -8859,20 +8905,56 @@ function showChallengePopup(challenge) {
     document.body.appendChild(popup);
 }
 
-async function acceptChallengeFromPopup(challengeId) {
-    const popup = document.getElementById('challenge-popup-notification');
-    if (popup) popup.remove();
-    
-    shownPopupIds.delete(challengeId);
-    
-    // Navigate to spelling section first
-    navigateTo('spelling');
-    switchSpellingMode('live');
-    
-    // Accept challenge (which will also start the game)
-    await acceptChallenge(challengeId);
+async function acceptChallenge(challengeId) {
+    try {
+        const challengeRef = db.collection('challenges').doc(challengeId);
+        const challengeDoc = await challengeRef.get();
+        
+        if (!challengeDoc.exists) {
+            alert('Challenge not found');
+            return;
+        }
+        
+        const challengeData = challengeDoc.data();
+        
+        // Generate 5 random words
+        if (!selectedGameLevel) {
+            selectedGameLevel = 'foundation';
+        }
+        
+        if (levelWords[selectedGameLevel].length === 0) {
+            await loadLevelWords(selectedGameLevel);
+        }
+        
+        const shuffled = [...levelWords[selectedGameLevel]].sort(() => 0.5 - Math.random());
+        const words = shuffled.slice(0, 5);
+        
+        await challengeRef.update({
+            status: 'active',
+            words: words,
+            scores: {
+                [currentUser.uid]: 0,
+                [challengeData.challenger.id]: 0
+            },
+            completed: { // ✅ ADD COMPLETION TRACKING
+                [currentUser.uid]: false,
+                [challengeData.challenger.id]: false
+            },
+            currentWord: 0,
+            acceptedBy: currentUser.uid,
+            startedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        // Immediately start the challenge for the accepter
+        await startLiveChallenge(challengeId);
+        
+    } catch (error) {
+        console.error('Error accepting challenge:', error);
+        alert('Failed to accept challenge. Please try again.');
+    }
 }
 
+        
 async function declineChallengeFromPopup(challengeId) {
     const popup = document.getElementById('challenge-popup-notification');
     if (popup) popup.remove();
@@ -8939,7 +9021,7 @@ async function startLiveChallenge(challengeId) {
         // ✅ Start offline detection
         startOfflineDetection(challengeId);
         
-        // Listen for challenge updates
+        // ✅ Listen for challenge updates
         db.collection('challenges').doc(challengeId).onSnapshot(doc => {
             const data = doc.data();
             
@@ -8955,9 +9037,20 @@ async function startLiveChallenge(challengeId) {
                 return;
             }
             
+            // ✅ Update opponent score
             const opponentId = activeChallenge.challenger.id === currentUser.uid ? 
                 activeChallenge.opponent.id : activeChallenge.challenger.id;
             opponentScore = data.scores?.[opponentId] || 0;
+            
+            // ✅ Check if opponent completed while I'm waiting
+            if (data.completed && data.completed[currentUser.uid] && data.completed[opponentId]) {
+                // Both completed - show results
+                if (data.status !== 'completed') {
+                    db.collection('challenges').doc(challengeId).update({
+                        status: 'completed'
+                    });
+                }
+            }
             
             // ✅ Check if elements exist before updating
             const scoreElements = document.querySelectorAll('.player-score .score');
@@ -8972,7 +9065,6 @@ async function startLiveChallenge(challengeId) {
         alert('Failed to start challenge: ' + error.message);
     }
 }
-        
         
 function loadChallengeWord() {
     if (!challengeWords || challengeWords.length === 0) {
@@ -9208,37 +9300,87 @@ async function submitChallengeAnswer() {
     try {
         const challengeRef = db.collection('challenges').doc(activeChallenge.id);
         const scoreKey = `scores.${currentUser.uid}`;
+        const completedKey = `completed.${currentUser.uid}`;
         
-        // ✅ Update score and timestamp
+        // ✅ Update score and mark progress
         await challengeRef.update({
             [scoreKey]: myScore,
             [`lastAnswerTime.${currentUser.uid}`]: firebase.firestore.FieldValue.serverTimestamp()
         });
+        
+        // ✅ Check if this is the last word
+        currentChallengeIndex++;
+        
+        if (currentChallengeIndex >= challengeWords.length) {
+            // Mark that I've completed all words
+            await challengeRef.update({
+                [completedKey]: true
+            });
+            
+            // Check if opponent also completed
+            const challengeDoc = await challengeRef.get();
+            const challengeData = challengeDoc.data();
+            const opponentId = activeChallenge.challenger.id === currentUser.uid ? 
+                activeChallenge.opponent.id : activeChallenge.challenger.id;
+            
+            if (challengeData.completed && challengeData.completed[opponentId]) {
+                // Both completed - end the challenge
+                await challengeRef.update({
+                    status: 'completed'
+                });
+            } else {
+                // Show waiting screen
+                showWaitingForOpponent();
+            }
+        } else {
+            // Continue to next word
+            setTimeout(() => {
+                input.disabled = false;
+                loadChallengeWord();
+            }, 2000);
+        }
     } catch (error) {
         console.error('Error updating score:', error);
     }
-    
-    setTimeout(() => {
-        currentChallengeIndex++;
-        if (currentChallengeIndex < challengeWords.length) {
-            input.disabled = false;
-            loadChallengeWord();
-        } else {
-            finishChallenge();
-        }
-    }, 2000);
 }
 
-        
-async function finishChallenge() {
-    try {
-        await db.collection('challenges').doc(activeChallenge.id).update({
-            status: 'completed'
-        });
-    } catch (error) {
-        console.error('Error finishing challenge:', error);
+
+function showWaitingForOpponent() {
+    const container = document.getElementById('live-challenge-container');
+    
+    if (!container) {
+        console.error('❌ live-challenge-container not found');
+        return;
     }
+    
+    const opponentName = activeChallenge.challenger.id === currentUser.uid ? 
+        activeChallenge.opponent.name : activeChallenge.challenger.name;
+    
+    container.innerHTML = `
+        <div style="background: white; padding: 40px; border-radius: 15px; box-shadow: 0 5px 25px rgba(0,0,0,0.1); text-align: center;">
+            <div style="font-size: 4rem; margin: 20px 0; animation: pulse 2s infinite;">⏳</div>
+            <h2 style="color: #0d3b66; font-size: 2rem; margin-bottom: 20px;">
+                Waiting for ${opponentName}...
+            </h2>
+            <p style="font-size: 1.2rem; color: #666; margin: 20px 0;">
+                You've completed all words! <br>
+                Waiting for your opponent to finish.
+            </p>
+            
+            <div class="challenge-score-card">
+                <div class="player-score">
+                    <div class="name">Your Score</div>
+                    <div class="score">${myScore}</div>
+                </div>
+            </div>
+            
+            <div style="margin-top: 30px;">
+                <div class="loading">Challenge will end when both players finish...</div>
+            </div>
+        </div>
+    `;
 }
+        
 
 async function showChallengeResults(challenge) {
     const myId = currentUser.uid;
