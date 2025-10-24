@@ -8926,6 +8926,7 @@ async function acceptChallengeFromPopup(challengeId) {
 }
 
         
+// ===== REPLACE THE startLiveChallenge FUNCTION (UPDATE THE LISTENER PART) =====
 async function startLiveChallenge(challengeId) {
     try {
         console.log('🎮 Starting live challenge:', challengeId);
@@ -8989,13 +8990,23 @@ async function startLiveChallenge(challengeId) {
             
             if (!data) return;
             
-            if (data.status === 'completed' || data.status === 'abandoned') {
+            // ✅ UPDATED: Check endReason to determine what happened
+            if (data.status === 'completed') {
                 clearChallengeTimers();
-                if (data.status === 'abandoned') {
-                    showChallengeAbandoned(data);
-                } else {
+                
+                if (data.endReason === 'finished') {
+                    // Normal completion - show results
                     showChallengeResults(data);
+                } else {
+                    // Abandoned/timeout - show abandoned screen
+                    showChallengeAbandoned(data);
                 }
+                return;
+            }
+            
+            if (data.status === 'abandoned') {
+                clearChallengeTimers();
+                showChallengeAbandoned(data);
                 return;
             }
             
@@ -9003,16 +9014,6 @@ async function startLiveChallenge(challengeId) {
             const opponentId = activeChallenge.challenger.id === currentUser.uid ? 
                 activeChallenge.opponent.id : activeChallenge.challenger.id;
             opponentScore = data.scores?.[opponentId] || 0;
-            
-            // ✅ Check if opponent completed while I'm waiting
-            if (data.completed && data.completed[currentUser.uid] && data.completed[opponentId]) {
-                // Both completed - show results
-                if (data.status !== 'completed') {
-                    db.collection('challenges').doc(challengeId).update({
-                        status: 'completed'
-                    });
-                }
-            }
             
             // ✅ Check if elements exist before updating
             const scoreElements = document.querySelectorAll('.player-score .score');
@@ -9027,6 +9028,7 @@ async function startLiveChallenge(challengeId) {
         alert('Failed to start challenge: ' + error.message);
     }
 }
+        
         
 function loadChallengeWord() {
     if (!challengeWords || challengeWords.length === 0) {
@@ -9234,6 +9236,7 @@ function backspaceChallengeKey() {
     input.value = input.value.slice(0, -1);
 }
 
+// ===== REPLACE THE submitChallengeAnswer FUNCTION =====
 async function submitChallengeAnswer() {
     const input = document.getElementById('challenge-spelling-input');
     if (!input) return;
@@ -9264,7 +9267,7 @@ async function submitChallengeAnswer() {
         const scoreKey = `scores.${currentUser.uid}`;
         const completedKey = `completed.${currentUser.uid}`;
         
-        // ✅ Update score and mark progress
+        // ✅ Update score
         await challengeRef.update({
             [scoreKey]: myScore,
             [`lastAnswerTime.${currentUser.uid}`]: firebase.firestore.FieldValue.serverTimestamp()
@@ -9286,10 +9289,14 @@ async function submitChallengeAnswer() {
                 activeChallenge.opponent.id : activeChallenge.challenger.id;
             
             if (challengeData.completed && challengeData.completed[opponentId]) {
-                // Both completed - end the challenge
+                // Both completed - end the challenge properly
                 await challengeRef.update({
-                    status: 'completed'
+                    status: 'completed',
+                    endReason: 'finished', // ✅ Mark as normally finished
+                    endedAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
+                
+                // Don't show waiting screen, results will show automatically via listener
             } else {
                 // Show waiting screen
                 showWaitingForOpponent();
@@ -9305,7 +9312,6 @@ async function submitChallengeAnswer() {
         console.error('Error updating score:', error);
     }
 }
-
 
 function showWaitingForOpponent() {
     const container = document.getElementById('live-challenge-container');
@@ -9638,7 +9644,7 @@ function showChallengeAbandoned(challenge) {
 }
 
         
-// Cleanup old challenges (run on page load)
+
 // Cleanup old challenges (run on page load)
 async function cleanupOldChallenges() {
     if (!currentUser) {
@@ -9673,7 +9679,7 @@ async function cleanupOldChallenges() {
     }
 } 
 
-   // Show custom popup
+  
 // Show custom popup - simplified
 function showCustomPopup(message) {
     const popup = document.getElementById('customPopup');
