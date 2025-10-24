@@ -8757,17 +8757,22 @@ function displayIncomingChallenges(challenges) {
     `).join('');
 }
 
+// ===== REPLACE THE acceptChallenge FUNCTION =====
 async function acceptChallenge(challengeId) {
+    console.log('✅ Starting acceptChallenge for:', challengeId);
+    
     try {
         const challengeRef = db.collection('challenges').doc(challengeId);
         const challengeDoc = await challengeRef.get();
         
         if (!challengeDoc.exists) {
+            console.error('❌ Challenge not found:', challengeId);
             alert('Challenge not found');
             return;
         }
         
         const challengeData = challengeDoc.data();
+        console.log('📄 Challenge data:', challengeData);
         
         // Generate 5 random words
         if (!selectedGameLevel) {
@@ -8775,11 +8780,14 @@ async function acceptChallenge(challengeId) {
         }
         
         if (levelWords[selectedGameLevel].length === 0) {
+            console.log('📚 Loading words for level:', selectedGameLevel);
             await loadLevelWords(selectedGameLevel);
         }
         
         const shuffled = [...levelWords[selectedGameLevel]].sort(() => 0.5 - Math.random());
         const words = shuffled.slice(0, 5);
+        
+        console.log('🔤 Selected words:', words);
         
         await challengeRef.update({
             status: 'active',
@@ -8788,20 +8796,37 @@ async function acceptChallenge(challengeId) {
                 [currentUser.uid]: 0,
                 [challengeData.challenger.id]: 0
             },
+            completed: {
+                [currentUser.uid]: false,
+                [challengeData.challenger.id]: false
+            },
             currentWord: 0,
             acceptedBy: currentUser.uid,
             startedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
         
-        // Immediately start the challenge for the accepter
-        await startLiveChallenge(challengeId);
+        console.log('✅ Challenge updated to active');
+        
+        // ✅ Navigate to spelling section and switch to live mode
+        navigateTo('spelling', true); // true = skip sidebar close
+        
+        // ✅ Wait a moment for navigation to complete
+        setTimeout(() => {
+            switchSpellingMode('live');
+            
+            // ✅ Wait another moment for mode switch to complete
+            setTimeout(() => {
+                startLiveChallenge(challengeId);
+            }, 300);
+        }, 300);
         
     } catch (error) {
-        console.error('Error accepting challenge:', error);
-        alert('Failed to accept challenge. Please try again.');
+        console.error('❌ Error accepting challenge:', error);
+        alert('Failed to accept challenge: ' + error.message);
     }
 }
 
+        
 async function declineChallenge(challengeId) {
     try {
         await db.collection('challenges').doc(challengeId).delete();
