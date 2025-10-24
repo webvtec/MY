@@ -9409,23 +9409,35 @@ async function showChallengeResults(challenge) {
 }
 
         
+// ===== REPLACE THE exitChallenge FUNCTION =====
 async function exitChallenge() {
     try {
-        // ✅ If user exits during active challenge, opponent wins
+        // ✅ Only mark as abandoned if challenge is still active AND user hasn't completed
         if (activeChallenge && activeChallenge.status === 'active') {
-            const opponentId = activeChallenge.challenger.id === currentUser.uid ? 
-                activeChallenge.opponent.id : activeChallenge.challenger.id;
+            const challengeDoc = await db.collection('challenges').doc(activeChallenge.id).get();
+            const challengeData = challengeDoc.data();
             
-            // Update challenge status to abandoned with winner
-            await db.collection('challenges').doc(activeChallenge.id).update({
-                status: 'abandoned',
-                endReason: 'opponent_left',
-                winner: opponentId,
-                loser: currentUser.uid,
-                endedAt: firebase.firestore.FieldValue.serverTimestamp()
-            });
+            // Check if user has completed their words
+            const userCompleted = challengeData.completed && challengeData.completed[currentUser.uid];
             
-            console.log('✅ Challenge abandoned - opponent wins');
+            if (!userCompleted) {
+                // User is leaving before finishing - opponent wins
+                const opponentId = activeChallenge.challenger.id === currentUser.uid ? 
+                    activeChallenge.opponent.id : activeChallenge.challenger.id;
+                
+                await db.collection('challenges').doc(activeChallenge.id).update({
+                    status: 'abandoned',
+                    endReason: 'opponent_left',
+                    winner: opponentId,
+                    loser: currentUser.uid,
+                    endedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                
+                console.log('✅ Challenge abandoned - opponent wins');
+            } else {
+                // User completed their part, just exiting to lobby
+                console.log('✅ User completed challenge, just returning to lobby');
+            }
         }
     } catch (error) {
         console.error('Error updating challenge on exit:', error);
@@ -9490,7 +9502,6 @@ async function exitChallenge() {
     // ✅ Restart online users listener
     loadOnlineUsers();
 }
-
         
 // Start challenge timeout
 function startChallengeTimeout(challengeId) {
