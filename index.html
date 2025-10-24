@@ -8599,6 +8599,7 @@ function displayOnlineUsers(users) {
     }).join('');
 }
 
+// ===== REPLACE THE sendChallenge FUNCTION =====
 async function sendChallenge(opponentId, opponentName) {
     if (!currentUser) return;
     
@@ -8606,7 +8607,6 @@ async function sendChallenge(opponentId, opponentName) {
         const challengeRef = db.collection('challenges').doc();
         
         await challengeRef.set({
-            challengeId: challengeRef.id,
             challenger: {
                 id: currentUser.uid,
                 name: currentUser.displayName || 'Student',
@@ -8629,7 +8629,7 @@ async function sendChallenge(opponentId, opponentName) {
         setTimeout(() => hideCustomPopup(), 2000);
     }
 }
-
+        
 function listenForChallenges() {
     if (!currentUser) return;
     
@@ -8816,8 +8816,9 @@ async function declineChallenge(challengeId) {
     }
 }
 
+// ===== REPLACE THE showChallengePopup FUNCTION =====
 function showChallengePopup(challenge) {
-    const challengeId = challenge.challengeId || challenge.id;
+    const challengeId = challenge.id; // Use document ID only
     
     // Prevent duplicate popups
     if (shownPopupIds.has(challengeId)) return;
@@ -8872,57 +8873,11 @@ function showChallengePopup(challenge) {
     document.body.appendChild(popup);
 }
 
-async function acceptChallenge(challengeId) {
-    try {
-        const challengeRef = db.collection('challenges').doc(challengeId);
-        const challengeDoc = await challengeRef.get();
-        
-        if (!challengeDoc.exists) {
-            alert('Challenge not found');
-            return;
-        }
-        
-        const challengeData = challengeDoc.data();
-        
-        // Generate 5 random words
-        if (!selectedGameLevel) {
-            selectedGameLevel = 'foundation';
-        }
-        
-        if (levelWords[selectedGameLevel].length === 0) {
-            await loadLevelWords(selectedGameLevel);
-        }
-        
-        const shuffled = [...levelWords[selectedGameLevel]].sort(() => 0.5 - Math.random());
-        const words = shuffled.slice(0, 5);
-        
-        await challengeRef.update({
-            status: 'active',
-            words: words,
-            scores: {
-                [currentUser.uid]: 0,
-                [challengeData.challenger.id]: 0
-            },
-            completed: { // ✅ ADD COMPLETION TRACKING
-                [currentUser.uid]: false,
-                [challengeData.challenger.id]: false
-            },
-            currentWord: 0,
-            acceptedBy: currentUser.uid,
-            startedAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        
-        // Immediately start the challenge for the accepter
-        await startLiveChallenge(challengeId);
-        
-    } catch (error) {
-        console.error('Error accepting challenge:', error);
-        alert('Failed to accept challenge. Please try again.');
-    }
-}
 
-        
+// ===== REPLACE THE declineChallengeFromPopup FUNCTION =====
 async function declineChallengeFromPopup(challengeId) {
+    console.log('❌ Declining challenge from popup:', challengeId);
+    
     const popup = document.getElementById('challenge-popup-notification');
     if (popup) popup.remove();
     
@@ -8931,6 +8886,21 @@ async function declineChallengeFromPopup(challengeId) {
     await declineChallenge(challengeId);
 }
 
+        
+// ===== REPLACE THE acceptChallengeFromPopup FUNCTION =====
+async function acceptChallengeFromPopup(challengeId) {
+    console.log('🎯 Accepting challenge from popup:', challengeId);
+    
+    const popup = document.getElementById('challenge-popup-notification');
+    if (popup) popup.remove();
+    
+    shownPopupIds.delete(challengeId);
+    
+    // Call acceptChallenge with the correct ID
+    await acceptChallenge(challengeId);
+}
+
+        
 async function startLiveChallenge(challengeId) {
     try {
         console.log('🎮 Starting live challenge:', challengeId);
