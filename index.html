@@ -2334,6 +2334,73 @@ a[href*="whatsapp.com/channel"]:hover {
         opacity: 1;
     }
 }
+
+
+ /* Coin Display */
+.coin-display {
+    position: fixed;
+    top: 80px;
+    right: 20px;
+    background: linear-gradient(135deg, #FFD700, #FFA500);
+    color: #0d3b66;
+    padding: 12px 20px;
+    border-radius: 25px;
+    box-shadow: 0 4px 15px rgba(255, 215, 0, 0.4);
+    z-index: 9998;
+    display: none;
+    align-items: center;
+    gap: 10px;
+    font-weight: bold;
+    font-size: 1.2rem;
+    border: 3px solid #fff;
+}
+
+.coin-display.show {
+    display: flex;
+}
+
+.coin-icon {
+    font-size: 1.8rem;
+    animation: spin 2s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Coin Animation */
+.coin-earned {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: linear-gradient(135deg, #FFD700, #FFA500);
+    color: #0d3b66;
+    padding: 30px 50px;
+    border-radius: 20px;
+    box-shadow: 0 10px 40px rgba(255, 215, 0, 0.6);
+    z-index: 10000;
+    font-size: 3rem;
+    font-weight: bold;
+    animation: coinEarnedAnimation 2s ease-out forwards;
+    pointer-events: none;
+}
+
+@keyframes coinEarnedAnimation {
+    0% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.5);
+    }
+    50% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1.2);
+    }
+    100% {
+        opacity: 0;
+        transform: translate(-50%, -200%) scale(0.8);
+    }
+}       
     </style>
 </head>
 <body>
@@ -2376,7 +2443,7 @@ a[href*="whatsapp.com/channel"]:hover {
                 </div>
             </div>
         </div>
-        
+
 <nav class="nav-bar">
             <div class="nav-item" onclick="navigateTo('quiz', true)">QUIZ</div>
             <div class="nav-item">TOURNAMENTS</div>
@@ -2384,6 +2451,14 @@ a[href*="whatsapp.com/channel"]:hover {
         </nav>
     </header>
 
+
+    <!-- Coin Display (Top Right) -->
+<div class="coin-display" id="coinDisplay">
+    <span class="coin-icon">🪙</span>
+    <span id="coinAmount">0</span>
+</div>
+
+    
     <!-- Main Content -->
     <div class="container">
         <!-- Home Section -->
@@ -3644,6 +3719,11 @@ const OFFLINE_CHECK_INTERVAL = 10 * 1000; // Check every 10 seconds
 let challengeTimeoutTimer = null;
 let turnTimeoutTimer = null;
 let offlineCheckTimer = null;
+
+
+let userCoins = 0;
+const COINS_PER_WIN = 5;
+const MAX_COINS = 1000;
       
        // ===== INITIALIZE =====
         document.addEventListener('DOMContentLoaded', function() {
@@ -3691,6 +3771,9 @@ auth.onAuthStateChanged(async user => {
         }
         
         updateUIForAuthenticatedUser(user);
+        
+        // ✅ LOAD USER COINS
+        await loadUserCoins(user.uid);
         
         await cleanupInvalidFavorites();
         
@@ -5325,7 +5408,7 @@ async function handleVerification(event) {
 }
 
         
-       function updateUIForGuestUser() {
+      function updateUIForGuestUser() {
     document.getElementById('sidebarUserName').textContent = 'Guest';
     const sidebarAvatar = document.getElementById('sidebarUserAvatar');
     sidebarAvatar.style.backgroundImage = 'none';
@@ -5340,6 +5423,10 @@ async function handleVerification(event) {
     userIncorrect = [];
     userSpellingFavorites = [];
     userSpellingIncorrect = [];
+    
+    // ✅ HIDE COINS
+    userCoins = 0;
+    hideCoinDisplay();
     
     document.getElementById('favorites-container').innerHTML = '<div class="loading">Please sign in to save favorites</div>';
     document.getElementById('incorrect-container').innerHTML = '<div class="loading">Please sign in to track incorrect answers</div>';
@@ -9153,7 +9240,7 @@ async function finishChallenge() {
     }
 }
 
-function showChallengeResults(challenge) {
+async function showChallengeResults(challenge) {
     const myId = currentUser.uid;
     const opponentId = challenge.challenger.id === myId ? challenge.opponent.id : challenge.challenger.id;
     
@@ -9162,6 +9249,11 @@ function showChallengeResults(challenge) {
     
     const won = myFinalScore > opponentFinalScore;
     const tied = myFinalScore === opponentFinalScore;
+    
+    // ✅ AWARD COINS FOR WIN
+    if (won) {
+        await awardCoins(COINS_PER_WIN);
+    }
     
     const container = document.getElementById('live-challenge-container');
     
@@ -9178,6 +9270,14 @@ function showChallengeResults(challenge) {
             <h2 style="color: #0d3b66; font-size: 2.5rem; margin-bottom: 20px;">
                 ${won ? 'Victory!' : tied ? "It's a Tie!" : 'Better Luck Next Time'}
             </h2>
+            
+            ${won ? `
+                <div style="background: linear-gradient(135deg, #FFD700, #FFA500); padding: 20px; border-radius: 15px; margin: 20px 0;">
+                    <h3 style="color: #0d3b66; font-size: 1.5rem; margin-bottom: 10px;">🪙 Coins Earned!</h3>
+                    <p style="color: #0d3b66; font-size: 2rem; font-weight: bold;">+${COINS_PER_WIN} Coins</p>
+                    <p style="color: #0d3b66; font-size: 1rem; margin-top: 5px;">Total: ${userCoins} / ${MAX_COINS}</p>
+                </div>
+            ` : ''}
             
             <div class="challenge-score-card">
                 <div class="player-score">
@@ -9198,6 +9298,7 @@ function showChallengeResults(challenge) {
     `;
 }
 
+        
 async function exitChallenge() {
     try {
         // ✅ If user exits during active challenge, opponent wins
@@ -9488,7 +9589,108 @@ function autoHidePopup(delay = 3000) {
     setTimeout(() => {
         hideCustomPopup();
     }, delay);
-}     
+}  
+
+
+// ===== COIN SYSTEM FUNCTIONS =====
+async function loadUserCoins(userId) {
+    try {
+        const userDoc = await db.collection('users').doc(userId).get();
+        const userData = userDoc.data();
+        
+        // Initialize coins if not exists
+        if (userData.coins === undefined) {
+            userCoins = 0;
+            await db.collection('users').doc(userId).update({
+                coins: 0
+            });
+        } else {
+            userCoins = userData.coins || 0;
+        }
+        
+        // Show coin display for students only
+        if (userData.userType === 'student') {
+            updateCoinDisplay();
+        }
+    } catch (error) {
+        console.error('Error loading coins:', error);
+        userCoins = 0;
+    }
+}
+
+function updateCoinDisplay() {
+    const coinDisplay = document.getElementById('coinDisplay');
+    const coinAmount = document.getElementById('coinAmount');
+    
+    if (coinDisplay && coinAmount) {
+        coinAmount.textContent = userCoins;
+        coinDisplay.classList.add('show');
+    }
+}
+
+function hideCoinDisplay() {
+    const coinDisplay = document.getElementById('coinDisplay');
+    if (coinDisplay) {
+        coinDisplay.classList.remove('show');
+    }
+}
+
+async function awardCoins(amount) {
+    if (!currentUser) return;
+    
+    try {
+        // Check if user is a student
+        const userDoc = await db.collection('users').doc(currentUser.uid).get();
+        const userData = userDoc.data();
+        
+        if (userData.userType !== 'student') {
+            console.log('Only students can earn coins');
+            return;
+        }
+        
+        // Calculate new coin amount (capped at MAX_COINS)
+        const newCoins = Math.min(userCoins + amount, MAX_COINS);
+        const actualCoinsEarned = newCoins - userCoins;
+        
+        if (actualCoinsEarned <= 0) {
+            console.log('Maximum coins reached');
+            return;
+        }
+        
+        // Update Firestore
+        await db.collection('users').doc(currentUser.uid).update({
+            coins: newCoins,
+            lastCoinEarned: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        // Update local variable
+        userCoins = newCoins;
+        
+        // Show coin earned animation
+        showCoinEarnedAnimation(actualCoinsEarned);
+        
+        // Update display
+        setTimeout(() => {
+            updateCoinDisplay();
+        }, 1500);
+        
+    } catch (error) {
+        console.error('Error awarding coins:', error);
+    }
+}
+
+function showCoinEarnedAnimation(amount) {
+    const coinEarned = document.createElement('div');
+    coinEarned.className = 'coin-earned';
+    coinEarned.innerHTML = `🪙 +${amount} Coins!`;
+    
+    document.body.appendChild(coinEarned);
+    
+    // Remove after animation
+    setTimeout(() => {
+        coinEarned.remove();
+    }, 2000);
+}        
     </script>
 </body>
 </html>
