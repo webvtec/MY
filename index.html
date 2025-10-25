@@ -3380,6 +3380,36 @@
             </div>
         </div>
 
+        <!-- Subscription Status Section -->
+        <div class="dashboard-section">
+            <h2 class="section-title">💎 SUBSCRIPTION STATUS</h2>
+            <div class="profile-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <div style="text-align: center; padding: 20px 0;">
+                    <div style="font-size: 3rem; margin-bottom: 15px;" id="sub-status-icon">🔓</div>
+                    <h3 style="color: white; margin-bottom: 10px;" id="sub-status-title">Active Subscription</h3>
+                    <p style="font-size: 1.2rem; opacity: 0.9; margin-bottom: 20px;" id="sub-status-text">Expires: Loading...</p>
+                    
+                    <div style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 10px; margin: 20px 0;">
+                        <p style="font-size: 0.9rem; margin-bottom: 5px; opacity: 0.9;">Your Coins</p>
+                        <p style="font-size: 2.5rem; font-weight: bold; margin: 5px 0;" id="dashboard-coins">0</p>
+                        <p style="font-size: 0.8rem; opacity: 0.8;">/ 1000 max</p>
+                    </div>
+                    
+                    <div id="sub-renew-section" style="display: none;">
+                        <button class="auth-submit" onclick="redeemSubscriptionFromDashboard()" 
+                                style="background: #FFD700; color: #0d3b66; font-weight: bold;">
+                            🪙 Renew for 300 Coins (30 Days)
+                        </button>
+                    </div>
+                    
+                    <p style="font-size: 0.9rem; opacity: 0.9; margin-top: 15px; font-style: italic;">
+                        💡 Win spelling challenges to earn coins!
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        
         <!-- Profile Information -->
         <div class="dashboard-section">
             <div class="section-header">
@@ -3700,7 +3730,66 @@
 <div class="custom-popup" id="customPopup"></div>
 
 
+       <!-- Subscription Modal (Cannot be closed) -->
+<div class="auth-modal" id="subscriptionModal" style="z-index: 9999;">
+    <div class="auth-content" style="max-width: 500px;">
+        <div class="auth-header" style="background: linear-gradient(135deg, #FFD700, #FFA500);">
+            <h2 style="color: #0d3b66;">🪙 Subscription Required</h2>
+            <p style="margin: 10px 0; font-size: 0.95rem; color: #0d3b66;">This modal cannot be closed</p>
+        </div>
+        <div class="auth-body" style="text-align: center;">
+            <div style="font-size: 3rem; margin: 20px 0;">🔒</div>
+            <h3 style="color: #0d3b66; margin-bottom: 15px;">Your subscription has ended</h3>
+            <p style="color: #666; margin: 15px 0; line-height: 1.6;">
+                Redeem your coins to continue learning at WordBiz Academy
+            </p>
             
+            <div style="background: #f9f9f9; padding: 20px; border-radius: 10px; margin: 20px 0;">
+                <div style="font-size: 2rem; margin-bottom: 10px;">🪙</div>
+                <p style="font-size: 1.2rem; color: #666; margin-bottom: 10px;">Your Coins</p>
+                <p style="font-size: 3rem; font-weight: bold; color: #0d3b66;" id="sub-modal-coins">0</p>
+                <p style="font-size: 0.9rem; color: #999; margin-top: 5px;">/ 1000 max</p>
+            </div>
+            
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 10px; margin: 20px 0; color: white;">
+                <h3 style="margin: 0 0 10px 0; color: white;">💎 Monthly Subscription</h3>
+                <p style="font-size: 2.5rem; font-weight: bold; margin: 10px 0;">300 Coins</p>
+                <p style="font-size: 0.9rem; opacity: 0.9; margin: 5px 0;">= 30 Days Full Access</p>
+            </div>
+            
+            <div id="sub-modal-insufficient" style="display: none; background: #fff3cd; padding: 15px; border-radius: 8px; border-left: 4px solid #ffc107; margin: 20px 0;">
+                <p style="color: #856404; margin: 0;">
+                    ⚠️ You need <strong><span id="coins-needed">300</span> more coins</strong> to subscribe.<br>
+                    Your account is currently locked.
+                </p>
+            </div>
+            
+            <div id="sub-modal-buttons">
+                <button class="auth-submit" id="redeem-sub-btn" onclick="redeemSubscription()" style="background: #28a745; margin-bottom: 10px;">
+                    ✅ Redeem 300 Coins for 30 Days
+                </button>
+                
+                <button class="auth-submit" onclick="signOutFromSubscription()" 
+                        style="background: #dc3545;">
+                    🚪 Sign Out
+                </button>
+            </div>
+            
+            <div id="sub-modal-success" style="display: none;">
+                <div style="font-size: 3rem; margin: 20px 0;">🎉</div>
+                <h3 style="color: #28a745; margin-bottom: 15px;">Subscription Activated!</h3>
+                <p style="color: #666; margin: 15px 0;">
+                    You now have 30 days of full access to WordBiz Academy!
+                </p>
+                <button class="auth-submit" onclick="closeSubscriptionModal()" style="background: #28a745;">
+                    ✅ Continue Learning
+                </button>
+            </div>
+            
+            <div id="sub-modal-error" class="feedback error" style="display: none; margin-top: 15px;"></div>
+        </div>
+    </div>
+</div>     
     <script>
         // ===== FIREBASE CONFIGURATION =====
         const firebaseConfig = {
@@ -3854,7 +3943,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    auth.onAuthStateChanged(async user => {
+   auth.onAuthStateChanged(async user => {
         if (user) {
             currentUser = user;
             
@@ -3907,6 +3996,9 @@ document.addEventListener('DOMContentLoaded', function() {
             // ✅ LOAD USER COINS
             await loadUserCoins(user.uid);
             
+            // ✅ CHECK SUBSCRIPTION STATUS
+            await checkSubscriptionStatus();
+            
             await cleanupInvalidFavorites();
             
             await Promise.all([
@@ -3926,13 +4018,23 @@ document.addEventListener('DOMContentLoaded', function() {
             currentUser = null;
             updateUIForGuestUser();
         }
+      });
     });
-});
-  
         
         
      // ===== NAVIGATION =====
 async function navigateTo(section, skipSidebarClose = false) {
+    // ✅ CHECK SUBSCRIPTION FOR STUDENTS BEFORE ALLOWING NAVIGATION
+    if (currentUser && !subscriptionActive && section !== 'student-dashboard' && section !== 'about') {
+        const userDoc = await db.collection('users').doc(currentUser.uid).get();
+        const userData = userDoc.data();
+        
+        if (userData?.userType === 'student') {
+            showSubscriptionModal();
+            return;
+        }
+    }
+    
     // Check if user needs to be logged in
     if ((section === 'favorites' || section === 'incorrect-quiz' || 
          section === 'spelling-favorites' || section === 'spelling-incorrect' || 
@@ -4008,6 +4110,7 @@ async function navigateTo(section, skipSidebarClose = false) {
         toggleSidebar(true);
     }
 }
+
         
        function toggleSidebar(forceClose = false) {
             const sidebar = document.getElementById('sidebar');
@@ -7339,6 +7442,9 @@ async function loadUserDashboard() {
             document.getElementById('stat-quiz-incorrect').textContent = userIncorrect.length;
             document.getElementById('stat-spelling-favorites').textContent = userSpellingFavorites.length;
             document.getElementById('stat-spelling-incorrect').textContent = userSpellingIncorrect.length;
+            
+            // ✅ UPDATE SUBSCRIPTION STATUS
+            updateDashboardSubscriptionStatus();
         }, 500);
         
     } catch (error) {
@@ -10245,6 +10351,221 @@ function showCoinEarnedAnimation(amount) {
         coinEarned.remove();
     }, 2000);
 }        
+
+
+// ===== SUBSCRIPTION SYSTEM =====
+const SUBSCRIPTION_COST = 300;
+const SUBSCRIPTION_DAYS = 30;
+let subscriptionActive = false;
+
+async function checkSubscriptionStatus() {
+    if (!currentUser) return;
+    
+    try {
+        const userDoc = await db.collection('users').doc(currentUser.uid).get();
+        const userData = userDoc.data();
+        
+        // Only check for students
+        if (userData.userType !== 'student') {
+            subscriptionActive = true;
+            return;
+        }
+        
+        // Check if subscription exists and is valid
+        let subscriptionExpiry = userData.subscriptionExpiry?.toDate();
+        
+        // If no subscription, give 1 month free trial from account creation
+        if (!subscriptionExpiry) {
+            const createdAt = userData.createdAt?.toDate() || new Date();
+            subscriptionExpiry = new Date(createdAt.getTime() + (30 * 24 * 60 * 60 * 1000));
+            
+            await db.collection('users').doc(currentUser.uid).update({
+                subscriptionExpiry: firebase.firestore.Timestamp.fromDate(subscriptionExpiry),
+                subscriptionType: 'trial'
+            });
+        }
+        
+        const now = new Date();
+        
+        // Check if subscription has expired
+        if (now > subscriptionExpiry) {
+            console.log('❌ Subscription expired');
+            subscriptionActive = false;
+            showSubscriptionModal();
+        } else {
+            console.log('✅ Subscription active until:', subscriptionExpiry);
+            subscriptionActive = true;
+        }
+        
+        // Update dashboard if on dashboard page
+        if (document.getElementById('student-dashboard-section').classList.contains('active')) {
+            updateDashboardSubscriptionStatus();
+        }
+        
+    } catch (error) {
+        console.error('Error checking subscription:', error);
+        subscriptionActive = false;
+    }
+}
+
+function showSubscriptionModal() {
+    const modal = document.getElementById('subscriptionModal');
+    
+    // Update coin display
+    document.getElementById('sub-modal-coins').textContent = userCoins;
+    
+    // Check if user has enough coins
+    const redeemBtn = document.getElementById('redeem-sub-btn');
+    const insufficientDiv = document.getElementById('sub-modal-insufficient');
+    const coinsNeeded = document.getElementById('coins-needed');
+    
+    if (userCoins >= SUBSCRIPTION_COST) {
+        redeemBtn.disabled = false;
+        insufficientDiv.style.display = 'none';
+    } else {
+        redeemBtn.disabled = true;
+        insufficientDiv.style.display = 'block';
+        coinsNeeded.textContent = SUBSCRIPTION_COST - userCoins;
+    }
+    
+    // Reset UI
+    document.getElementById('sub-modal-buttons').style.display = 'block';
+    document.getElementById('sub-modal-success').style.display = 'none';
+    document.getElementById('sub-modal-error').style.display = 'none';
+    
+    modal.classList.add('active');
+}
+
+function closeSubscriptionModal() {
+    // Only close if subscription was successfully redeemed
+    if (subscriptionActive) {
+        document.getElementById('subscriptionModal').classList.remove('active');
+    }
+}
+
+async function redeemSubscription() {
+    if (!currentUser || userCoins < SUBSCRIPTION_COST) {
+        return;
+    }
+    
+    try {
+        const redeemBtn = document.getElementById('redeem-sub-btn');
+        redeemBtn.disabled = true;
+        redeemBtn.textContent = '⏳ Processing...';
+        
+        // Calculate new expiry date (30 days from now)
+        const newExpiry = new Date();
+        newExpiry.setDate(newExpiry.getDate() + SUBSCRIPTION_DAYS);
+        
+        // Deduct coins and update subscription
+        const newCoins = userCoins - SUBSCRIPTION_COST;
+        
+        await db.collection('users').doc(currentUser.uid).update({
+            coins: newCoins,
+            subscriptionExpiry: firebase.firestore.Timestamp.fromDate(newExpiry),
+            subscriptionType: 'paid',
+            lastSubscriptionRenewal: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        // Update local coins
+        userCoins = newCoins;
+        updateCoinDisplay();
+        
+        // Mark subscription as active
+        subscriptionActive = true;
+        
+        // Show success message
+        document.getElementById('sub-modal-buttons').style.display = 'none';
+        document.getElementById('sub-modal-success').style.display = 'block';
+        
+        console.log('✅ Subscription renewed successfully');
+        
+    } catch (error) {
+        console.error('Error redeeming subscription:', error);
+        const errorDiv = document.getElementById('sub-modal-error');
+        errorDiv.textContent = 'Failed to process subscription: ' + error.message;
+        errorDiv.style.display = 'block';
+        
+        const redeemBtn = document.getElementById('redeem-sub-btn');
+        redeemBtn.disabled = false;
+        redeemBtn.textContent = '✅ Redeem 300 Coins for 30 Days';
+    }
+}
+
+async function redeemSubscriptionFromDashboard() {
+    await redeemSubscription();
+    
+    // Reload dashboard after successful redemption
+    setTimeout(() => {
+        loadUserDashboard();
+        if (subscriptionActive) {
+            closeSubscriptionModal();
+        }
+    }, 2000);
+}
+
+function signOutFromSubscription() {
+    subscriptionActive = false;
+    signOut();
+}
+
+async function updateDashboardSubscriptionStatus() {
+    if (!currentUser) return;
+    
+    try {
+        const userDoc = await db.collection('users').doc(currentUser.uid).get();
+        const userData = userDoc.data();
+        
+        if (userData.userType !== 'student') return;
+        
+        const subscriptionExpiry = userData.subscriptionExpiry?.toDate();
+        const now = new Date();
+        
+        const statusIcon = document.getElementById('sub-status-icon');
+        const statusTitle = document.getElementById('sub-status-title');
+        const statusText = document.getElementById('sub-status-text');
+        const renewSection = document.getElementById('sub-renew-section');
+        const dashboardCoins = document.getElementById('dashboard-coins');
+        
+        if (!statusIcon || !statusTitle || !statusText || !renewSection || !dashboardCoins) return;
+        
+        // Update coin display
+        dashboardCoins.textContent = userCoins;
+        
+        if (!subscriptionExpiry) {
+            statusIcon.textContent = '🔒';
+            statusTitle.textContent = 'No Subscription';
+            statusText.textContent = 'Subscribe to continue learning';
+            renewSection.style.display = 'block';
+            return;
+        }
+        
+        const daysLeft = Math.ceil((subscriptionExpiry - now) / (1000 * 60 * 60 * 24));
+        
+        if (now > subscriptionExpiry) {
+            // Expired
+            statusIcon.textContent = '🔒';
+            statusTitle.textContent = 'Subscription Expired';
+            statusText.textContent = 'Renew to continue learning';
+            renewSection.style.display = 'block';
+        } else if (daysLeft <= 7) {
+            // Expiring soon
+            statusIcon.textContent = '⚠️';
+            statusTitle.textContent = 'Expiring Soon';
+            statusText.textContent = `Expires in ${daysLeft} day${daysLeft !== 1 ? 's' : ''} (${subscriptionExpiry.toLocaleDateString()})`;
+            renewSection.style.display = 'block';
+        } else {
+            // Active
+            statusIcon.textContent = '🔓';
+            statusTitle.textContent = 'Active Subscription';
+            statusText.textContent = `Expires: ${subscriptionExpiry.toLocaleDateString()} (${daysLeft} days left)`;
+            renewSection.style.display = 'none';
+        }
+        
+    } catch (error) {
+        console.error('Error updating dashboard subscription status:', error);
+    }
+}
     </script>
 </body>
 </html>
