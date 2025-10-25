@@ -9330,7 +9330,44 @@ async function startLiveChallenge(challengeId) {
         alert('Failed to start challenge: ' + error.message);
     }
 }
+
+
+
+// Check if challengers are still online every 10 seconds
+setInterval(async () => {
+    if (!currentUser) return;
+    
+    try {
+        // Get all pending challenges where I'm the opponent
+        const pendingChallenges = await db.collection('challenges')
+            .where('opponent.id', '==', currentUser.uid)
+            .where('status', '==', 'pending')
+            .get();
         
+        for (const doc of pendingChallenges.docs) {
+            const challenge = doc.data();
+            const challengerId = challenge.challenger.id;
+            
+            // Check if challenger is still online
+            const challengerPresence = await db.collection('onlineUsers').doc(challengerId).get();
+            
+            if (!challengerPresence.exists) {
+                // Challenger went offline - delete the challenge
+                console.log('🚫 Challenger offline - removing challenge:', doc.id);
+                await doc.ref.delete();
+                
+                // Remove popup if exists
+                const popup = document.getElementById('challenge-popup-notification');
+                if (popup) popup.remove();
+                
+                // Remove from shown set
+                shownPopupIds.delete(doc.id);
+            }
+        }
+    } catch (error) {
+        console.error('Error checking challenger presence:', error);
+    }
+}, 10000); // Check every 10 seconds
         
 function loadChallengeWord() {
     if (!challengeWords || challengeWords.length === 0) {
