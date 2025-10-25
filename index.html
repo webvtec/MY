@@ -3283,16 +3283,17 @@
     </div>
 </div>
 
-                <!-- Spelling Leaderboard Mode -->
-                <div id="leaderboard-spelling-mode" class="quiz-mode">
-                    <div class="welcome-section">
-                        <h2>📊 Spelling Leaderboard</h2>
-                        <p>Coming soon! See the top spellers and track your ranking.</p>
-                    </div>
-                </div>
-            </div>
+               <!-- Spelling Leaderboard Mode -->
+<div id="leaderboard-spelling-mode" class="quiz-mode">
+    <div class="welcome-section">
+        <h2>📊 Spelling Leaderboard</h2>
+        <p style="margin: 20px 0;">Top spelling champions ranked by live challenge wins!</p>
+        
+        <div id="leaderboard-container" class="loading">
+            Loading leaderboard...
         </div>
-
+    </div>
+</div>
 
 
     
@@ -6865,7 +6866,7 @@ function startSpellingPractice() {
     selectedGameLevel = '';
 }
 
-      function switchSpellingMode(mode) {
+     function switchSpellingMode(mode) {
     // Update active tab
     const tabs = document.querySelectorAll('#spelling-section .quiz-tab');
     tabs.forEach((tab, index) => {
@@ -6892,7 +6893,6 @@ function startSpellingPractice() {
         
         if (currentUser) {
             initializeOnlinePresence();
-            // ✅ Small delay to ensure DOM is ready
             setTimeout(() => loadOnlineUsers(), 100);
         } else {
             alert('Please sign in to access live challenges');
@@ -6900,9 +6900,10 @@ function startSpellingPractice() {
         }
     } else if (mode === 'leaderboard') {
         document.getElementById('leaderboard-spelling-mode').classList.add('active');
+        loadSpellingLeaderboard(); // ✅ NEW: Load leaderboard
     }
 }
-
+        
         // ===== SPELLING FAVORITES FUNCTIONS =====
 async function loadUserSpellingFavorites(userId) {
     try {
@@ -9440,9 +9441,12 @@ async function showChallengeResults(challenge) {
     const won = myFinalScore > opponentFinalScore;
     const tied = myFinalScore === opponentFinalScore;
     
-    // ✅ AWARD COINS FOR WIN
+    // ✅ AWARD COINS AND RECORD STATS
     if (won) {
         await awardCoins(COINS_PER_WIN);
+        await recordChallengeWin(myId);
+    } else if (!tied) {
+        await recordChallengeLoss(myId);
     }
     
     const container = document.getElementById('live-challenge-container');
@@ -9455,7 +9459,7 @@ async function showChallengeResults(challenge) {
     container.innerHTML = `
         <div style="background: white; padding: 40px; border-radius: 15px; box-shadow: 0 5px 25px rgba(0,0,0,0.1); text-align: center;">
             <div style="font-size: 4rem; margin: 20px 0;">
-                ${won ? '🏆' : tied ? '🤝' : '😔'}
+                ${won ? '🏆' : tied ? '🤝' : '😢'}
             </div>
             <h2 style="color: #0d3b66; font-size: 2.5rem; margin-bottom: 20px;">
                 ${won ? 'Victory!' : tied ? "It's a Tie!" : 'Better Luck Next Time'}
@@ -9487,7 +9491,6 @@ async function showChallengeResults(challenge) {
         </div>
     `;
 }
-
         
 // ===== REPLACE THE exitChallenge FUNCTION =====
 async function exitChallenge() {
@@ -9891,7 +9894,247 @@ function showCoinEarnedAnimation(amount) {
     setTimeout(() => {
         coinEarned.remove();
     }, 2000);
-}        
+}  
+
+
+// ===== RECORD CHALLENGE WIN =====
+async function recordChallengeWin(userId) {
+    try {
+        const userRef = db.collection('users').doc(userId);
+        const userDoc = await userRef.get();
+        const userData = userDoc.data();
+        
+        // Initialize stats if they don't exist
+        const currentWins = userData.spellingWins || 0;
+        const currentTotalChallenges = userData.totalChallenges || 0;
+        
+        await userRef.update({
+            spellingWins: currentWins + 1,
+            totalChallenges: currentTotalChallenges + 1,
+            lastChallengeDate: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        console.log('✅ Recorded win for user');
+    } catch (error) {
+        console.error('Error recording win:', error);
+    }
+}
+
+// ===== RECORD CHALLENGE LOSS =====
+async function recordChallengeLoss(userId) {
+    try {
+        const userRef = db.collection('users').doc(userId);
+        const userDoc = await userRef.get();
+        const userData = userDoc.data();
+        
+        const currentLosses = userData.spellingLosses || 0;
+        const currentTotalChallenges = userData.totalChallenges || 0;
+        
+        await userRef.update({
+            spellingLosses: currentLosses + 1,
+            totalChallenges: currentTotalChallenges + 1,
+            lastChallengeDate: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        console.log('✅ Recorded loss for user');
+    } catch (error) {
+        console.error('Error recording loss:', error);
+    }
+}
+
+
+// ===== SPELLING LEADERBOARD FUNCTION =====
+async function loadSpellingLeaderboard() {
+    const container = document.getElementById('leaderboard-container');
+    
+    if (!container) {
+        console.error('❌ leaderboard-container not found');
+        return;
+    }
+    
+    try {
+        container.innerHTML = '<div class="loading">📊 Loading top spellers...</div>';
+        
+        // Fetch all students with spelling wins
+        const snapshot = await db.collection('users')
+            .where('userType', '==', 'student')
+            .orderBy('spellingWins', 'desc')
+            .limit(50)
+            .get();
+        
+        if (snapshot.empty) {
+            container.innerHTML = `
+                <div style="text-align: center; padding: 40px; color: #666;">
+                    <div style="font-size: 3rem; margin-bottom: 20px;">🏆</div>
+                    <h3>No champions yet!</h3>
+                    <p>Be the first to win live spelling challenges!</p>
+                </div>
+            `;
+            return;
+        }
+        
+        const players = [];
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            if (data.spellingWins && data.spellingWins > 0) {
+                players.push({
+                    id: doc.id,
+                    name: data.name || 'Anonymous',
+                    photoURL: data.photoURL || null,
+                    wins: data.spellingWins || 0,
+                    losses: data.spellingLosses || 0,
+                    total: data.totalChallenges || 0,
+                    winRate: data.totalChallenges > 0 ? 
+                        Math.round((data.spellingWins / data.totalChallenges) * 100) : 0
+                });
+            }
+        });
+        
+        if (players.length === 0) {
+            container.innerHTML = `
+                <div style="text-align: center; padding: 40px; color: #666;">
+                    <div style="font-size: 3rem; margin-bottom: 20px;">🏆</div>
+                    <h3>No champions yet!</h3>
+                    <p>Be the first to win live spelling challenges!</p>
+                </div>
+            `;
+            return;
+        }
+        
+        // Display leaderboard
+        container.innerHTML = `
+            <!-- Top 3 Podium -->
+            <div style="display: flex; justify-content: center; align-items: flex-end; gap: 20px; margin: 40px 0; flex-wrap: wrap;">
+                ${players.length > 1 ? `
+                    <!-- 2nd Place -->
+                    <div style="text-align: center; flex: 1; min-width: 150px; max-width: 200px;">
+                        <div style="font-size: 3rem; margin-bottom: 10px;">🥈</div>
+                        ${players[1].photoURL ? 
+                            `<div style="width: 80px; height: 80px; border-radius: 50%; background-image: url('${players[1].photoURL}'); background-size: cover; background-position: center; margin: 0 auto 10px; border: 4px solid #C0C0C0;"></div>` :
+                            `<div style="width: 80px; height: 80px; border-radius: 50%; background: linear-gradient(135deg, #C0C0C0, #E8E8E8); color: #0d3b66; display: flex; align-items: center; justify-content: center; font-size: 2rem; font-weight: bold; margin: 0 auto 10px; border: 4px solid #C0C0C0;">${players[1].name.charAt(0).toUpperCase()}</div>`
+                        }
+                        <h3 style="color: #0d3b66; margin: 10px 0; font-size: 1.2rem;">${players[1].name}</h3>
+                        <div style="background: #C0C0C0; color: white; padding: 15px; border-radius: 10px; margin-top: 10px;">
+                            <div style="font-size: 2rem; font-weight: bold;">${players[1].wins}</div>
+                            <div style="font-size: 0.9rem;">Wins</div>
+                        </div>
+                    </div>
+                ` : ''}
+                
+                ${players.length > 0 ? `
+                    <!-- 1st Place -->
+                    <div style="text-align: center; flex: 1; min-width: 180px; max-width: 220px; transform: scale(1.1);">
+                        <div style="font-size: 4rem; margin-bottom: 10px;">👑</div>
+                        ${players[0].photoURL ? 
+                            `<div style="width: 100px; height: 100px; border-radius: 50%; background-image: url('${players[0].photoURL}'); background-size: cover; background-position: center; margin: 0 auto 10px; border: 5px solid #FFD700; box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);"></div>` :
+                            `<div style="width: 100px; height: 100px; border-radius: 50%; background: linear-gradient(135deg, #FFD700, #FFA500); color: #0d3b66; display: flex; align-items: center; justify-content: center; font-size: 2.5rem; font-weight: bold; margin: 0 auto 10px; border: 5px solid #FFD700; box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);">${players[0].name.charAt(0).toUpperCase()}</div>`
+                        }
+                        <h3 style="color: #0d3b66; margin: 10px 0; font-size: 1.4rem; font-weight: bold;">${players[0].name}</h3>
+                        <div style="background: linear-gradient(135deg, #FFD700, #FFA500); color: #0d3b66; padding: 20px; border-radius: 10px; margin-top: 10px; box-shadow: 0 5px 15px rgba(255, 215, 0, 0.3);">
+                            <div style="font-size: 2.5rem; font-weight: bold;">${players[0].wins}</div>
+                            <div style="font-size: 1rem; font-weight: bold;">Wins</div>
+                        </div>
+                    </div>
+                ` : ''}
+                
+                ${players.length > 2 ? `
+                    <!-- 3rd Place -->
+                    <div style="text-align: center; flex: 1; min-width: 150px; max-width: 200px;">
+                        <div style="font-size: 3rem; margin-bottom: 10px;">🥉</div>
+                        ${players[2].photoURL ? 
+                            `<div style="width: 80px; height: 80px; border-radius: 50%; background-image: url('${players[2].photoURL}'); background-size: cover; background-position: center; margin: 0 auto 10px; border: 4px solid #CD7F32;"></div>` :
+                            `<div style="width: 80px; height: 80px; border-radius: 50%; background: linear-gradient(135deg, #CD7F32, #E8A87C); color: white; display: flex; align-items: center; justify-content: center; font-size: 2rem; font-weight: bold; margin: 0 auto 10px; border: 4px solid #CD7F32;">${players[2].name.charAt(0).toUpperCase()}</div>`
+                        }
+                        <h3 style="color: #0d3b66; margin: 10px 0; font-size: 1.2rem;">${players[2].name}</h3>
+                        <div style="background: #CD7F32; color: white; padding: 15px; border-radius: 10px; margin-top: 10px;">
+                            <div style="font-size: 2rem; font-weight: bold;">${players[2].wins}</div>
+                            <div style="font-size: 0.9rem;">Wins</div>
+                        </div>
+                    </div>
+                ` : ''}
+            </div>
+            
+            <!-- Full Rankings Table -->
+            ${players.length > 3 ? `
+                <div style="margin-top: 50px;">
+                    <h3 style="color: #0d3b66; font-size: 1.5rem; margin-bottom: 20px; text-align: center;">📊 Full Rankings</h3>
+                    <div class="coaches-table">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th style="text-align: center; width: 60px;">Rank</th>
+                                    <th>Player</th>
+                                    <th style="text-align: center;">Wins</th>
+                                    <th style="text-align: center;">Losses</th>
+                                    <th style="text-align: center;">Win Rate</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${players.slice(3).map((player, index) => {
+                                    const rank = index + 4;
+                                    const isCurrentUser = player.id === currentUser?.uid;
+                                    
+                                    return `
+                                        <tr style="${isCurrentUser ? 'background: #e3f2fd; font-weight: bold;' : ''}">
+                                            <td style="text-align: center; font-size: 1.2rem; font-weight: bold; color: #0d3b66;">
+                                                #${rank}
+                                            </td>
+                                            <td>
+                                                <div class="coach-profile-cell">
+                                                    ${player.photoURL ? 
+                                                        `<div class="coach-avatar" style="background-image: url('${player.photoURL}'); background-size: cover; background-position: center;"></div>` :
+                                                        `<div class="coach-avatar">${player.name.charAt(0).toUpperCase()}</div>`
+                                                    }
+                                                    <div class="coach-name">
+                                                        ${player.name}
+                                                        ${isCurrentUser ? ' <span style="color: #28a745;">(You)</span>' : ''}
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td style="text-align: center; font-size: 1.2rem; font-weight: bold; color: #28a745;">
+                                                ${player.wins}
+                                            </td>
+                                            <td style="text-align: center; font-size: 1.2rem; color: #dc3545;">
+                                                ${player.losses}
+                                            </td>
+                                            <td style="text-align: center; font-size: 1.1rem; font-weight: bold; color: #0d3b66;">
+                                                ${player.winRate}%
+                                            </td>
+                                        </tr>
+                                    `;
+                                }).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            ` : ''}
+            
+            <!-- Info Box -->
+            <div style="margin-top: 40px; padding: 25px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 15px; color: white; text-align: center;">
+                <h3 style="color: white; margin-bottom: 15px; font-size: 1.3rem;">🏆 How to Climb the Leaderboard</h3>
+                <p style="opacity: 0.95; line-height: 1.8;">
+                    Challenge other students in <strong>Live Spelling</strong> mode! <br>
+                    Each win earns you <strong>${COINS_PER_WIN} coins</strong> and climbs you up the leaderboard. <br>
+                    The more you win, the higher you rank!
+                </p>
+                <button class="practice-btn" onclick="switchSpellingMode('live')" 
+                        style="background: white; color: #667eea; margin-top: 20px; font-size: 1.1rem; padding: 15px 40px;">
+                    ⚔️ Start Challenging
+                </button>
+            </div>
+        `;
+        
+    } catch (error) {
+        console.error('❌ Error loading leaderboard:', error);
+        container.innerHTML = `
+            <div class="feedback error">
+                ❌ Error loading leaderboard. Please try refreshing.
+                <br><br>
+                <button class="practice-btn" onclick="loadSpellingLeaderboard()">🔄 Retry</button>
+            </div>
+        `;
+    }
+}
     </script>
 </body>
 </html>
