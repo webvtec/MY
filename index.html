@@ -3809,7 +3809,7 @@ let userCoins = 0;
 const COINS_PER_WIN = 5;
 const MAX_COINS = 1000;
       
-     // ===== INITIALIZE =====
+    // ===== INITIALIZE =====
 document.addEventListener('DOMContentLoaded', function() {
     initializeAlphabet();
     initializeSpeechRecognition();
@@ -3853,6 +3853,131 @@ document.addEventListener('DOMContentLoaded', function() {
             closeLeaderboardPlayerModal();
         }
     });
+    
+    // ✅ HANDLE PAGE UNLOAD - Delete pending challenges when user closes tab
+    window.addEventListener('beforeunload', async (e) => {
+        if (currentUser && presenceRef) {
+            // Delete pending challenges when user closes tab/browser
+            try {
+                const myChallenges = await db.collection('challenges')
+                    .where('challenger.id', '==', currentUser.uid)
+                    .where('status', '==', 'pending')
+                    .get();
+                
+                const deletePromises = myChallenges.docs.map(doc => doc.ref.delete());
+                
+                if (deletePromises.length > 0) {
+                    await Promise.all(deletePromises);
+                }
+                
+                // Remove online presence
+                if (presenceRef) {
+                    await presenceRef.delete();
+                }
+            } catch (error) {
+                console.error('Error cleaning up on page unload:', error);
+            }
+        }
+    });
+    
+    // ✅ HANDLE PAGE VISIBILITY CHANGE - Update presence when user switches tabs
+    document.addEventListener('visibilitychange', async () => {
+        if (document.hidden && currentUser && presenceRef) {
+            // User switched away - update presence timestamp
+            try {
+                await presenceRef.update({
+                    lastSeen: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            } catch (error) {
+                console.error('Error updating lastSeen:', error);
+            }
+        } else if (!document.hidden && currentUser && presenceRef) {
+            // User came back - update presence timestamp
+            try {
+                await presenceRef.update({
+                    lastSeen: firebase.firestore.FieldValue.serverTimestamp(),
+                    status: 'online'
+                });
+            } catch (error) {
+                console.error('Error updating presence on return:', error);
+            }
+        }
+    });
+    
+    auth.onAuthStateChanged(async user => {
+        if (user) {
+            currentUser = user;
+            
+            console.log('👤 User signed in:', user.email);
+            console.log('🖼️ Auth photoURL:', user.photoURL);
+            
+            const userRef = db.collection('users').doc(user.uid);
+            const userDoc = await userRef.get();
+            
+            if (!userDoc.exists) {
+                await auth.signOut();
+                alert('Account error. Please sign up again.');
+                return;
+            }
+            
+            const userData = userDoc.data();
+            console.log('📄 Firestore photoURL:', userData.photoURL);
+            
+            if (user.photoURL && !userData.photoURL) {
+                console.log('🔄 Syncing photoURL to Firestore...');
+                await userRef.update({
+                    photoURL: user.photoURL
+                });
+                console.log('✅ PhotoURL synced!');
+            }
+            
+            // ✅ INITIALIZE SPELLING STATS IF NOT EXISTS
+            if (!userData.spellingStats) {
+                console.log('🔄 Initializing spelling stats...');
+                await userRef.update({
+                    spellingStats: {
+                        totalChallenges: 0,
+                        wins: 0,
+                        losses: 0,
+                        totalScore: 0,
+                        winStreak: 0,
+                        bestStreak: 0
+                    }
+                });
+                console.log('✅ Spelling stats initialized!');
+            }
+            
+            if (!userData.profileComplete) {
+                showVerificationModal(userData);
+                return;
+            }
+            
+            updateUIForAuthenticatedUser(user);
+            
+            // ✅ LOAD USER COINS
+            await loadUserCoins(user.uid);
+            
+            await cleanupInvalidFavorites();
+            
+            await Promise.all([
+                loadUserFavorites(user.uid),
+                loadUserIncorrect(user.uid),
+                loadUserSpellingFavorites(user.uid),
+                loadUserSpellingIncorrect(user.uid)
+            ]);
+            
+            // ✅ Initialize presence immediately on login
+            await initializeOnlinePresence();
+            
+            if (document.getElementById('student-dashboard-section').classList.contains('active')) {
+                loadUserDashboard();
+            }
+        } else {
+            currentUser = null;
+            updateUIForGuestUser();
+        }
+    });
+});
     
     auth.onAuthStateChanged(async user => {
         if (user) {
@@ -4987,14 +5112,19 @@ async function handleSignUp(event, userType) {
 }
         
 function signOut() {
-    // Remove online presence before signing out
-    removeOnlinePresence();
-    
-    // Sign out from Firebase
-    auth.signOut();
-    
-    // Navigate to home
-    navigateTo('home');
+    // ✅ Remove online presence FIRST (this deletes pending challenges)
+    removeOnlinePresence().then(() => {
+        // Sign out from Firebase
+        auth.signOut();
+        
+        // Navigate to home
+        navigateTo('home');
+    }).catch(error => {
+        console.error('Error during sign out:', error);
+        // Sign out anyway
+        auth.signOut();
+        navigateTo('home');
+    });
 }
 
 async function signInWithGoogle() {
@@ -8612,6 +8742,21 @@ async function removeOnlinePresence() {
     try {
         console.log('🧹 Removing online presence...');
         
+        // ✅ Delete all pending challenges sent BY me
+        if (currentUser) {
+            const myChallenges = await db.collection('challenges')
+                .where('challenger.id', '==', currentUser.uid)
+                .where('status', '==', 'pending')
+                .get();
+            
+            const deletePromises = myChallenges.docs.map(doc => doc.ref.delete());
+            
+            if (deletePromises.length > 0) {
+                await Promise.all(deletePromises);
+                console.log(`✅ Deleted ${deletePromises.length} pending challenges`);
+            }
+        }
+        
         // Remove challenge listeners
         if (challengeListener) {
             challengeListener();
@@ -8621,7 +8766,6 @@ async function removeOnlinePresence() {
             myChallengeListener();
             myChallengeListener = null;
         }
-        // ✅ Add this
         if (onlineUsersRef) {
             onlineUsersRef();
             onlineUsersRef = null;
@@ -8641,7 +8785,6 @@ async function removeOnlinePresence() {
         console.error('Error removing presence:', error);
     }
 }
-        
 
 
 async function loadOnlineUsers() {
@@ -8733,7 +8876,48 @@ function displayOnlineUsers(users) {
     }).join('');
 }
 
-// ===== REPLACE THE sendChallenge FUNCTION =====
+
+
+async function checkChallengerOnlineAndShow(challenge) {
+    try {
+        // Check if challenger is still online
+        const challengerPresence = await db.collection('onlineUsers').doc(challenge.challenger.id).get();
+        
+        if (!challengerPresence.exists) {
+            console.log('🚫 Challenger is offline, auto-declining challenge');
+            // Auto-delete the challenge
+            await db.collection('challenges').doc(challenge.id).delete();
+            return;
+        }
+        
+        const lastSeen = challengerPresence.data().lastSeen?.toDate();
+        if (!lastSeen) {
+            // No lastSeen timestamp, delete challenge
+            await db.collection('challenges').doc(challenge.id).delete();
+            return;
+        }
+        
+        const now = new Date();
+        const diffMinutes = (now - lastSeen) / 1000 / 60;
+        
+        if (diffMinutes > 2) {
+            console.log('🚫 Challenger inactive, auto-declining challenge');
+            await db.collection('challenges').doc(challenge.id).delete();
+            return;
+        }
+        
+        // ✅ Challenger is online, show the challenge
+        showChallengePopup(challenge);
+        displayIncomingChallenges([challenge]);
+        
+    } catch (error) {
+        console.error('Error checking challenger presence:', error);
+        // If error, show challenge anyway (benefit of doubt)
+        showChallengePopup(challenge);
+        displayIncomingChallenges([challenge]);
+    }
+}        
+
 // ===== REPLACE THE sendChallenge FUNCTION =====
 async function sendChallenge(opponentId, opponentName) {
     if (!currentUser) return;
@@ -8777,27 +8961,30 @@ function listenForChallenges() {
     
     challengeListener = db.collection('challenges')
         .where('opponent.id', '==', currentUser.uid)
+        .where('status', '==', 'pending') // ✅ Only listen for pending challenges
         .onSnapshot(snapshot => {
             snapshot.docChanges().forEach(change => {
                 const challenge = { id: change.doc.id, ...change.doc.data() };
                 
-                if (change.type === 'added' || change.type === 'modified') {
-                    if (challenge.status === 'pending') {
-                        showChallengePopup(challenge);
-                        displayIncomingChallenges([challenge]);
-                    } else if (challenge.status === 'active') {
-                        // This handles the case where challenge is accepted
-                        // But we already start it in acceptChallenge(), so only start if not already active
+                if (change.type === 'added') {
+                    // ✅ Check if challenger is still online before showing
+                    checkChallengerOnlineAndShow(challenge);
+                } else if (change.type === 'modified') {
+                    if (challenge.status === 'active') {
                         if (!activeChallenge || activeChallenge.id !== challenge.id) {
                             startLiveChallenge(challenge.id);
                         }
                     }
                 }
                 
-                // Handle challenge deletion/decline
+                // ✅ Handle challenge deletion/decline - remove popup
                 if (change.type === 'removed') {
                     const popup = document.getElementById('challenge-popup-notification');
                     if (popup) popup.remove();
+                    shownPopupIds.delete(challenge.id);
+                    
+                    // Also update incoming challenges section
+                    displayIncomingChallenges([]);
                 }
             });
         });
@@ -8966,12 +9153,18 @@ async function acceptChallenge(challengeId) {
         
 async function declineChallenge(challengeId) {
     try {
+        // ✅ Delete the challenge document completely
         await db.collection('challenges').doc(challengeId).delete();
         
-        const section = document.getElementById('incoming-challenges-section');
-        section.style.display = 'none';
+        // ✅ Remove from shown popups set
+        shownPopupIds.delete(challengeId);
         
-        alert('Challenge declined.');
+        const section = document.getElementById('incoming-challenges-section');
+        if (section) {
+            section.style.display = 'none';
+        }
+        
+        console.log('✅ Challenge declined and deleted:', challengeId);
     } catch (error) {
         console.error('Error declining challenge:', error);
         alert('Failed to decline challenge.');
@@ -9043,8 +9236,10 @@ async function declineChallengeFromPopup(challengeId) {
     const popup = document.getElementById('challenge-popup-notification');
     if (popup) popup.remove();
     
+    // ✅ Remove from shown popups set
     shownPopupIds.delete(challengeId);
     
+    // ✅ Delete the challenge
     await declineChallenge(challengeId);
 }
 
