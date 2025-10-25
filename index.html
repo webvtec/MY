@@ -10519,6 +10519,7 @@ async function updateDashboardSubscriptionStatus() {
         if (userData.userType !== 'student') return;
         
         const subscriptionExpiry = userData.subscriptionExpiry?.toDate();
+        const subscriptionType = userData.subscriptionType || 'trial';
         const now = new Date();
         
         const statusIcon = document.getElementById('sub-status-icon');
@@ -10532,10 +10533,19 @@ async function updateDashboardSubscriptionStatus() {
         // Update coin display
         dashboardCoins.textContent = userCoins;
         
+        // Format date nicely
+        const formatDate = (date) => {
+            return date.toLocaleDateString('en-US', { 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+            });
+        };
+        
         if (!subscriptionExpiry) {
             statusIcon.textContent = '🔒';
             statusTitle.textContent = 'No Subscription';
-            statusText.textContent = 'Subscribe to continue learning';
+            statusText.innerHTML = `Subscribe to continue learning`;
             renewSection.style.display = 'block';
             return;
         }
@@ -10546,19 +10556,36 @@ async function updateDashboardSubscriptionStatus() {
             // Expired
             statusIcon.textContent = '🔒';
             statusTitle.textContent = 'Subscription Expired';
-            statusText.textContent = 'Renew to continue learning';
+            statusText.innerHTML = `
+                Expires: ${formatDate(subscriptionExpiry)}<br>
+                <span style="font-size: 0.9rem; opacity: 0.8; margin-top: 10px; display: block;">
+                    ${subscriptionType === 'trial' ? 
+                        '⚠️ Your first month free trial has ended. You need coins to continue. If you don\'t have coins, your parents will need to pay $1000 JMD to regain access.' : 
+                        'Renew to continue learning'}
+                </span>
+            `;
             renewSection.style.display = 'block';
         } else if (daysLeft <= 7) {
             // Expiring soon
             statusIcon.textContent = '⚠️';
             statusTitle.textContent = 'Expiring Soon';
-            statusText.textContent = `Expires in ${daysLeft} day${daysLeft !== 1 ? 's' : ''} (${subscriptionExpiry.toLocaleDateString()})`;
+            statusText.innerHTML = `
+                Expires: ${formatDate(subscriptionExpiry)} (${daysLeft} day${daysLeft !== 1 ? 's' : ''} remaining)
+                ${subscriptionType === 'trial' ? 
+                    '<br><span style="font-size: 0.85rem; opacity: 0.8; margin-top: 8px; display: block;">⚠️ This is your first month free trial. After it expires, you\'ll need coins to continue. If you don\'t have coins, your parents will need to pay $1000 JMD.</span>' : 
+                    ''}
+            `;
             renewSection.style.display = 'block';
         } else {
             // Active
             statusIcon.textContent = '🔓';
-            statusTitle.textContent = 'Active Subscription';
-            statusText.textContent = `Expires: ${subscriptionExpiry.toLocaleDateString()} (${daysLeft} days left)`;
+            statusTitle.textContent = subscriptionType === 'trial' ? 'Free Trial Active' : 'Active Subscription';
+            statusText.innerHTML = `
+                Expires: ${formatDate(subscriptionExpiry)} (${daysLeft} days left)
+                ${subscriptionType === 'trial' ? 
+                    '<br><span style="font-size: 0.85rem; opacity: 0.8; margin-top: 8px; display: block;">⚠️ This is your first month free trial. After it expires, you\'ll need coins to continue. If you don\'t have coins, your parents will need to pay $1000 JMD.</span>' : 
+                    ''}
+            `;
             renewSection.style.display = 'none';
         }
         
