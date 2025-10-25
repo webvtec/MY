@@ -10073,7 +10073,7 @@ async function loadSpellingLeaderboard() {
         
         console.log('🏆 Fetching leaderboard from Firestore...');
         
-        // Fetch top 100 students ordered by spellingWins
+        // Fetch top 100 students ordered by spellingWins (requires index)
         const leaderboardSnapshot = await db.collection('users')
             .where('userType', '==', 'student')
             .orderBy('spellingWins', 'desc')
@@ -10085,9 +10085,14 @@ async function loadSpellingLeaderboard() {
         leaderboardData = [];
         leaderboardSnapshot.forEach(doc => {
             const data = doc.data();
-            // Only include players with at least 1 win
-            if (data.spellingWins && data.spellingWins > 0) {
-                leaderboardData.push({ id: doc.id, ...data });
+            const spellingWins = data.spellingWins || 0;
+            
+            if (spellingWins > 0) {
+                leaderboardData.push({ 
+                    id: doc.id, 
+                    ...data,
+                    spellingWins: spellingWins
+                });
             }
         });
         
@@ -10128,24 +10133,44 @@ async function loadSpellingLeaderboard() {
         
         // Check if it's an index error
         if (error.code === 'failed-precondition' || error.message.includes('index')) {
+            console.error('📋 INDEX CREATION LINK:', error.message);
+            
             container.innerHTML = `
-                <div style="background: #fff3cd; padding: 25px; border-radius: 10px; border-left: 4px solid #ffc107; color: #856404;">
-                    <h3 style="color: #856404; margin-bottom: 15px;">⚙️ Setting Up Leaderboard...</h3>
-                    <p style="margin-bottom: 15px;">
-                        The leaderboard database index is being created. This is a one-time setup that takes a few minutes.
-                    </p>
-                    <p style="margin-bottom: 15px;">
-                        <strong>What to do:</strong>
-                    </p>
-                    <ol style="margin-left: 20px; line-height: 1.8;">
-                        <li>Click the link in your browser console (F12 → Console tab)</li>
-                        <li>Or go to <a href="https://console.firebase.google.com" target="_blank" style="color: #0d3b66; font-weight: bold;">Firebase Console</a></li>
-                        <li>The index will be created automatically</li>
-                        <li>Wait 2-5 minutes, then refresh this page</li>
-                    </ol>
-                    <p style="margin-top: 20px; font-style: italic;">
-                        ℹ️ This only needs to be done once for your entire app.
-                    </p>
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 15px; color: white; box-shadow: 0 10px 30px rgba(0,0,0,0.2);">
+                    <h3 style="color: white; margin-bottom: 20px; font-size: 1.8rem;">🔧 One-Time Setup Required</h3>
+                    
+                    <div style="background: rgba(255,255,255,0.15); padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                        <p style="font-size: 1.1rem; line-height: 1.8; margin-bottom: 15px;">
+                            Your leaderboard needs a database index to work super fast! This is a one-time setup.
+                        </p>
+                        <p style="font-size: 1rem; opacity: 0.9;">
+                            ⏱️ Takes 2-5 minutes • ✅ Only do this once • 🚀 Makes leaderboard lightning fast
+                        </p>
+                    </div>
+                    
+                    <div style="background: white; padding: 25px; border-radius: 10px; color: #0d3b66; margin-bottom: 20px;">
+                        <h4 style="margin-bottom: 15px; color: #0d3b66;">Follow These Steps:</h4>
+                        <ol style="line-height: 2; padding-left: 20px; font-size: 1rem;">
+                            <li><strong>Open your browser console</strong> (Press F12 or Right-click → Inspect)</li>
+                            <li><strong>Click on the "Console" tab</strong> at the top</li>
+                            <li><strong>Look for a blue link</strong> that says "https://console.firebase.google.com..."</li>
+                            <li><strong>Click that link</strong> - it will open Firebase Console</li>
+                            <li><strong>Click "Create Index"</strong> on the page that opens</li>
+                            <li><strong>Wait 2-5 minutes</strong> for the index to be created</li>
+                            <li><strong>Come back here and click "Check Again"</strong></li>
+                        </ol>
+                    </div>
+                    
+                    <div style="text-align: center; margin-top: 25px;">
+                        <button class="practice-btn" onclick="loadSpellingLeaderboard()" 
+                                style="font-size: 1.2rem; padding: 18px 40px; background: #FFD700; color: #0d3b66; border: none; font-weight: bold;">
+                            🔄 Check Again
+                        </button>
+                    </div>
+                    
+                    <div style="margin-top: 20px; padding: 15px; background: rgba(255,255,255,0.1); border-radius: 8px; font-size: 0.95rem; opacity: 0.9;">
+                        <strong>💡 Tip:</strong> If you can't find the link in console, I can show you the direct URL to copy!
+                    </div>
                 </div>
             `;
         } else {
@@ -10162,6 +10187,7 @@ async function loadSpellingLeaderboard() {
     }
 }
 
+        
 function displayLeaderboardTable() {
     const container = document.getElementById('leaderboard-container');
     
