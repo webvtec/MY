@@ -3895,10 +3895,10 @@ const MAX_COINS = 1000;
 document.addEventListener('DOMContentLoaded', function() {
     initializeAlphabet();
     initializeSpeechRecognition();
-
+    
     // ✅ Cleanup old challenges on page load
     cleanupOldChallenges();
-
+    
     // ✅ ADD SCROLL LISTENER FOR COIN DISPLAY
     window.addEventListener('scroll', function() {
         const coinDisplay = document.getElementById('coinDisplay');
@@ -3910,29 +3910,51 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     });
-
+    
     document.getElementById('searchInput').addEventListener('keypress', function(e) {
         if (e.key === 'Enter') searchWord();
     });
+    
+    // ✅ ADD MODAL CLOSE HANDLERS
+    document.addEventListener('click', function(event) {
+        // Close coach detail modal
+        const coachModal = document.getElementById('coachDetailModal');
+        if (event.target === coachModal) {
+            closeCoachDetailModal();
+        }
+        
+        // Close student detail modal
+        const studentModal = document.getElementById('studentDetailModal');
+        if (event.target === studentModal) {
+            closeStudentDetailModal();
+        }
+        
+        // Close leaderboard player modal
+        const leaderboardModal = document.getElementById('leaderboardPlayerModal');
+        if (event.target === leaderboardModal) {
+            closeLeaderboardPlayerModal();
+        }
+    });
+    
     auth.onAuthStateChanged(async user => {
         if (user) {
             currentUser = user;
-
+            
             console.log('👤 User signed in:', user.email);
             console.log('🖼️ Auth photoURL:', user.photoURL);
-
+            
             const userRef = db.collection('users').doc(user.uid);
             const userDoc = await userRef.get();
-
+            
             if (!userDoc.exists) {
                 await auth.signOut();
                 alert('Account error. Please sign up again.');
                 return;
             }
-
+            
             const userData = userDoc.data();
             console.log('📄 Firestore photoURL:', userData.photoURL);
-
+            
             if (user.photoURL && !userData.photoURL) {
                 console.log('🔄 Syncing photoURL to Firestore...');
                 await userRef.update({
@@ -3940,29 +3962,45 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
                 console.log('✅ PhotoURL synced!');
             }
-
+            
+            // ✅ INITIALIZE SPELLING STATS IF NOT EXISTS
+            if (!userData.spellingStats) {
+                console.log('🔄 Initializing spelling stats...');
+                await userRef.update({
+                    spellingStats: {
+                        totalChallenges: 0,
+                        wins: 0,
+                        losses: 0,
+                        totalScore: 0,
+                        winStreak: 0,
+                        bestStreak: 0
+                    }
+                });
+                console.log('✅ Spelling stats initialized!');
+            }
+            
             if (!userData.profileComplete) {
                 showVerificationModal(userData);
                 return;
             }
-
+            
             updateUIForAuthenticatedUser(user);
-
+            
             // ✅ LOAD USER COINS
             await loadUserCoins(user.uid);
-
+            
             await cleanupInvalidFavorites();
-
+            
             await Promise.all([
                 loadUserFavorites(user.uid),
                 loadUserIncorrect(user.uid),
                 loadUserSpellingFavorites(user.uid),
                 loadUserSpellingIncorrect(user.uid)
             ]);
-
+            
             // ✅ Initialize presence immediately on login
             await initializeOnlinePresence();
-
+            
             if (document.getElementById('student-dashboard-section').classList.contains('active')) {
                 loadUserDashboard();
             }
@@ -3970,7 +4008,7 @@ document.addEventListener('DOMContentLoaded', function() {
             currentUser = null;
             updateUIForGuestUser();
         }
-});
+    });
 });
   
         
