@@ -7643,13 +7643,27 @@ async function saveProfile() {
         document.getElementById('display-age').textContent = newAge;
         document.getElementById('display-country').textContent = newCountry;
         
-        document.getElementById('dashboard-student-name').textContent = newName;
+        // Update dashboard header
         document.getElementById('dashboard-name').textContent = newName;
-        document.getElementById('dashboard-avatar').textContent = newName.charAt(0).toUpperCase();
+        const dashboardAvatar = document.getElementById('dashboard-avatar');
+        if (currentUser.photoURL) {
+            dashboardAvatar.style.backgroundImage = `url(${currentUser.photoURL})`;
+            dashboardAvatar.textContent = '';
+        } else {
+            dashboardAvatar.style.backgroundImage = 'none';
+            dashboardAvatar.textContent = newName.charAt(0).toUpperCase();
+        }
         
         // Update sidebar
         document.getElementById('sidebarUserName').textContent = newName;
-        document.getElementById('sidebarUserAvatar').textContent = newName.charAt(0).toUpperCase();
+        const sidebarAvatar = document.getElementById('sidebarUserAvatar');
+        if (currentUser.photoURL) {
+            sidebarAvatar.style.backgroundImage = `url(${currentUser.photoURL})`;
+            sidebarAvatar.textContent = '';
+        } else {
+            sidebarAvatar.style.backgroundImage = 'none';
+            sidebarAvatar.textContent = newName.charAt(0).toUpperCase();
+        }
         
         cancelEditMode();
         alert('Profile updated successfully!');
@@ -7658,7 +7672,6 @@ async function saveProfile() {
         alert('Failed to update profile: ' + error.message);
     }
 }
-
 
         function showChangePasswordModal() {
     alert('Change password feature coming soon! For now, you can reset your password using the "Forgot Password" link on the sign-in page.');
