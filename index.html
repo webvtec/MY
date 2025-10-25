@@ -11329,7 +11329,697 @@ async function startLiveQuizChallenge(challengeId) {
         });
         
         loadQuizChallengeQuestion();
-    } catch (error)       
+    } catch (error) {
+        console.error('Error starting quiz challenge:', error);
+        alert('Failed to start quiz challenge: ' + error.message);
+    }
+}
+
+function loadQuizChallengeQuestion() {
+    if (!quizChallengeWords || quizChallengeWords.length === 0) {
+        alert('No questions available for challenge');
+        return;
+    }
+    
+    const question = quizChallengeWords[currentQuizChallengeIndex];
+    const container = document.getElementById('live-quiz-challenge-container');
+    
+    if (!container) {
+        console.error('❌ live-quiz-challenge-container not found');
+        return;
+    }
+    
+    const opponentName = activeQuizChallenge.challenger.id === currentUser.uid ? 
+        activeQuizChallenge.opponent.name : activeQuizChallenge.challenger.name;
+    
+    container.innerHTML = `
+        <div style="background: white; padding: 30px; border-radius: 15px; box-shadow: 0 5px 25px rgba(0,0,0,0.1);">
+            <h2 style="color: #0d3b66; margin-bottom: 20px; text-align: center;">🎯 Live Quiz Battle!</h2>
+            
+            <div class="challenge-score-card">
+                <div class="player-score">
+                    <div class="name">You</div>
+                    <div class="score">${myQuizScore}</div>
+                </div>
+                <div style="font-size: 2rem; align-self: center;">VS</div>
+                <div class="player-score">
+                    <div class="name">${opponentName}</div>
+                    <div class="score">${opponentQuizScore}</div>
+                </div>
+            </div>
+            
+            <div class="quiz-question-card">
+                <h3>Question ${currentQuizChallengeIndex + 1} of ${quizChallengeWords.length}</h3>
+                <p style="font-size: 1.3rem; margin: 20px 0;"><strong>${question.question}</strong></p>
+                <div class="quiz-options">
+                    ${question.options.map((option, index) => `
+                        <div class="quiz-option" onclick="submitQuizChallengeAnswer(${index})">
+                            ${option}
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+            
+            <div style="text-align: center; margin-top: 20px;">
+                <button class="practice-btn" onclick="exitQuizChallenge()" style="background: #dc3545;">
+                    🚪 Exit Challenge
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+async function submitQuizChallengeAnswer(selectedIndex) {
+    const question = quizChallengeWords[currentQuizChallengeIndex];
+    const options = document.querySelectorAll('.quiz-option');
+    
+    options.forEach(opt => opt.style.pointerEvents = 'none');
+    
+    const isCorrect = selectedIndex === question.correctAnswer;
+    
+    if (isCorrect) {
+        myQuizScore++;
+        options[selectedIndex].classList.add('correct');
+    } else {
+        options[selectedIndex].classList.add('wrong');
+        options[question.correctAnswer].classList.add('correct');
+    }
+    
+    try {
+        const challengeRef = db.collection('quizChallenges').doc(activeQuizChallenge.id);
+        const scoreKey = `scores.${currentUser.uid}`;
+        const completedKey = `completed.${currentUser.uid}`;
+        
+        await challengeRef.update({
+            [scoreKey]: myQuizScore,
+            [`lastAnswerTime.${currentUser.uid}`]: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        currentQuizChallengeIndex++;
+        
+        if (currentQuizChallengeIndex >= quizChallengeWords.length) {
+            await challengeRef.update({
+                [completedKey]: true
+            });
+            
+            const challengeDoc = await challengeRef.get();
+            const challengeData = challengeDoc.data();
+            const opponentId = activeQuizChallenge.challenger.id === currentUser.uid ? 
+                activeQuizChallenge.opponent.id : activeQuizChallenge.challenger.id;
+            
+            if (challengeData.completed && challengeData.completed[opponentId]) {
+                await challengeRef.update({
+                    status: 'completed',
+                    endReason: 'finished',
+                    endedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            } else {
+                showWaitingForQuizOpponent();
+            }
+        } else {
+            setTimeout(() => {
+                loadQuizChallengeQuestion();
+            }, 2000);
+        }
+    } catch (error) {
+        console.error('Error updating quiz score:', error);
+    }
+}
+
+function showWaitingForQuizOpponent() {
+    const container = document.getElementById('live-quiz-challenge-container');
+    
+    if (!container) {
+        console.error('❌ live-quiz-challenge-container not found');
+        return;
+    }
+    
+    const opponentName = activeQuizChallenge.challenger.id === currentUser.uid ? 
+        activeQuizChallenge.opponent.name : activeQuizChallenge.challenger.name;
+    
+    container.innerHTML = `
+        <div style="background: white; padding: 40px; border-radius: 15px; box-shadow: 0 5px 25px rgba(0,0,0,0.1); text-align: center;">
+            <div style="font-size: 4rem; margin: 20px 0; animation: pulse 2s infinite;">⏳</div>
+            <h2 style="color: #0d3b66; font-size: 2rem; margin-bottom: 20px;">
+                Waiting for ${opponentName}...
+            </h2>
+            <p style="font-size: 1.2rem; color: #666; margin: 20px 0;">
+                You've completed all questions! <br>
+                Waiting for your opponent to finish.
+            </p>
+            
+            <div class="challenge-score-card">
+                <div class="player-score">
+                    <div class="name">Your Score</div>
+                    <div class="score">${myQuizScore}</div>
+                </div>
+            </div>
+            
+            <div style="margin-top: 30px;">
+                <div class="loading">Challenge will end when both players finish...</div>
+            </div>
+        </div>
+    `;
+}
+
+async function showQuizChallengeResults(challenge) {
+    const myId = currentUser.uid;
+    const opponentId = challenge.challenger.id === myId ? challenge.opponent.id : challenge.challenger.id;
+    
+    const myFinalScore = challenge.scores[myId] || 0;
+    const opponentFinalScore = challenge.scores[opponentId] || 0;
+    
+    const won = myFinalScore > opponentFinalScore;
+    const tied = myFinalScore === opponentFinalScore;
+    
+    // Update quiz stats
+    try {
+        const userRef = db.collection('users').doc(myId);
+        const userDoc = await userRef.get();
+        const currentStats = userDoc.data().quizStats || {
+            totalChallenges: 0,
+            wins: 0,
+            losses: 0,
+            totalScore: 0,
+            winStreak: 0,
+            bestStreak: 0
+        };
+        
+        let newStats = {
+            totalChallenges: currentStats.totalChallenges + 1,
+            wins: currentStats.wins + (won ? 1 : 0),
+            losses: currentStats.losses + (tied ? 0 : (won ? 0 : 1)),
+            totalScore: currentStats.totalScore + myFinalScore,
+            winStreak: won ? currentStats.winStreak + 1 : 0,
+            bestStreak: won ? Math.max(currentStats.bestStreak, currentStats.winStreak + 1) : currentStats.bestStreak,
+            lastPlayed: firebase.firestore.FieldValue.serverTimestamp()
+        };
+        
+        await userRef.update({
+            quizStats: newStats
+        });
+        
+        console.log('✅ Quiz stats updated:', newStats);
+    } catch (error) {
+        console.error('Error updating quiz stats:', error);
+    }
+    
+    // Award coins for win
+    if (won) {
+        await awardCoins(COINS_PER_WIN);
+    }
+    
+    const container = document.getElementById('live-quiz-challenge-container');
+    
+    if (!container) {
+        console.error('❌ live-quiz-challenge-container not found');
+        return;
+    }
+    
+    container.innerHTML = `
+        <div style="background: white; padding: 40px; border-radius: 15px; box-shadow: 0 5px 25px rgba(0,0,0,0.1); text-align: center;">
+            <div style="font-size: 4rem; margin: 20px 0;">
+                ${won ? '🏆' : tied ? '🤝' : '😔'}
+            </div>
+            <h2 style="color: #0d3b66; font-size: 2.5rem; margin-bottom: 20px;">
+                ${won ? 'Victory!' : tied ? "It's a Tie!" : 'Better Luck Next Time'}
+            </h2>
+            
+            ${won ? `
+                <div style="background: linear-gradient(135deg, #FFD700, #FFA500); padding: 20px; border-radius: 15px; margin: 20px 0;">
+                    <h3 style="color: #0d3b66; font-size: 1.5rem; margin-bottom: 10px;">🪙 Coins Earned!</h3>
+                    <p style="color: #0d3b66; font-size: 2rem; font-weight: bold;">+${COINS_PER_WIN} Coins</p>
+                    <p style="color: #0d3b66; font-size: 1rem; margin-top: 5px;">Total: ${userCoins} / ${MAX_COINS}</p>
+                </div>
+            ` : ''}
+            
+            <div class="challenge-score-card">
+                <div class="player-score">
+                    <div class="name">You</div>
+                    <div class="score">${myFinalScore}</div>
+                </div>
+                <div style="font-size: 2rem; align-self: center;">-</div>
+                <div class="player-score">
+                    <div class="name">Opponent</div>
+                    <div class="score">${opponentFinalScore}</div>
+                </div>
+            </div>
+            
+            <div style="margin-top: 20px;">
+                <button class="practice-btn" onclick="navigateTo('quiz'); switchQuizMode('leaderboard');" style="background: #667eea; margin: 5px;">
+                    📊 View Leaderboard
+                </button>
+                <button class="practice-btn" onclick="exitQuizChallenge()" style="margin: 5px;">
+                    🏠 Back to Lobby
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+function showQuizChallengeAbandoned(challenge) {
+    const container = document.getElementById('live-quiz-challenge-container');
+    
+    if (!container) {
+        console.error('❌ live-quiz-challenge-container not found');
+        return;
+    }
+    
+    const iWon = challenge.winner === currentUser.uid;
+    
+    let message = '';
+    if (challenge.endReason === 'opponent_left') {
+        message = 'Your opponent left the challenge.';
+    } else if (challenge.endReason === 'opponent_offline') {
+        message = 'Your opponent went offline.';
+    } else {
+        message = 'The challenge was cancelled.';
+    }
+    
+    container.innerHTML = `
+        <div style="background: white; padding: 40px; border-radius: 15px; box-shadow: 0 5px 25px rgba(0,0,0,0.1); text-align: center;">
+            <div style="font-size: 4rem; margin: 20px 0;">${iWon ? '🏆' : '🚫'}</div>
+            <h2 style="color: #0d3b66; font-size: 2rem; margin-bottom: 15px;">Challenge Ended</h2>
+            <p style="font-size: 1.2rem; margin: 20px 0; color: #666;">
+                ${message}
+            </p>
+            
+            <div class="challenge-score-card">
+                <div class="player-score">
+                    <div class="name">Your Score</div>
+                    <div class="score">${myQuizScore}</div>
+                </div>
+            </div>
+            
+            ${iWon ? `
+                <p style="margin: 20px 0; font-size: 1.5rem; color: #28a745; font-weight: bold;">
+                    🎉 You win by default!
+                </p>
+            ` : `
+                <p style="margin: 20px 0; font-size: 1.2rem; color: #dc3545; font-weight: bold;">
+                    You left the challenge
+                </p>
+            `}
+            
+            <button class="practice-btn" onclick="exitQuizChallenge()" style="margin-top: 30px; font-size: 1.2rem; padding: 15px 40px;">
+                🏠 Back to Lobby
+            </button>
+        </div>
+    `;
+}
+
+async function exitQuizChallenge() {
+    try {
+        if (activeQuizChallenge && activeQuizChallenge.status === 'active') {
+            const challengeDoc = await db.collection('quizChallenges').doc(activeQuizChallenge.id).get();
+            const challengeData = challengeDoc.data();
+            
+            const userCompleted = challengeData.completed && challengeData.completed[currentUser.uid];
+            
+            if (!userCompleted) {
+                const opponentId = activeQuizChallenge.challenger.id === currentUser.uid ? 
+                    activeQuizChallenge.opponent.id : activeQuizChallenge.challenger.id;
+                
+                await db.collection('quizChallenges').doc(activeQuizChallenge.id).update({
+                    status: 'abandoned',
+                    endReason: 'opponent_left',
+                    winner: opponentId,
+                    loser: currentUser.uid,
+                    endedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                
+                console.log('✅ Quiz challenge abandoned - opponent wins');
+            } else {
+                console.log('✅ User completed quiz challenge, just returning to lobby');
+            }
+        }
+    } catch (error) {
+        console.error('Error updating quiz challenge on exit:', error);
+    }
+    
+    clearChallengeTimers();
+    
+    activeQuizChallenge = null;
+    quizChallengeWords = [];
+    currentQuizChallengeIndex = 0;
+    myQuizScore = 0;
+    opponentQuizScore = 0;
+    shownQuizPopupIds.clear();
+    
+    const onlineUsersSection = document.getElementById('quiz-online-users-section');
+    const incomingChallengesSection = document.getElementById('quiz-incoming-challenges-section');
+    
+    if (onlineUsersSection) {
+        onlineUsersSection.style.display = 'block';
+    }
+    
+    if (incomingChallengesSection) {
+        incomingChallengesSection.style.display = 'none';
+    }
+    
+    const liveQuizMode = document.getElementById('live-quiz-mode');
+    if (!liveQuizMode) {
+        console.error('❌ live-quiz-mode not found');
+        return;
+    }
+    
+    let welcomeSection = liveQuizMode.querySelector('.welcome-section');
+    
+    if (!welcomeSection) {
+        welcomeSection = document.createElement('div');
+        welcomeSection.className = 'welcome-section';
+        liveQuizMode.appendChild(welcomeSection);
+    }
+    
+    welcomeSection.innerHTML = `
+        <h2>⚡ Live Quiz Challenges</h2>
+        <p style="margin: 20px 0;">Challenge other students to vocabulary quiz battles in real-time!</p>
+        
+        <!-- Online Users Section -->
+        <div id="quiz-online-users-section">
+            <h3 style="color: #0d3b66; margin: 20px 0;">👥 Online Students (<span id="quiz-online-count">0</span>)</h3>
+            <div id="quiz-online-users-list" class="favorites-grid">
+                <div class="loading">Loading online users...</div>
+            </div>
+        </div>
+        
+        <!-- Incoming Challenges -->
+        <div id="quiz-incoming-challenges-section" style="margin-top: 30px; display: none;">
+            <h3 style="color: #dc3545; margin: 20px 0;">⚡ Incoming Quiz Challenges</h3>
+            <div id="quiz-incoming-challenges-list"></div>
+        </div>
+    `;
+    
+    loadQuizOnlineUsers();
+}
+
+// Quiz Leaderboard Functions
+async function loadQuizLeaderboard() {
+    const container = document.getElementById('quiz-leaderboard-container');
+    
+    if (!container) {
+        console.error('❌ Quiz leaderboard container not found');
+        return;
+    }
+    
+    try {
+        container.innerHTML = '<div class="loading">📊 Loading quiz leaderboard...</div>';
+        
+        const usersSnapshot = await db.collection('users')
+            .where('quizStats.wins', '>', 0)
+            .orderBy('quizStats.wins', 'desc')
+            .limit(50)
+            .get();
+        
+        if (usersSnapshot.empty) {
+            container.innerHTML = `
+                <div style="text-align: center; padding: 40px; color: #666;">
+                    <div style="font-size: 3rem; margin-bottom: 20px;">🏆</div>
+                    <h3>No ranked players yet</h3>
+                    <p>Be the first to win a quiz challenge!</p>
+                </div>
+            `;
+            return;
+        }
+        
+        const players = [];
+        usersSnapshot.forEach(doc => {
+            const data = doc.data();
+            if (data.quizStats) {
+                players.push({
+                    id: doc.id,
+                    name: data.name,
+                    email: data.email,
+                    photoURL: data.photoURL,
+                    country: data.country,
+                    age: data.age,
+                    createdAt: data.createdAt,
+                    stats: data.quizStats
+                });
+            }
+        });
+        
+        players.sort((a, b) => {
+            if (b.stats.wins !== a.stats.wins) {
+                return b.stats.wins - a.stats.wins;
+            }
+            const aWinRate = a.stats.wins / a.stats.totalChallenges;
+            const bWinRate = b.stats.wins / b.stats.totalChallenges;
+            return bWinRate - aWinRate;
+        });
+        
+        const myRank = players.findIndex(p => p.id === currentUser?.uid) + 1;
+        
+        container.innerHTML = `
+            ${currentUser && myRank > 0 ? `
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 15px; margin-bottom: 25px; color: white; text-align: center;">
+                    <h3 style="margin: 0 0 10px 0; color: white;">🎯 Your Rank</h3>
+                    <p style="font-size: 2.5rem; margin: 10px 0; font-weight: bold;">#${myRank}</p>
+                    <p style="margin: 5px 0; opacity: 0.9;">
+                        ${players[myRank - 1].stats.wins} Wins • 
+                        ${players[myRank - 1].stats.totalChallenges} Challenges
+                    </p>
+                </div>
+            ` : ''}
+            
+            <div class="coaches-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="text-align: center;">🏆 Rank</th>
+                            <th>👤 Player</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${players.map((player, index) => {
+                            const isCurrentUser = currentUser && player.id === currentUser.uid;
+                            
+                            let rankEmoji = '';
+                            if (index === 0) rankEmoji = '🥇';
+                            else if (index === 1) rankEmoji = '🥈';
+                            else if (index === 2) rankEmoji = '🥉';
+                            
+                            let avatarHTML = '';
+                            if (player.photoURL) {
+                                avatarHTML = `<div style="width: 45px; height: 45px; min-width: 45px; border-radius: 50%; background-image: url('${player.photoURL}'); background-size: cover; background-position: center;"></div>`;
+                            } else {
+                                const initial = (player.name || 'P').charAt(0).toUpperCase();
+                                avatarHTML = `<div class="coach-avatar" style="width: 45px; height: 45px; min-width: 45px;">${initial}</div>`;
+                            }
+                            
+                            return `
+                                <tr onclick="showQuizLeaderboardPlayerDetail('${player.id}', ${index + 1})" style="cursor: pointer; ${isCurrentUser ? 'background: #e3f2fd;' : ''}">
+                                    <td style="text-align: center; font-size: 1.3rem; font-weight: bold; color: #0d3b66;">
+                                        ${rankEmoji || (index + 1)}
+                                    </td>
+                                    <td>
+                                        <div class="coach-profile-cell">
+                                            ${avatarHTML}
+                                            <div class="coach-name">${player.name}${isCurrentUser ? ' (You)' : ''}</div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            </div>
+            
+            <div style="margin-top: 30px; padding: 20px; background: #e3f2fd; border-radius: 10px; border-left: 4px solid #0d3b66;">
+                <h3 style="color: #0d3b66; margin-bottom: 10px;">🏆 How Rankings Work</h3>
+                <p style="color: #666; line-height: 1.6;">
+                    • Players are ranked by <strong>total wins</strong> in live quiz challenges<br>
+                    • Click on any player to view their detailed stats<br>
+                    • Challenge top players to climb the leaderboard!
+                </p>
+            </div>
+        `;
+        
+    } catch (error) {
+        console.error('❌ Error loading quiz leaderboard:', error);
+        container.innerHTML = `
+            <div class="feedback error">
+                ❌ Error loading leaderboard. Please try refreshing the page.
+                <br><br>
+                <strong>Error details:</strong> ${error.message}
+                <br><br>
+                <button class="practice-btn" onclick="loadQuizLeaderboard()">🔄 Retry</button>
+            </div>
+        `;
+    }
+}
+
+async function showQuizLeaderboardPlayerDetail(playerId, rank) {
+    try {
+        console.log('📋 Loading quiz player details for:', playerId);
+        const playerDoc = await db.collection('users').doc(playerId).get();
+        
+        if (!playerDoc.exists) {
+            console.error('❌ Player not found');
+            alert('Player profile not found');
+            return;
+        }
+        
+        const player = { id: playerDoc.id, ...playerDoc.data() };
+        console.log('Player data loaded:', player);
+        
+        const modal = document.getElementById('quizLeaderboardPlayerModal');
+        
+        const studentId = `WB-2025-${player.id.slice(-4).toUpperCase()}`;
+        
+        const stats = player.quizStats || {
+            wins: 0,
+            losses: 0,
+            totalChallenges: 0,
+            winStreak: 0,
+            bestStreak: 0,
+            totalScore: 0
+        };
+        
+        const winRate = stats.totalChallenges > 0 
+            ? ((stats.wins / stats.totalChallenges) * 100).toFixed(1) 
+            : '0.0';
+        
+        let rankEmoji = '';
+        if (rank === 1) rankEmoji = '🥇';
+        else if (rank === 2) rankEmoji = '🥈';
+        else if (rank === 3) rankEmoji = '🥉';
+        
+        const avatar = document.getElementById('modal-quiz-leaderboard-avatar');
+        if (player.photoURL) {
+            console.log('🖼️ Setting photo URL:', player.photoURL);
+            avatar.style.backgroundImage = `url('${player.photoURL}')`;
+            avatar.style.backgroundSize = 'cover';
+            avatar.style.backgroundPosition = 'center';
+            avatar.textContent = '';
+        } else {
+            console.log('🔤 No photo URL, using initial');
+            avatar.style.backgroundImage = 'none';
+            avatar.textContent = (player.name || 'P').charAt(0).toUpperCase();
+        }
+        
+        document.getElementById('modal-quiz-leaderboard-name').textContent = player.name || 'Player';
+        document.getElementById('modal-quiz-leaderboard-rank').innerHTML = `${rankEmoji} Rank #${rank}`;
+        document.getElementById('modal-quiz-leaderboard-id').textContent = studentId;
+        document.getElementById('modal-quiz-leaderboard-email').textContent = player.email || 'N/A';
+        document.getElementById('modal-quiz-leaderboard-country').textContent = player.country || 'N/A';
+        
+        const ageRow = document.getElementById('modal-quiz-leaderboard-age-row');
+        if (player.age) {
+            ageRow.style.display = 'flex';
+            document.getElementById('modal-quiz-leaderboard-age').textContent = player.age + ' years old';
+        } else {
+            ageRow.style.display = 'none';
+        }
+        
+        if (player.createdAt) {
+            const joinDate = player.createdAt.toDate();
+            document.getElementById('modal-quiz-leaderboard-joined').textContent = 
+                joinDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+        } else {
+            document.getElementById('modal-quiz-leaderboard-joined').textContent = 'Recently';
+        }
+        
+        document.getElementById('modal-quiz-leaderboard-wins').textContent = stats.wins;
+        document.getElementById('modal-quiz-leaderboard-losses').textContent = stats.losses;
+        document.getElementById('modal-quiz-leaderboard-total').textContent = stats.totalChallenges;
+        document.getElementById('modal-quiz-leaderboard-winrate').textContent = winRate + '%';
+        document.getElementById('modal-quiz-leaderboard-streak').textContent = stats.winStreak > 0 ? '🔥 ' + stats.winStreak : '-';
+        document.getElementById('modal-quiz-leaderboard-best').textContent = stats.bestStreak;
+        
+        modal.classList.add('active');
+        console.log('Modal displayed');
+        
+    } catch (error) {
+       console.error('❌ Error loading quiz player details:', error);
+        alert('Unable to load player details: ' + error.message);
+    }
+}
+
+function closeQuizLeaderboardPlayerModal() {
+    document.getElementById('quizLeaderboardPlayerModal').classList.remove('active');
+}
+
+// Initialize quiz listeners when switching to live mode
+document.addEventListener('DOMContentLoaded', function() {
+    // Listen for quiz challenges when user signs in
+    auth.onAuthStateChanged(user => {
+        if (user) {
+            listenForQuizChallenges();
+            listenForMyQuizChallengesAccepted();
+        }
+    });
+});
+
+// Cleanup old quiz challenges on page load
+async function cleanupOldQuizChallenges() {
+    if (!currentUser) {
+        console.log('⏭️ Skipping quiz challenge cleanup - no user logged in');
+        return;
+    }
+    
+    try {
+        const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        
+        const myQuizChallenges = await db.collection('quizChallenges')
+            .where('createdAt', '<', firebase.firestore.Timestamp.fromDate(oneDayAgo))
+            .get();
+        
+        const deletePromises = [];
+        myQuizChallenges.docs.forEach(doc => {
+            const data = doc.data();
+            if (data.challenger?.id === currentUser.uid || data.opponent?.id === currentUser.uid) {
+                deletePromises.push(doc.ref.delete());
+            }
+        });
+        
+        if (deletePromises.length > 0) {
+            await Promise.all(deletePromises);
+            console.log(`🧹 Cleaned up ${deletePromises.length} old quiz challenges`);
+        }
+    } catch (error) {
+        console.log('ℹ️ Could not cleanup old quiz challenges (this is normal):', error.message);
+    }
+}
+
+// Check quiz challenger presence every 10 seconds
+setInterval(async () => {
+    if (!currentUser) return;
+    
+    try {
+        const pendingQuizChallenges = await db.collection('quizChallenges')
+            .where('opponent.id', '==', currentUser.uid)
+            .where('status', '==', 'pending')
+            .get();
+        
+        for (const doc of pendingQuizChallenges.docs) {
+            const challenge = doc.data();
+            const challengerId = challenge.challenger.id;
+            
+            const challengerPresence = await db.collection('onlineUsers').doc(challengerId).get();
+            
+            if (!challengerPresence.exists) {
+                console.log('🚫 Quiz challenger offline - removing challenge:', doc.id);
+                await doc.ref.delete();
+                
+                const popup = document.getElementById('quiz-challenge-popup-notification');
+                if (popup) popup.remove();
+                
+                shownQuizPopupIds.delete(doc.id);
+            }
+        }
+    } catch (error) {
+        console.error('Error checking quiz challenger presence:', error);
+    }
+}, 10000);
+
+// Call cleanup on page load
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(() => {
+        cleanupOldChallenges();
+        cleanupOldQuizChallenges();
+    }, 2000);
+});
     </script>
 </body>
 </html>
