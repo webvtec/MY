@@ -8600,6 +8600,7 @@ function displayOnlineUsers(users) {
 }
 
 // ===== REPLACE THE sendChallenge FUNCTION =====
+// ===== REPLACE THE sendChallenge FUNCTION =====
 async function sendChallenge(opponentId, opponentName) {
     if (!currentUser) return;
     
@@ -8620,8 +8621,9 @@ async function sendChallenge(opponentId, opponentName) {
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
         
-        // ✅ Simple message: SENT TO [name]
+        // ✅ Show message and auto-hide after 3 seconds
         showCustomPopup(`⚔️ SENT TO ${opponentName.toUpperCase()}`);
+        setTimeout(() => hideCustomPopup(), 3000);
         
     } catch (error) {
         console.error('Error sending challenge:', error);
@@ -8629,6 +8631,7 @@ async function sendChallenge(opponentId, opponentName) {
         setTimeout(() => hideCustomPopup(), 2000);
     }
 }
+
         
 function listenForChallenges() {
     if (!currentUser) return;
