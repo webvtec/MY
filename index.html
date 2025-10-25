@@ -7017,8 +7017,7 @@ function startSpellingPractice() {
     selectedGameLevel = '';
 }
 
-     function switchSpellingMode(mode) {
-    // Update active tab
+    function switchSpellingMode(mode) {
     const tabs = document.querySelectorAll('#spelling-section .quiz-tab');
     tabs.forEach((tab, index) => {
         tab.classList.remove('active');
@@ -7030,7 +7029,6 @@ function startSpellingPractice() {
         }
     });
 
-    // Update active mode
     document.querySelectorAll('#spelling-section .quiz-mode').forEach(m => {
         m.classList.remove('active');
     });
@@ -7044,7 +7042,6 @@ function startSpellingPractice() {
         
         if (currentUser) {
             initializeOnlinePresence();
-            // ✅ Small delay to ensure DOM is ready
             setTimeout(() => loadOnlineUsers(), 100);
         } else {
             alert('Please sign in to access live challenges');
@@ -7052,7 +7049,6 @@ function startSpellingPractice() {
         }
     } else if (mode === 'leaderboard') {
         document.getElementById('leaderboard-spelling-mode').classList.add('active');
-        // ✅ LOAD LEADERBOARD WHEN SWITCHING TO THIS MODE
         loadSpellingLeaderboard();
     }
 }
@@ -9594,11 +9590,9 @@ async function showChallengeResults(challenge) {
     const won = myFinalScore > opponentFinalScore;
     const tied = myFinalScore === opponentFinalScore;
     
-    // ✅ AWARD COINS AND INCREMENT WINS FOR WINNER
     if (won) {
         await awardCoins(COINS_PER_WIN);
         
-        // ✅ INCREMENT SPELLING WINS IN FIRESTORE
         try {
             await db.collection('users').doc(myId).update({
                 spellingWins: firebase.firestore.FieldValue.increment(1)
