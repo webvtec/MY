@@ -3284,14 +3284,17 @@
 </div>
 
                 <!-- Spelling Leaderboard Mode -->
-                <div id="leaderboard-spelling-mode" class="quiz-mode">
-                    <div class="welcome-section">
-                        <h2>📊 Spelling Leaderboard</h2>
-                        <p>Coming soon! See the top spellers and track your ranking.</p>
-                    </div>
-                </div>
-            </div>
+<div id="leaderboard-spelling-mode" class="quiz-mode">
+    <div class="welcome-section">
+        <h2>📊 Spelling Leaderboard</h2>
+        <p>Top spelling champions ranked by wins and performance!</p>
+        
+        <div id="leaderboard-container" class="loading">
+            Loading leaderboard...
         </div>
+    </div>
+  </div>
+</div>
 
 
 
@@ -6865,7 +6868,7 @@ function startSpellingPractice() {
     selectedGameLevel = '';
 }
 
-      function switchSpellingMode(mode) {
+     function switchSpellingMode(mode) {
     // Update active tab
     const tabs = document.querySelectorAll('#spelling-section .quiz-tab');
     tabs.forEach((tab, index) => {
@@ -6892,7 +6895,6 @@ function startSpellingPractice() {
         
         if (currentUser) {
             initializeOnlinePresence();
-            // ✅ Small delay to ensure DOM is ready
             setTimeout(() => loadOnlineUsers(), 100);
         } else {
             alert('Please sign in to access live challenges');
@@ -6900,6 +6902,8 @@ function startSpellingPractice() {
         }
     } else if (mode === 'leaderboard') {
         document.getElementById('leaderboard-spelling-mode').classList.add('active');
+        // ✅ LOAD LEADERBOARD DATA
+        loadSpellingLeaderboard();
     }
 }
 
@@ -9440,6 +9444,38 @@ async function showChallengeResults(challenge) {
     const won = myFinalScore > opponentFinalScore;
     const tied = myFinalScore === opponentFinalScore;
     
+    // ✅ UPDATE SPELLING STATS IN FIRESTORE
+    try {
+        const userRef = db.collection('users').doc(myId);
+        const userDoc = await userRef.get();
+        const currentStats = userDoc.data().spellingStats || {
+            totalChallenges: 0,
+            wins: 0,
+            losses: 0,
+            totalScore: 0,
+            winStreak: 0,
+            bestStreak: 0
+        };
+        
+        let newStats = {
+            totalChallenges: currentStats.totalChallenges + 1,
+            wins: currentStats.wins + (won ? 1 : 0),
+            losses: currentStats.losses + (tied ? 0 : (won ? 0 : 1)),
+            totalScore: currentStats.totalScore + myFinalScore,
+            winStreak: won ? currentStats.winStreak + 1 : 0,
+            bestStreak: won ? Math.max(currentStats.bestStreak, currentStats.winStreak + 1) : currentStats.bestStreak,
+            lastPlayed: firebase.firestore.FieldValue.serverTimestamp()
+        };
+        
+        await userRef.update({
+            spellingStats: newStats
+        });
+        
+        console.log('✅ Spelling stats updated:', newStats);
+    } catch (error) {
+        console.error('Error updating spelling stats:', error);
+    }
+    
     // ✅ AWARD COINS FOR WIN
     if (won) {
         await awardCoins(COINS_PER_WIN);
@@ -9481,13 +9517,174 @@ async function showChallengeResults(challenge) {
                 </div>
             </div>
             
-            <button class="practice-btn" onclick="exitChallenge()" style="margin-top: 30px; font-size: 1.2rem; padding: 15px 40px;">
-                🏠 Back to Lobby
-            </button>
+            <div style="margin-top: 20px;">
+                <button class="practice-btn" onclick="navigateTo('spelling'); switchSpellingMode('leaderboard');" style="background: #667eea; margin: 5px;">
+                    📊 View Leaderboard
+                </button>
+                <button class="practice-btn" onclick="exitChallenge()" style="margin: 5px;">
+                    🏠 Back to Lobby
+                </button>
+            </div>
         </div>
     `;
 }
 
+
+
+// ===== SPELLING LEADERBOARD FUNCTIONS =====
+async function loadSpellingLeaderboard() {
+    const container = document.getElementById('leaderboard-container');
+    
+    if (!container) {
+        console.error('❌ Leaderboard container not found');
+        return;
+    }
+    
+    try {
+        container.innerHTML = '<div class="loading">📊 Loading leaderboard...</div>';
+        
+        // Fetch all users with spelling stats, ordered by wins
+        const usersSnapshot = await db.collection('users')
+            .where('spellingStats.wins', '>', 0)
+            .orderBy('spellingStats.wins', 'desc')
+            .limit(50)
+            .get();
+        
+        if (usersSnapshot.empty) {
+            container.innerHTML = `
+                <div style="text-align: center; padding: 40px; color: #666;">
+                    <div style="font-size: 3rem; margin-bottom: 20px;">🏆</div>
+                    <h3>No ranked players yet</h3>
+                    <p>Be the first to win a spelling challenge!</p>
+                </div>
+            `;
+            return;
+        }
+        
+        const players = [];
+        usersSnapshot.forEach(doc => {
+            const data = doc.data();
+            if (data.spellingStats) {
+                players.push({
+                    id: doc.id,
+                    name: data.name,
+                    photoURL: data.photoURL,
+                    stats: data.spellingStats
+                });
+            }
+        });
+        
+        // Sort by wins, then by win rate as tiebreaker
+        players.sort((a, b) => {
+            if (b.stats.wins !== a.stats.wins) {
+                return b.stats.wins - a.stats.wins;
+            }
+            const aWinRate = a.stats.wins / a.stats.totalChallenges;
+            const bWinRate = b.stats.wins / b.stats.totalChallenges;
+            return bWinRate - aWinRate;
+        });
+        
+        // Find current user's rank
+        const myRank = players.findIndex(p => p.id === currentUser?.uid) + 1;
+        
+        // Display leaderboard
+        container.innerHTML = `
+            ${currentUser && myRank > 0 ? `
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 15px; margin-bottom: 25px; color: white; text-align: center;">
+                    <h3 style="margin: 0 0 10px 0; color: white;">🎯 Your Rank</h3>
+                    <p style="font-size: 2.5rem; margin: 10px 0; font-weight: bold;">#${myRank}</p>
+                    <p style="margin: 5px 0; opacity: 0.9;">
+                        ${players[myRank - 1].stats.wins} Wins • 
+                        ${players[myRank - 1].stats.totalChallenges} Challenges • 
+                        ${((players[myRank - 1].stats.wins / players[myRank - 1].stats.totalChallenges) * 100).toFixed(1)}% Win Rate
+                    </p>
+                </div>
+            ` : ''}
+            
+            <div class="coaches-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>🏆 Rank</th>
+                            <th>👤 Player</th>
+                            <th>✅ Wins</th>
+                            <th>📊 Win Rate</th>
+                            <th>🔥 Streak</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${players.map((player, index) => {
+                            const winRate = ((player.stats.wins / player.stats.totalChallenges) * 100).toFixed(1);
+                            const isCurrentUser = currentUser && player.id === currentUser.uid;
+                            
+                            let rankEmoji = '';
+                            if (index === 0) rankEmoji = '🥇';
+                            else if (index === 1) rankEmoji = '🥈';
+                            else if (index === 2) rankEmoji = '🥉';
+                            
+                            let avatarHTML = '';
+                            if (player.photoURL) {
+                                avatarHTML = `<div style="width: 40px; height: 40px; border-radius: 50%; background-image: url('${player.photoURL}'); background-size: cover; background-position: center;"></div>`;
+                            } else {
+                                const initial = (player.name || 'P').charAt(0).toUpperCase();
+                                avatarHTML = `<div class="coach-avatar" style="width: 40px; height: 40px; min-width: 40px; font-size: 1rem;">${initial}</div>`;
+                            }
+                            
+                            return `
+                                <tr style="${isCurrentUser ? 'background: #e3f2fd; font-weight: bold;' : ''}">
+                                    <td style="text-align: center; font-size: 1.2rem; font-weight: bold;">
+                                        ${rankEmoji} ${index + 1}
+                                    </td>
+                                    <td>
+                                        <div class="coach-profile-cell">
+                                            ${avatarHTML}
+                                            <div class="coach-name">${player.name}${isCurrentUser ? ' (You)' : ''}</div>
+                                        </div>
+                                    </td>
+                                    <td style="text-align: center; font-weight: bold; color: #28a745; font-size: 1.1rem;">
+                                        ${player.stats.wins}
+                                    </td>
+                                    <td style="text-align: center; font-size: 1rem;">
+                                        ${winRate}%
+                                        <div style="font-size: 0.8rem; color: #666;">
+                                            ${player.stats.wins}W - ${player.stats.losses}L
+                                        </div>
+                                    </td>
+                                    <td style="text-align: center; font-size: 1.1rem;">
+                                        ${player.stats.winStreak > 0 ? '🔥 ' + player.stats.winStreak : '-'}
+                                        ${player.stats.bestStreak > 0 ? `<div style="font-size: 0.8rem; color: #666;">Best: ${player.stats.bestStreak}</div>` : ''}
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            </div>
+            
+            <div style="margin-top: 30px; padding: 20px; background: #e3f2fd; border-radius: 10px; border-left: 4px solid #0d3b66;">
+                <h3 style="color: #0d3b66; margin-bottom: 10px;">🏆 How Rankings Work</h3>
+                <p style="color: #666; line-height: 1.6;">
+                    • Players are ranked by <strong>total wins</strong> in live spelling challenges<br>
+                    • Win rate is used as a tiebreaker<br>
+                    • Keep your win streak going to climb the ranks!<br>
+                    • Challenge top players to prove you're the best!
+                </p>
+            </div>
+        `;
+        
+    } catch (error) {
+        console.error('❌ Error loading leaderboard:', error);
+        container.innerHTML = `
+            <div class="feedback error">
+                ❌ Error loading leaderboard. Please try refreshing the page.
+                <br><br>
+                <strong>Error details:</strong> ${error.message}
+                <br><br>
+                <button class="practice-btn" onclick="loadSpellingLeaderboard()">🔄 Retry</button>
+            </div>
+        `;
+    }
+}
         
 // ===== REPLACE THE exitChallenge FUNCTION =====
 async function exitChallenge() {
