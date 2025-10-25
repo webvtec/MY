@@ -7643,27 +7643,13 @@ async function saveProfile() {
         document.getElementById('display-age').textContent = newAge;
         document.getElementById('display-country').textContent = newCountry;
         
-        // Update dashboard header
+        document.getElementById('dashboard-student-name').textContent = newName;
         document.getElementById('dashboard-name').textContent = newName;
-        const dashboardAvatar = document.getElementById('dashboard-avatar');
-        if (currentUser.photoURL) {
-            dashboardAvatar.style.backgroundImage = `url(${currentUser.photoURL})`;
-            dashboardAvatar.textContent = '';
-        } else {
-            dashboardAvatar.style.backgroundImage = 'none';
-            dashboardAvatar.textContent = newName.charAt(0).toUpperCase();
-        }
+        document.getElementById('dashboard-avatar').textContent = newName.charAt(0).toUpperCase();
         
         // Update sidebar
         document.getElementById('sidebarUserName').textContent = newName;
-        const sidebarAvatar = document.getElementById('sidebarUserAvatar');
-        if (currentUser.photoURL) {
-            sidebarAvatar.style.backgroundImage = `url(${currentUser.photoURL})`;
-            sidebarAvatar.textContent = '';
-        } else {
-            sidebarAvatar.style.backgroundImage = 'none';
-            sidebarAvatar.textContent = newName.charAt(0).toUpperCase();
-        }
+        document.getElementById('sidebarUserAvatar').textContent = newName.charAt(0).toUpperCase();
         
         cancelEditMode();
         alert('Profile updated successfully!');
