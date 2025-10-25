@@ -2625,10 +2625,10 @@
         <div id="quiz-section" class="content-section">
             <div class="word-database">
         <div class="quiz-tabs">
-            <button class="quiz-tab active" onclick="switchQuizMode('practice')">PRACTICE QUIZ</button>
-            <button class="quiz-tab" onclick="switchQuizMode('live')">LIVE QUIZ</button>
-            <button class="quiz-tab" onclick="switchQuizMode('leaderboard')">QUIZ LEADERBOARD</button>
-        </div>
+    <button class="quiz-tab active" onclick="switchQuizMode('practice')">PRACTICE QUIZ</button>
+    <button class="quiz-tab" onclick="switchQuizMode('live')">LIVE QUIZ</button>
+    <button class="quiz-tab" onclick="switchQuizMode('leaderboard')">QUIZ LEADERBOARD</button>
+</div>
 
                <div id="practice-quiz-mode" class="quiz-mode active">
     <!-- Level Selection -->
@@ -2672,6 +2672,41 @@
              </div>
             </div>
         </div>
+
+
+        <!-- Live Quiz Mode -->
+<div id="live-quiz-mode" class="quiz-mode">
+    <div class="welcome-section">
+        <h2>⚡ Live Quiz Challenges</h2>
+        <p style="margin: 20px 0;">Challenge other students to vocabulary quiz battles in real-time!</p>
+        
+        <!-- Online Users Section -->
+        <div id="quiz-online-users-section">
+            <h3 style="color: #0d3b66; margin: 20px 0;">👥 Online Students (<span id="quiz-online-count">0</span>)</h3>
+            <div id="quiz-online-users-list" class="favorites-grid">
+                <div class="loading">Loading online users...</div>
+            </div>
+        </div>
+        
+        <!-- Incoming Challenges -->
+        <div id="quiz-incoming-challenges-section" style="margin-top: 30px; display: none;">
+            <h3 style="color: #dc3545; margin: 20px 0;">⚡ Incoming Quiz Challenges</h3>
+            <div id="quiz-incoming-challenges-list"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Quiz Leaderboard Mode -->
+<div id="leaderboard-quiz-mode" class="quiz-mode">
+    <div class="welcome-section">
+        <h2>📊 Quiz Leaderboard</h2>
+        <p>Top quiz champions ranked by wins and performance!</p>
+        
+        <div id="quiz-leaderboard-container" class="loading">
+            Loading leaderboard...
+        </div>
+    </div>
+</div>
 
         <!-- Favorites Section -->
         <div id="favorites-section" class="content-section">
@@ -3634,6 +3669,76 @@
     </div>
 </div>
 
+
+<!-- Quiz Leaderboard Player Detail Modal -->
+<div class="coach-detail-modal" id="quizLeaderboardPlayerModal">
+    <div class="coach-detail-content">
+        <div class="coach-detail-header">
+            <button class="coach-detail-close" onclick="closeQuizLeaderboardPlayerModal()">×</button>
+            <div class="coach-detail-avatar-large" id="modal-quiz-leaderboard-avatar">P</div>
+            <h2 id="modal-quiz-leaderboard-name">Player Name</h2>
+            <div class="status-badge" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none;" id="modal-quiz-leaderboard-rank">🥇 Rank #1</div>
+        </div>
+        
+        <div class="coach-detail-body">
+            <div class="coach-info-row">
+                <div class="coach-info-label">🆔 Student ID:</div>
+                <div class="coach-info-value" id="modal-quiz-leaderboard-id">WB-2025-XXXX</div>
+            </div>
+            
+            <div class="coach-info-row" id="modal-quiz-leaderboard-id-row">
+                <div class="coach-info-label">📧 Email:</div>
+                <div class="coach-info-value" id="modal-quiz-leaderboard-email">Loading...</div>
+            </div>
+            
+            <div class="coach-info-row">
+                <div class="coach-info-label">🌍 Country:</div>
+                <div class="coach-info-value" id="modal-quiz-leaderboard-country">Loading...</div>
+            </div>
+            
+            <div class="coach-info-row" id="modal-quiz-leaderboard-age-row">
+                <div class="coach-info-label">🎂 Age:</div>
+                <div class="coach-info-value" id="modal-quiz-leaderboard-age">N/A</div>
+            </div>
+            
+            <div class="coach-info-row">
+                <div class="coach-info-label">📅 Member Since:</div>
+                <div class="coach-info-value" id="modal-quiz-leaderboard-joined">Loading...</div>
+            </div>
+        </div>
+
+        <div class="coach-verification-notice" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-left-color: #667eea;">
+            <h3 style="color: white;">📊 Quiz Statistics</h3>
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-top: 15px;">
+                <div style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 8px; text-align: center;">
+                    <p style="color: rgba(255,255,255,0.9); font-size: 0.9rem; margin-bottom: 5px;">🏆 Wins</p>
+                    <p style="color: white; font-size: 2rem; font-weight: bold; margin: 0;" id="modal-quiz-leaderboard-wins">0</p>
+                </div>
+                <div style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 8px; text-align: center;">
+                    <p style="color: rgba(255,255,255,0.9); font-size: 0.9rem; margin-bottom: 5px;">❌ Losses</p>
+                    <p style="color: white; font-size: 2rem; font-weight: bold; margin: 0;" id="modal-quiz-leaderboard-losses">0</p>
+                </div>
+                <div style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 8px; text-align: center;">
+                    <p style="color: rgba(255,255,255,0.9); font-size: 0.9rem; margin-bottom: 5px;">📊 Total Games</p>
+                    <p style="color: white; font-size: 2rem; font-weight: bold; margin: 0;" id="modal-quiz-leaderboard-total">0</p>
+                </div>
+                <div style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 8px; text-align: center;">
+                    <p style="color: rgba(255,255,255,0.9); font-size: 0.9rem; margin-bottom: 5px;">📈 Win Rate</p>
+                    <p style="color: white; font-size: 2rem; font-weight: bold; margin: 0;" id="modal-quiz-leaderboard-winrate">0%</p>
+                </div>
+                <div style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 8px; text-align: center;">
+                    <p style="color: rgba(255,255,255,0.9); font-size: 0.9rem; margin-bottom: 5px;">🔥 Current Streak</p>
+                    <p style="color: white; font-size: 2rem; font-weight: bold; margin: 0;" id="modal-quiz-leaderboard-streak">0</p>
+                </div>
+                <div style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 8px; text-align: center;">
+                    <p style="color: rgba(255,255,255,0.9); font-size: 0.9rem; margin-bottom: 5px;">⭐ Best Streak</p>
+                    <p style="color: white; font-size: 2rem; font-weight: bold; margin: 0;" id="modal-quiz-leaderboard-best">0</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>    
+
     <!-- About Us Section -->
 <div id="about-section" class="content-section">
     <div class="word-database">
@@ -3883,6 +3988,19 @@ let currentChallengeIndex = 0;
 let myScore = 0;
 let opponentScore = 0;
 let presenceRef = null;
+
+
+// ===== LIVE QUIZ VARIABLES =====
+let quizOnlineUsersRef = null;
+let quizChallengesRef = null;
+let activeQuizChallenge = null;
+let quizChallengeWords = [];
+let currentQuizChallengeIndex = 0;
+let myQuizScore = 0;
+let opponentQuizScore = 0;
+let quizChallengeListener = null;
+let myQuizChallengeListener = null;
+let shownQuizPopupIds = new Set();
 
 // ✅ Challenge timeout constants
 const CHALLENGE_TIMEOUT = 5 * 60 * 1000; // 5 minutes max per challenge
@@ -5672,19 +5790,35 @@ async function handleVerification(event) {
         
        
         // ===== QUIZ FUNCTIONS =====
-        function switchQuizMode(mode) {
-            document.querySelectorAll('.quiz-tab').forEach(tab => {
-                tab.classList.remove('active');
-            });
-            event.target.classList.add('active');
+      function switchQuizMode(mode) {
+    document.querySelectorAll('#quiz-section .quiz-tab').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    event.target.classList.add('active');
 
-            document.querySelectorAll('.quiz-mode').forEach(m => {
-                m.classList.remove('active');
-            });
+    document.querySelectorAll('#quiz-section .quiz-mode').forEach(m => {
+        m.classList.remove('active');
+    });
 
-            document.getElementById('practice-quiz-mode').classList.add('active');
+    if (mode === 'practice') {
+        document.getElementById('practice-quiz-mode').classList.add('active');
+    } else if (mode === 'live') {
+        document.getElementById('live-quiz-mode').classList.add('active');
+        
+        if (currentUser) {
+            initializeOnlinePresence();
+            setTimeout(() => loadQuizOnlineUsers(), 100);
+        } else {
+            alert('Please sign in to access live challenges');
+            showAuthModal();
         }
+    } else if (mode === 'leaderboard') {
+        document.getElementById('leaderboard-quiz-mode').classList.add('active');
+        loadQuizLeaderboard();
+    }
+}
 
+        
      async function startPracticeQuizWithLevel(level) {
     selectedGameLevel = level;
     
@@ -10689,6 +10823,513 @@ async function updateDashboardSubscriptionStatus() {
         console.error('Error updating dashboard subscription status:', error);
     }
 }
+
+
+ // ===== LIVE QUIZ FUNCTIONS =====
+
+async function loadQuizOnlineUsers() {
+    if (!currentUser) {
+        const listElement = document.getElementById('quiz-online-users-list');
+        if (listElement) {
+            listElement.innerHTML = '<div class="loading">Please sign in to see online users</div>';
+        }
+        return;
+    }
+    
+    try {
+        // Detach existing listener before creating new one
+        if (quizOnlineUsersRef) {
+            quizOnlineUsersRef();
+            quizOnlineUsersRef = null;
+        }
+        
+        quizOnlineUsersRef = db.collection('onlineUsers')
+            .where('userId', '!=', currentUser.uid)
+            .onSnapshot(snapshot => {
+                const users = [];
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    const lastSeen = data.lastSeen?.toDate() || new Date(0);
+                    const now = new Date();
+                    const diffMinutes = (now - lastSeen) / 1000 / 60;
+                    
+                    if (diffMinutes < 2) {
+                        users.push({ id: doc.id, ...data });
+                    }
+                });
+                
+                const countElement = document.getElementById('quiz-online-count');
+                const listElement = document.getElementById('quiz-online-users-list');
+                
+                if (!countElement || !listElement) {
+                    if (quizOnlineUsersRef) {
+                        quizOnlineUsersRef();
+                        quizOnlineUsersRef = null;
+                    }
+                    return;
+                }
+                
+                countElement.textContent = users.length;
+                
+                if (users.length === 0) {
+                    listElement.innerHTML = `
+                        <div class="loading">
+                            No other students online right now. <br>
+                            Share the app with friends to challenge them!
+                        </div>
+                    `;
+                } else {
+                    displayQuizOnlineUsers(users);
+                }
+            });
+    } catch (error) {
+        console.error('Error loading online users:', error);
+    }
+}
+
+function displayQuizOnlineUsers(users) {
+    const container = document.getElementById('quiz-online-users-list');
+    
+    container.innerHTML = users.map(user => {
+        let avatarHTML = '';
+        
+        if (user.photoURL) {
+            avatarHTML = `<div style="background-image: url('${user.photoURL}'); background-size: cover; background-position: center; width: 60px; height: 60px; border-radius: 50%; margin: 0 auto 10px;"></div>`;
+        } else {
+            const initial = (user.name || 'S').charAt(0).toUpperCase();
+            avatarHTML = `<div class="user-avatar" style="margin: 0 auto 10px;">${initial}</div>`;
+        }
+        
+        return `
+            <div class="online-user-card" data-user-id="${user.userId}" data-user-name="${user.name}" onclick="sendQuizChallenge(this.dataset.userId, this.dataset.userName)">
+                ${avatarHTML}
+                <h3 style="color: #0d3b66; margin: 10px 0;">${user.name}</h3>
+                <span class="online-status"></span>
+                <span style="color: #28a745; font-weight: bold;">Online</span>
+                <button class="practice-btn" style="margin-top: 15px; font-size: 0.9rem; padding: 10px 20px; pointer-events: none;">
+                    ⚔️ Challenge
+                </button>
+            </div>
+        `;
+    }).join('');
+}
+
+async function sendQuizChallenge(opponentId, opponentName) {
+    if (!currentUser) return;
+    
+    try {
+        const challengeRef = db.collection('quizChallenges').doc();
+        
+        await challengeRef.set({
+            challenger: {
+                id: currentUser.uid,
+                name: currentUser.displayName || 'Student',
+                photoURL: currentUser.photoURL || null
+            },
+            opponent: {
+                id: opponentId,
+                name: opponentName
+            },
+            status: 'pending',
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        showCustomPopup(`⚔️ QUIZ CHALLENGE SENT TO ${opponentName.toUpperCase()}`);
+        setTimeout(() => hideCustomPopup(), 3000);
+        
+    } catch (error) {
+        console.error('Error sending quiz challenge:', error);
+        showCustomPopup('❌ FAILED TO SEND');
+        setTimeout(() => hideCustomPopup(), 2000);
+    }
+}
+
+function listenForQuizChallenges() {
+    if (!currentUser) return;
+    
+    if (quizChallengeListener) {
+        quizChallengeListener();
+    }
+    
+    quizChallengeListener = db.collection('quizChallenges')
+        .where('opponent.id', '==', currentUser.uid)
+        .onSnapshot(snapshot => {
+            snapshot.docChanges().forEach(async change => {
+                const challenge = { id: change.doc.id, ...change.doc.data() };
+                
+                if (change.type === 'added' || change.type === 'modified') {
+                    if (challenge.status === 'pending') {
+                        const challengerId = challenge.challenger.id;
+                        const challengerPresence = await db.collection('onlineUsers').doc(challengerId).get();
+                        
+                        if (!challengerPresence.exists) {
+                            console.log('🚫 Challenger went offline - removing quiz challenge');
+                            await db.collection('quizChallenges').doc(challenge.id).delete();
+                            
+                            const popup = document.getElementById('quiz-challenge-popup-notification');
+                            if (popup) popup.remove();
+                            
+                            shownQuizPopupIds.delete(challenge.id);
+                            return;
+                        }
+                        
+                        showQuizChallengePopup(challenge);
+                        displayIncomingQuizChallenges([challenge]);
+                    } else if (challenge.status === 'active') {
+                        if (!activeQuizChallenge || activeQuizChallenge.id !== challenge.id) {
+                            startLiveQuizChallenge(challenge.id);
+                        }
+                    }
+                }
+                
+                if (change.type === 'removed') {
+                    const popup = document.getElementById('quiz-challenge-popup-notification');
+                    if (popup) popup.remove();
+                    
+                    shownQuizPopupIds.delete(challenge.id);
+                }
+            });
+        });
+}
+
+function listenForMyQuizChallengesAccepted() {
+    if (!currentUser) return;
+    
+    if (myQuizChallengeListener) {
+        myQuizChallengeListener();
+    }
+    
+    myQuizChallengeListener = db.collection('quizChallenges')
+        .where('challenger.id', '==', currentUser.uid)
+        .onSnapshot(snapshot => {
+            snapshot.docChanges().forEach(change => {
+                const challenge = { id: change.doc.id, ...change.doc.data() };
+                
+                if (change.type === 'modified' && challenge.status === 'active') {
+                    if (!activeQuizChallenge || activeQuizChallenge.id !== challenge.id) {
+                        hideCustomPopup();
+                        
+                        showBottomNotification(`${challenge.opponent.name} accepted your quiz challenge! Starting game...`, 'success');
+                        
+                        navigateTo('quiz');
+                        switchQuizMode('live');
+                        
+                        startLiveQuizChallenge(change.doc.id);
+                    }
+                }
+            });
+        });
+}
+
+function showQuizChallengePopup(challenge) {
+    const challengeId = challenge.id;
+    
+    if (shownQuizPopupIds.has(challengeId)) return;
+    shownQuizPopupIds.add(challengeId);
+    
+    const existingPopup = document.getElementById('quiz-challenge-popup-notification');
+    if (existingPopup) existingPopup.remove();
+    
+    const popup = document.createElement('div');
+    popup.id = 'quiz-challenge-popup-notification';
+    popup.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+        padding: 25px;
+        border-radius: 15px;
+        box-shadow: 0 10px 40px rgba(102,126,234,0.5);
+        z-index: 9999;
+        min-width: 320px;
+        animation: slideInRight 0.5s ease-out;
+    `;
+    
+    let avatarHTML = '';
+    if (challenge.challenger.photoURL) {
+        avatarHTML = `<div style="width: 50px; height: 50px; border-radius: 50%; background-image: url('${challenge.challenger.photoURL}'); background-size: cover; background-position: center; margin: 0 auto 10px;"></div>`;
+    } else {
+        const initial = (challenge.challenger.name || 'S').charAt(0).toUpperCase();
+        avatarHTML = `<div style="width: 50px; height: 50px; border-radius: 50%; background: #ffd700; color: #0d3b66; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: bold; margin: 0 auto 10px;">${initial}</div>`;
+    }
+    
+    popup.innerHTML = `
+        <div style="text-align: center;">
+            ${avatarHTML}
+            <h3 style="margin: 0 0 10px 0; font-size: 1.3rem;">🎯 QUIZ CHALLENGE!</h3>
+            <p style="margin: 10px 0; font-size: 1.1rem;"><strong>${challenge.challenger.name}</strong> challenges you!</p>
+            <p style="margin: 10px 0; font-size: 0.9rem; opacity: 0.9;">Ready for a vocabulary quiz battle?</p>
+            <div style="display: flex; gap: 10px; justify-content: center; margin-top: 15px;">
+                <button onclick="acceptQuizChallengeFromPopup('${challengeId}')" 
+                        style="padding: 12px 25px; background: #28a745; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 1rem;">
+                    ✅ Accept
+                </button>
+                <button onclick="declineQuizChallengeFromPopup('${challengeId}')" 
+                        style="padding: 12px 25px; background: rgba(255,255,255,0.3); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 1rem;">
+                    ❌ Decline
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(popup);
+}
+
+function displayIncomingQuizChallenges(challenges) {
+    const section = document.getElementById('quiz-incoming-challenges-section');
+    const container = document.getElementById('quiz-incoming-challenges-list');
+    
+    if (challenges.length === 0) {
+        section.style.display = 'none';
+        return;
+    }
+    
+    section.style.display = 'block';
+    
+    container.innerHTML = challenges.map(challenge => `
+        <div class="challenge-notification">
+            <h3 style="margin: 0 0 10px 0;">🎯 ${challenge.challenger.name} challenges you to a quiz!</h3>
+            <p style="margin: 10px 0;">Ready for a vocabulary battle?</p>
+            <div style="display: flex; gap: 10px; justify-content: center; margin-top: 15px;">
+                <button class="practice-btn" onclick="acceptQuizChallenge('${challenge.id}')" 
+                        style="background: #28a745;">
+                    ✅ Accept
+                </button>
+                <button class="practice-btn" onclick="declineQuizChallenge('${challenge.id}')" 
+                        style="background: #dc3545;">
+                    ❌ Decline
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
+
+async function acceptQuizChallenge(challengeId) {
+    console.log('✅ Starting acceptQuizChallenge for:', challengeId);
+    
+    if (activeQuizChallenge && activeQuizChallenge.status === 'active') {
+        showCustomPopup('⚠️ COMPLETE CURRENT QUIZ FIRST');
+        setTimeout(() => hideCustomPopup(), 3000);
+        
+        const popup = document.getElementById('quiz-challenge-popup-notification');
+        if (popup) popup.remove();
+        
+        return;
+    }
+    
+    try {
+        const challengeRef = db.collection('quizChallenges').doc(challengeId);
+        const challengeDoc = await challengeRef.get();
+        
+        if (!challengeDoc.exists) {
+            console.error('❌ Quiz challenge not found:', challengeId);
+            alert('Quiz challenge not found');
+            return;
+        }
+        
+        const challengeData = challengeDoc.data();
+        console.log('📄 Quiz challenge data:', challengeData);
+        
+        // Generate 5 random words and quiz questions
+        if (!selectedGameLevel) {
+            selectedGameLevel = 'foundation';
+        }
+        
+        if (levelWords[selectedGameLevel].length === 0) {
+            console.log('📚 Loading words for level:', selectedGameLevel);
+            await loadLevelWords(selectedGameLevel);
+        }
+        
+        const shuffled = [...levelWords[selectedGameLevel]].sort(() => 0.5 - Math.random());
+        const quizWords = shuffled.slice(0, 5);
+        
+        console.log('🎯 Selected quiz words:', quizWords);
+        
+        // Generate quiz questions for these words
+        const response = await fetch(CLOUD_FUNCTION_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                data: { 
+                    action: 'generatePracticeQuiz',
+                    words: quizWords 
+                } 
+            })
+        });
+        
+        const data = await response.json();
+        const quizQuestions = data.result.questions;
+        
+        await challengeRef.update({
+            status: 'active',
+            questions: quizQuestions,
+            scores: {
+                [currentUser.uid]: 0,
+                [challengeData.challenger.id]: 0
+            },
+            completed: {
+                [currentUser.uid]: false,
+                [challengeData.challenger.id]: false
+            },
+            currentQuestion: 0,
+            acceptedBy: currentUser.uid,
+            startedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        console.log('✅ Quiz challenge updated to active');
+        
+        navigateTo('quiz', true);
+        
+        setTimeout(() => {
+            switchQuizMode('live');
+            
+            setTimeout(() => {
+                startLiveQuizChallenge(challengeId);
+            }, 300);
+        }, 300);
+        
+    } catch (error) {
+        console.error('❌ Error accepting quiz challenge:', error);
+        alert('Failed to accept quiz challenge: ' + error.message);
+    }
+}
+
+async function acceptQuizChallengeFromPopup(challengeId) {
+    console.log('🎯 Accepting quiz challenge from popup:', challengeId);
+    
+    if (activeQuizChallenge && activeQuizChallenge.status === 'active') {
+        showCustomPopup('⚠️ COMPLETE CURRENT QUIZ FIRST');
+        setTimeout(() => hideCustomPopup(), 3000);
+        
+        const popup = document.getElementById('quiz-challenge-popup-notification');
+        if (popup) popup.remove();
+        
+        return;
+    }
+    
+    const popup = document.getElementById('quiz-challenge-popup-notification');
+    if (popup) popup.remove();
+    
+    shownQuizPopupIds.delete(challengeId);
+    
+    await acceptQuizChallenge(challengeId);
+}
+
+async function declineQuizChallenge(challengeId) {
+    try {
+        await db.collection('quizChallenges').doc(challengeId).delete();
+        
+        shownQuizPopupIds.delete(challengeId);
+        
+        const popup = document.getElementById('quiz-challenge-popup-notification');
+        if (popup) popup.remove();
+        
+        const section = document.getElementById('quiz-incoming-challenges-section');
+        if (section) section.style.display = 'none';
+        
+        console.log('✅ Quiz challenge declined and deleted');
+    } catch (error) {
+        console.error('Error declining quiz challenge:', error);
+    }
+}
+
+async function declineQuizChallengeFromPopup(challengeId) {
+    console.log('❌ Declining quiz challenge from popup:', challengeId);
+    
+    const popup = document.getElementById('quiz-challenge-popup-notification');
+    if (popup) popup.remove();
+    
+    shownQuizPopupIds.delete(challengeId);
+    
+    await declineQuizChallenge(challengeId);
+}
+
+async function startLiveQuizChallenge(challengeId) {
+    try {
+        console.log('🎮 Starting live quiz challenge:', challengeId);
+        
+        if (quizOnlineUsersRef) {
+            quizOnlineUsersRef();
+            quizOnlineUsersRef = null;
+            console.log('✅ Detached quiz online users listener');
+        }
+        
+        const challengeDoc = await db.collection('quizChallenges').doc(challengeId).get();
+        
+        if (!challengeDoc.exists) {
+            alert('Quiz challenge not found');
+            return;
+        }
+        
+        const challenge = challengeDoc.data();
+        
+        activeQuizChallenge = { id: challengeId, ...challenge };
+        quizChallengeWords = challenge.questions || [];
+        currentQuizChallengeIndex = 0;
+        myQuizScore = 0;
+        opponentQuizScore = 0;
+        
+        const onlineUsersSection = document.getElementById('quiz-online-users-section');
+        const incomingChallengesSection = document.getElementById('quiz-incoming-challenges-section');
+        
+        if (onlineUsersSection) onlineUsersSection.style.display = 'none';
+        if (incomingChallengesSection) incomingChallengesSection.style.display = 'none';
+        
+        const liveQuizMode = document.getElementById('live-quiz-mode');
+        if (!liveQuizMode) {
+            console.error('❌ live-quiz-mode not found');
+            alert('Failed to start quiz challenge - page element missing');
+            return;
+        }
+        
+        let welcomeSection = liveQuizMode.querySelector('.welcome-section');
+        
+        if (!welcomeSection) {
+            welcomeSection = document.createElement('div');
+            welcomeSection.className = 'welcome-section';
+            liveQuizMode.appendChild(welcomeSection);
+        }
+        
+        welcomeSection.innerHTML = '<div id="live-quiz-challenge-container"></div>';
+        
+        startChallengeTimeout(challengeId);
+        startOfflineDetection(challengeId);
+        
+        db.collection('quizChallenges').doc(challengeId).onSnapshot(doc => {
+            const data = doc.data();
+            
+            if (!data) return;
+            
+            if (data.status === 'completed') {
+                clearChallengeTimers();
+                
+                if (data.endReason === 'finished') {
+                    showQuizChallengeResults(data);
+                } else {
+                    showQuizChallengeAbandoned(data);
+                }
+                return;
+            }
+            
+            if (data.status === 'abandoned') {
+                clearChallengeTimers();
+                showQuizChallengeAbandoned(data);
+                return;
+            }
+            
+            const opponentId = activeQuizChallenge.challenger.id === currentUser.uid ? 
+                activeQuizChallenge.opponent.id : activeQuizChallenge.challenger.id;
+            opponentQuizScore = data.scores?.[opponentId] || 0;
+            
+            const scoreElements = document.querySelectorAll('.player-score .score');
+            if (scoreElements && scoreElements.length > 1) {
+                scoreElements[1].textContent = opponentQuizScore;
+            }
+        });
+        
+        loadQuizChallengeQuestion();
+    } catch (error)       
     </script>
 </body>
 </html>
