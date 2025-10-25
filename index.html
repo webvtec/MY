@@ -8712,68 +8712,83 @@ async function removeOnlinePresence() {
         
 
 
-async function loadOnlineUsers() {
-    if (!currentUser) {
-        const listElement = document.getElementById('online-users-list');
-        if (listElement) {
-            listElement.innerHTML = '<div class="loading">Please sign in to see online users</div>';
+function loadOnlineUsers() {
+    // Ensure DOM is ready
+    document.addEventListener('DOMContentLoaded', () => {
+        const list = document.getElementById('online-users-list');
+        const count = document.getElementById('online-count');
+
+        if (!list || !count) {
+            console.error('❌ online-users-list or online-count not found');
+            return;
         }
-        return;
-    }
-    
-    try {
-        // ✅ Detach existing listener before creating new one
+
+        // Ensure section is visible
+        const onlineUsersSection = document.getElementById('online-users-section');
+        if (onlineUsersSection) {
+            onlineUsersSection.style.display = 'block';
+        }
+
+        list.innerHTML = '<div class="loading">Loading online users...</div>';
+
+        // Detach any existing listener
         if (onlineUsersRef) {
             onlineUsersRef();
             onlineUsersRef = null;
         }
-        
-        onlineUsersRef = db.collection('onlineUsers')
-            .where('userId', '!=', currentUser.uid)
-            .onSnapshot(snapshot => {
-                const users = [];
-                snapshot.forEach(doc => {
-                    const data = doc.data();
-                    const lastSeen = data.lastSeen?.toDate() || new Date(0);
-                    const now = new Date();
-                    const diffMinutes = (now - lastSeen) / 1000 / 60;
-                    
-                    if (diffMinutes < 2) {
-                        users.push({ id: doc.id, ...data });
-                    }
-                });
-                
-                // ✅ Check if elements exist before updating
-                const countElement = document.getElementById('online-count');
-                const listElement = document.getElementById('online-users-list');
-                
-                if (!countElement || !listElement) {
-                    // Elements don't exist, user navigated away - detach listener
-                    if (onlineUsersRef) {
-                        onlineUsersRef();
-                        onlineUsersRef = null;
-                    }
-                    return;
-                }
-                
-                countElement.textContent = users.length;
-                
-                if (users.length === 0) {
-                    listElement.innerHTML = `
-                        <div class="loading">
-                            No other students online right now. <br>
-                            Share the app with friends to challenge them!
-                        </div>
-                    `;
-                } else {
-                    displayOnlineUsers(users);
+
+        // Set up Firestore listener
+        onlineUsersRef = db.collection('onlineUsers').onSnapshot(snapshot => {
+            const users = [];
+            snapshot.forEach(doc => {
+                const user = { id: doc.id, ...doc.data() };
+                // Exclude current user
+                if (user.id !== currentUser?.uid) {
+                    users.push(user);
                 }
             });
-    } catch (error) {
-        console.error('Error loading online users:', error);
-    }
+
+            console.log('Online users:', users);
+
+            if (users.length === 0) {
+                list.innerHTML = '<div class="loading">No online users</div>';
+                count.textContent = '0';
+                return;
+            }
+
+            count.textContent = users.length;
+            const html = users.map(user => {
+                const avatarHTML = user.photoURL
+                    ? `<div style="width: 45px; height: 45px; min-width: 45px; border-radius: 50%; background-image: url('${user.photoURL}'); background-size: cover; background-position: center;"></div>`
+                    : `<div class="coach-avatar">${(user.name || 'U').charAt(0).toUpperCase()}</div>`;
+
+                return `
+                    <div class="online-user-card ${user.status === 'offline' ? 'offline' : ''}">
+                        <div class="coach-profile-cell">
+                            ${avatarHTML}
+                            <div class="coach-name">${user.name || 'Unknown'}</div>
+                            <span class="online-status"></span>
+                        </div>
+                        <button class="practice-btn" onclick="sendChallenge('${user.id}')" ${user.status === 'offline' || user.id === currentUser?.uid ? 'disabled' : ''}>
+                            ⚔️ Challenge
+                        </button>
+                    </div>
+                `;
+            }).join('');
+
+            console.log('Generated HTML:', html);
+            list.innerHTML = html;
+
+            // Ensure visibility
+            list.style.display = 'grid';
+        }, error => {
+            console.error('Error loading online users:', error);
+            list.innerHTML = '<div class="feedback error">Failed to load users. Please try again.</div>';
+        });
+    });
 }
 
+        
 function displayOnlineUsers(users) {
     const container = document.getElementById('online-users-list');
     
@@ -9913,19 +9928,18 @@ function closeLeaderboardPlayerModal() {
 // ===== REPLACE THE exitChallenge FUNCTION =====
 async function exitChallenge() {
     try {
-        // ✅ Only mark as abandoned if challenge is still active AND user hasn't completed
+        // Only mark as abandoned if challenge is active and user hasn't completed
         if (activeChallenge && activeChallenge.status === 'active') {
             const challengeDoc = await db.collection('challenges').doc(activeChallenge.id).get();
             const challengeData = challengeDoc.data();
-            
-            // Check if user has completed their words
+
             const userCompleted = challengeData.completed && challengeData.completed[currentUser.uid];
-            
+
             if (!userCompleted) {
-                // User is leaving before finishing - opponent wins
-                const opponentId = activeChallenge.challenger.id === currentUser.uid ? 
-                    activeChallenge.opponent.id : activeChallenge.challenger.id;
-                
+                const opponentId = activeChallenge.challenger.id === currentUser.uid
+                    ? activeChallenge.opponent.id
+                    : activeChallenge.challenger.id;
+
                 await db.collection('challenges').doc(activeChallenge.id).update({
                     status: 'abandoned',
                     endReason: 'opponent_left',
@@ -9933,74 +9947,57 @@ async function exitChallenge() {
                     loser: currentUser.uid,
                     endedAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
-                
+
                 console.log('✅ Challenge abandoned - opponent wins');
             } else {
-                // User completed their part, just exiting to lobby
-                console.log('✅ User completed challenge, just returning to lobby');
+                console.log('✅ User completed challenge, returning to lobby');
             }
         }
     } catch (error) {
         console.error('Error updating challenge on exit:', error);
     }
-    
-    // ✅ Clear all timers
+
+    // Clear all timers
     clearChallengeTimers();
-    
+
     activeChallenge = null;
     challengeWords = [];
     currentChallengeIndex = 0;
     myScore = 0;
     opponentScore = 0;
     shownPopupIds.clear();
-    
-    // ✅ Check if elements exist before trying to modify them
-    const onlineUsersSection = document.getElementById('online-users-section');
-    const incomingChallengesSection = document.getElementById('incoming-challenges-section');
-    
-    if (onlineUsersSection) {
-        onlineUsersSection.style.display = 'block';
-    }
-    
-    if (incomingChallengesSection) {
-        incomingChallengesSection.style.display = 'none';
-    }
-    
-    // ✅ Restore the welcome section content
+
+    // Restore the welcome section content
     const liveSpellingMode = document.getElementById('live-spelling-mode');
     if (!liveSpellingMode) {
         console.error('❌ live-spelling-mode not found');
         return;
     }
-    
+
     let welcomeSection = liveSpellingMode.querySelector('.welcome-section');
-    
+
     if (!welcomeSection) {
         welcomeSection = document.createElement('div');
         welcomeSection.className = 'welcome-section';
         liveSpellingMode.appendChild(welcomeSection);
     }
-    
+
     welcomeSection.innerHTML = `
         <h2>🏆 Live Spelling Challenges</h2>
         <p style="margin: 20px 0;">Challenge other students to spelling battles in real-time!</p>
-        
-        <!-- Online Users Section -->
-        <div id="online-users-section">
+        <div id="online-users-section" style="display: block;">
             <h3 style="color: #0d3b66; margin: 20px 0;">👥 Online Students (<span id="online-count">0</span>)</h3>
             <div id="online-users-list" class="favorites-grid">
                 <div class="loading">Loading online users...</div>
             </div>
         </div>
-        
-        <!-- Incoming Challenges -->
         <div id="incoming-challenges-section" style="margin-top: 30px; display: none;">
             <h3 style="color: #dc3545; margin: 20px 0;">⚡ Incoming Challenges</h3>
             <div id="incoming-challenges-list"></div>
         </div>
     `;
-    
-    // ✅ Restart online users listener
+
+    // Restart online users listener
     loadOnlineUsers();
 }
         
