@@ -3699,7 +3699,90 @@
 <div class="custom-popup" id="customPopup"></div>
 
 
+    <!-- Leaderboard Player Detail Modal -->
+<div class="coach-detail-modal" id="leaderboardPlayerModal">
+    <div class="coach-detail-content">
+        <div class="coach-detail-header">
+            <button class="coach-detail-close" onclick="closeLeaderboardPlayerModal()">×</button>
+            <div class="coach-detail-avatar-large" id="modal-leaderboard-avatar">P</div>
+            <h2 id="modal-leaderboard-name">Player Name</h2>
+            <div class="status-badge verified" id="modal-leaderboard-rank" style="background: linear-gradient(135deg, #FFD700, #FFA500); color: #0d3b66; border: none;">
+                🏆 Rank #1
+            </div>
+        </div>
+        
+        <div class="coach-detail-body">
+            <div class="coach-info-row">
+                <div class="coach-info-label">🆔 Student ID:</div>
+                <div class="coach-info-value" id="modal-leaderboard-id-display">WB-2025-XXXX</div>
+            </div>
             
+            <div class="coach-info-row">
+                <div class="coach-info-label">📧 Email:</div>
+                <div class="coach-info-value">
+                    <span id="modal-leaderboard-email">Loading...</span>
+                    <span style="color: #28a745; font-weight: bold; margin-left: 8px;">✓ Verified</span>
+                </div>
+            </div>
+            
+            <div class="coach-info-row" id="modal-leaderboard-age-row">
+                <div class="coach-info-label">🎂 Age:</div>
+                <div class="coach-info-value" id="modal-leaderboard-age">N/A</div>
+            </div>
+            
+            <div class="coach-info-row">
+                <div class="coach-info-label">🌍 Country:</div>
+                <div class="coach-info-value" id="modal-leaderboard-country">Loading...</div>
+            </div>
+            
+            <div class="coach-info-row">
+                <div class="coach-info-label">📅 Member Since:</div>
+                <div class="coach-info-value" id="modal-leaderboard-joined">Loading...</div>
+            </div>
+            
+            <hr style="margin: 20px 0; border: 1px solid #f0f0f0;">
+            
+            <h3 style="color: #0d3b66; margin-bottom: 15px; text-align: center;">📊 Spelling Challenge Stats</h3>
+            
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-top: 15px;">
+                <div style="background: #d4edda; padding: 15px; border-radius: 8px; text-align: center;">
+                    <div style="font-size: 2rem; font-weight: bold; color: #28a745;" id="modal-leaderboard-wins">0</div>
+                    <div style="color: #155724; font-size: 0.9rem; margin-top: 5px;">✅ Wins</div>
+                </div>
+                
+                <div style="background: #f8d7da; padding: 15px; border-radius: 8px; text-align: center;">
+                    <div style="font-size: 2rem; font-weight: bold; color: #dc3545;" id="modal-leaderboard-losses">0</div>
+                    <div style="color: #721c24; font-size: 0.9rem; margin-top: 5px;">❌ Losses</div>
+                </div>
+                
+                <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; text-align: center;">
+                    <div style="font-size: 2rem; font-weight: bold; color: #0d3b66;" id="modal-leaderboard-total">0</div>
+                    <div style="color: #0d3b66; font-size: 0.9rem; margin-top: 5px;">🎮 Total Games</div>
+                </div>
+                
+                <div style="background: #fff3cd; padding: 15px; border-radius: 8px; text-align: center;">
+                    <div style="font-size: 2rem; font-weight: bold; color: #856404;" id="modal-leaderboard-winrate">0%</div>
+                    <div style="color: #856404; font-size: 0.9rem; margin-top: 5px;">📈 Win Rate</div>
+                </div>
+                
+                <div style="background: #ffe8a1; padding: 15px; border-radius: 8px; text-align: center;">
+                    <div style="font-size: 2rem; font-weight: bold; color: #ff6b6b;" id="modal-leaderboard-streak">-</div>
+                    <div style="color: #c82333; font-size: 0.9rem; margin-top: 5px;">🔥 Current Streak</div>
+                </div>
+                
+                <div style="background: #f3e5f5; padding: 15px; border-radius: 8px; text-align: center;">
+                    <div style="font-size: 2rem; font-weight: bold; color: #7b1fa2;" id="modal-leaderboard-best">0</div>
+                    <div style="color: #4a148c; font-size: 0.9rem; margin-top: 5px;">⭐ Best Streak</div>
+                </div>
+            </div>
+            
+            <div style="background: #e8f5e9; padding: 15px; border-radius: 8px; text-align: center; margin-top: 15px;">
+                <div style="font-size: 1.8rem; font-weight: bold; color: #2e7d32;" id="modal-leaderboard-avgscore">0.0</div>
+                <div style="color: #1b5e20; font-size: 0.9rem; margin-top: 5px;">📊 Average Score per Game</div>
+            </div>
+        </div>
+    </div>
+</div>        
     <script>
         // ===== FIREBASE CONFIGURATION =====
         const firebaseConfig = {
