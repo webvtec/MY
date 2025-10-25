@@ -2477,6 +2477,72 @@
             font-weight: bold;
             margin: 15px 0;
         }
+
+
+        /* ===== LEADERBOARD STYLES ===== */
+.leaderboard-my-rank {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 25px;
+    border-radius: 15px;
+    margin: 20px 0;
+    color: white;
+}
+
+.leaderboard-stats {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 20px;
+}
+
+.leaderboard-stat-item {
+    text-align: center;
+}
+
+.leaderboard-stat-number {
+    font-size: 3rem;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.leaderboard-stat-label {
+    font-size: 1rem;
+    opacity: 0.9;
+}
+
+.leaderboard-rank-badge {
+    display: inline-block;
+    font-size: 1.3rem;
+    font-weight: bold;
+    padding: 5px 10px;
+    border-radius: 8px;
+}
+
+.leaderboard-player-row {
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.leaderboard-player-row:hover {
+    background: #f8f9fa;
+    transform: translateX(5px);
+}
+
+.leaderboard-current-user {
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+}
+
+@media (max-width: 768px) {
+    .leaderboard-stat-number {
+        font-size: 2rem;
+    }
+    
+    .coaches-table th:nth-child(3),
+    .coaches-table td:nth-child(3) {
+        display: table-cell !important;
+    }
+}
     </style>
 </head>
     </style>
@@ -3284,14 +3350,38 @@
 </div>
 
                 <!-- Spelling Leaderboard Mode -->
-                <div id="leaderboard-spelling-mode" class="quiz-mode">
-                    <div class="welcome-section">
-                        <h2>📊 Spelling Leaderboard</h2>
-                        <p>Coming soon! See the top spellers and track your ranking.</p>
-                    </div>
+<div id="leaderboard-spelling-mode" class="quiz-mode">
+    <div class="welcome-section">
+        <h2>🏆 Spelling Champions Leaderboard</h2>
+        <p style="margin: 20px 0;">Top 100 spelling champions ranked by their live challenge wins!</p>
+        
+        <!-- My Rank Card -->
+        <div id="my-rank-card" style="display: none;" class="leaderboard-my-rank">
+            <h3 style="color: white; margin-bottom: 15px;">📍 Your Ranking</h3>
+            <div class="leaderboard-stats">
+                <div class="leaderboard-stat-item">
+                    <div class="leaderboard-stat-number" id="my-rank-number">#-</div>
+                    <div class="leaderboard-stat-label">Rank</div>
+                </div>
+                <div class="leaderboard-stat-item">
+                    <div class="leaderboard-stat-number" id="my-wins-number">0</div>
+                    <div class="leaderboard-stat-label">Wins</div>
+                </div>
+                <div class="leaderboard-stat-item">
+                    <div class="leaderboard-stat-number" id="my-coins-number">0</div>
+                    <div class="leaderboard-stat-label">Coins</div>
                 </div>
             </div>
         </div>
+        
+        <!-- Leaderboard Container -->
+        <div id="leaderboard-container" class="loading">
+            Loading leaderboard...
+          </div>
+        </div>
+      </div>
+    </div>
+ </div>
 
 
 
@@ -3595,6 +3685,68 @@
                 <li>✅ Interactive quizzes and practice tests</li>
                 <li>✅ Spelling challenges and word games</li>
                 <li>✅ Building vocabulary across multiple levels</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+    <!-- Leaderboard Player Detail Modal -->
+<div class="coach-detail-modal" id="leaderboardPlayerModal">
+    <div class="coach-detail-content">
+        <div class="coach-detail-header">
+            <button class="coach-detail-close" onclick="closeLeaderboardPlayerModal()">×</button>
+            <div class="coach-detail-avatar-large" id="modal-leaderboard-avatar">P</div>
+            <h2 id="modal-leaderboard-name">Player Name</h2>
+            <div class="status-badge verified" id="modal-leaderboard-rank" 
+                 style="background: linear-gradient(135deg, #FFD700, #FFA500); color: #0d3b66; border: none;">
+                #1
+            </div>
+        </div>
+        
+        <div class="coach-detail-body">
+            <div class="coach-info-row">
+                <div class="coach-info-label">🆔 Student ID:</div>
+                <div class="coach-info-value" id="modal-leaderboard-id">WB-2025-XXXX</div>
+            </div>
+            
+            <div class="coach-info-row">
+                <div class="coach-info-label">🏆 Total Wins:</div>
+                <div class="coach-info-value" id="modal-leaderboard-wins">0</div>
+            </div>
+            
+            <div class="coach-info-row">
+                <div class="coach-info-label">🪙 Total Coins:</div>
+                <div class="coach-info-value" id="modal-leaderboard-coins">0</div>
+            </div>
+            
+            <div class="coach-info-row">
+                <div class="coach-info-label">📧 Email:</div>
+                <div class="coach-info-value" id="modal-leaderboard-email">Loading...</div>
+            </div>
+            
+            <div class="coach-info-row" id="modal-leaderboard-age-row">
+                <div class="coach-info-label">🎂 Age:</div>
+                <div class="coach-info-value" id="modal-leaderboard-age">N/A</div>
+            </div>
+            
+            <div class="coach-info-row">
+                <div class="coach-info-label">🌍 Country:</div>
+                <div class="coach-info-value" id="modal-leaderboard-country">Loading...</div>
+            </div>
+            
+            <div class="coach-info-row">
+                <div class="coach-info-label">📅 Member Since:</div>
+                <div class="coach-info-value" id="modal-leaderboard-joined">Loading...</div>
+            </div>
+        </div>
+
+        <div class="coach-verification-notice" style="background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%); border-left-color: #FFD700;">
+            <h3 style="color: #0d3b66;">🏆 Top Spelling Champion</h3>
+            <p style="color: #0d3b66;">This player has proven their spelling mastery through:</p>
+            <ul style="color: #0d3b66;">
+                <li>✅ Live spelling challenge victories</li>
+                <li>✅ Competitive gameplay against peers</li>
+                <li>✅ Dedication to vocabulary improvement</li>
             </ul>
         </div>
     </div>
@@ -6865,7 +7017,7 @@ function startSpellingPractice() {
     selectedGameLevel = '';
 }
 
-      function switchSpellingMode(mode) {
+     function switchSpellingMode(mode) {
     // Update active tab
     const tabs = document.querySelectorAll('#spelling-section .quiz-tab');
     tabs.forEach((tab, index) => {
@@ -6900,9 +7052,11 @@ function startSpellingPractice() {
         }
     } else if (mode === 'leaderboard') {
         document.getElementById('leaderboard-spelling-mode').classList.add('active');
+        // ✅ LOAD LEADERBOARD WHEN SWITCHING TO THIS MODE
+        loadSpellingLeaderboard();
     }
 }
-
+        
         // ===== SPELLING FAVORITES FUNCTIONS =====
 async function loadUserSpellingFavorites(userId) {
     try {
@@ -9440,9 +9594,19 @@ async function showChallengeResults(challenge) {
     const won = myFinalScore > opponentFinalScore;
     const tied = myFinalScore === opponentFinalScore;
     
-    // ✅ AWARD COINS FOR WIN
+    // ✅ AWARD COINS AND INCREMENT WINS FOR WINNER
     if (won) {
         await awardCoins(COINS_PER_WIN);
+        
+        // ✅ INCREMENT SPELLING WINS IN FIRESTORE
+        try {
+            await db.collection('users').doc(myId).update({
+                spellingWins: firebase.firestore.FieldValue.increment(1)
+            });
+            console.log('✅ Spelling wins incremented');
+        } catch (error) {
+            console.error('Error incrementing wins:', error);
+        }
     }
     
     const container = document.getElementById('live-challenge-container');
@@ -9467,6 +9631,11 @@ async function showChallengeResults(challenge) {
                     <p style="color: #0d3b66; font-size: 2rem; font-weight: bold;">+${COINS_PER_WIN} Coins</p>
                     <p style="color: #0d3b66; font-size: 1rem; margin-top: 5px;">Total: ${userCoins} / ${MAX_COINS}</p>
                 </div>
+                
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 15px; margin: 20px 0;">
+                    <h3 style="color: white; font-size: 1.3rem; margin-bottom: 10px;">🏆 Win Recorded!</h3>
+                    <p style="color: white; font-size: 1.1rem;">This victory has been added to your leaderboard ranking!</p>
+                </div>
             ` : ''}
             
             <div class="challenge-score-card">
@@ -9487,7 +9656,6 @@ async function showChallengeResults(challenge) {
         </div>
     `;
 }
-
         
 // ===== REPLACE THE exitChallenge FUNCTION =====
 async function exitChallenge() {
@@ -9892,6 +10060,319 @@ function showCoinEarnedAnimation(amount) {
         coinEarned.remove();
     }, 2000);
 }        
+
+
+ // ===== LEADERBOARD FUNCTIONS =====
+let leaderboardData = []; // Store leaderboard data
+
+async function loadSpellingLeaderboard() {
+    const container = document.getElementById('leaderboard-container');
+    const myRankCard = document.getElementById('my-rank-card');
+    
+    if (!container) {
+        console.error('Leaderboard container not found');
+        return;
+    }
+    
+    try {
+        container.innerHTML = '<div class="loading">📊 Loading top spelling champions...</div>';
+        
+        console.log('🏆 Fetching leaderboard from Firestore...');
+        
+        // Fetch top 100 students ordered by spellingWins
+        const leaderboardSnapshot = await db.collection('users')
+            .where('userType', '==', 'student')
+            .orderBy('spellingWins', 'desc')
+            .limit(100)
+            .get();
+        
+        console.log('📊 Found players:', leaderboardSnapshot.size);
+        
+        leaderboardData = [];
+        leaderboardSnapshot.forEach(doc => {
+            const data = doc.data();
+            // Only include players with at least 1 win
+            if (data.spellingWins && data.spellingWins > 0) {
+                leaderboardData.push({ id: doc.id, ...data });
+            }
+        });
+        
+        if (leaderboardData.length === 0) {
+            container.innerHTML = `
+                <div style="text-align: center; padding: 40px; color: #666;">
+                    <div style="font-size: 3rem; margin-bottom: 20px;">🏆</div>
+                    <h3>No champions yet!</h3>
+                    <p>Be the first to win a spelling challenge and claim your spot on the leaderboard!</p>
+                </div>
+            `;
+            if (myRankCard) myRankCard.style.display = 'none';
+            return;
+        }
+        
+        // Show current user's rank if logged in
+        if (currentUser && myRankCard) {
+            const myRank = leaderboardData.findIndex(p => p.id === currentUser.uid) + 1;
+            const myData = leaderboardData.find(p => p.id === currentUser.uid);
+            
+            if (myData && myRank > 0) {
+                myRankCard.style.display = 'block';
+                document.getElementById('my-rank-number').textContent = `#${myRank}`;
+                document.getElementById('my-wins-number').textContent = myData.spellingWins || 0;
+                document.getElementById('my-coins-number').textContent = myData.coins || 0;
+            } else {
+                myRankCard.style.display = 'none';
+            }
+        } else if (myRankCard) {
+            myRankCard.style.display = 'none';
+        }
+        
+        // Display leaderboard table
+        displayLeaderboardTable();
+        
+    } catch (error) {
+        console.error('❌ Error loading leaderboard:', error);
+        
+        // Check if it's an index error
+        if (error.code === 'failed-precondition' || error.message.includes('index')) {
+            container.innerHTML = `
+                <div style="background: #fff3cd; padding: 25px; border-radius: 10px; border-left: 4px solid #ffc107; color: #856404;">
+                    <h3 style="color: #856404; margin-bottom: 15px;">⚙️ Setting Up Leaderboard...</h3>
+                    <p style="margin-bottom: 15px;">
+                        The leaderboard database index is being created. This is a one-time setup that takes a few minutes.
+                    </p>
+                    <p style="margin-bottom: 15px;">
+                        <strong>What to do:</strong>
+                    </p>
+                    <ol style="margin-left: 20px; line-height: 1.8;">
+                        <li>Click the link in your browser console (F12 → Console tab)</li>
+                        <li>Or go to <a href="https://console.firebase.google.com" target="_blank" style="color: #0d3b66; font-weight: bold;">Firebase Console</a></li>
+                        <li>The index will be created automatically</li>
+                        <li>Wait 2-5 minutes, then refresh this page</li>
+                    </ol>
+                    <p style="margin-top: 20px; font-style: italic;">
+                        ℹ️ This only needs to be done once for your entire app.
+                    </p>
+                </div>
+            `;
+        } else {
+            container.innerHTML = `
+                <div class="feedback error">
+                    ❌ Error loading leaderboard. Please try refreshing the page.
+                    <br><br>
+                    <strong>Error details:</strong> ${error.message}
+                    <br><br>
+                    <button class="practice-btn" onclick="loadSpellingLeaderboard()">🔄 Retry</button>
+                </div>
+            `;
+        }
+    }
+}
+
+function displayLeaderboardTable() {
+    const container = document.getElementById('leaderboard-container');
+    
+    container.innerHTML = `
+        <div class="coaches-table" style="margin-top: 30px;">
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 100px;">🏆 Rank</th>
+                        <th>🎓 Player</th>
+                        <th style="width: 120px;">✅ Wins</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${leaderboardData.map((player, index) => {
+                        const rank = index + 1;
+                        
+                        // Determine rank display
+                        let rankDisplay = '';
+                        let rankColor = '#666';
+                        
+                        if (rank === 1) {
+                            rankDisplay = '🥇';
+                            rankColor = '#FFD700';
+                        } else if (rank === 2) {
+                            rankDisplay = '🥈';
+                            rankColor = '#C0C0C0';
+                        } else if (rank === 3) {
+                            rankDisplay = '🥉';
+                            rankColor = '#CD7F32';
+                        } else {
+                            rankDisplay = `#${rank}`;
+                        }
+                        
+                        // Avatar
+                        let avatarHTML = '';
+                        if (player.photoURL) {
+                            avatarHTML = `<div class="coach-avatar" style="background-image: url('${player.photoURL}'); background-size: cover; background-position: center;"></div>`;
+                        } else {
+                            const initial = (player.name || 'P').charAt(0).toUpperCase();
+                            avatarHTML = `<div class="coach-avatar">${initial}</div>`;
+                        }
+                        
+                        // Check if current user
+                        const isMe = currentUser && player.id === currentUser.uid;
+                        const rowClass = isMe ? 'leaderboard-player-row leaderboard-current-user' : 'leaderboard-player-row';
+                        
+                        return `
+                            <tr class="${rowClass}" onclick="showLeaderboardPlayer('${player.id}', ${rank})">
+                                <td>
+                                    <div style="font-size: 1.5rem; font-weight: bold; color: ${rankColor};">
+                                        ${rankDisplay}
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="coach-profile-cell">
+                                        ${avatarHTML}
+                                        <div class="coach-name">
+                                            ${player.name || 'Player'}
+                                            ${isMe ? '<span style="margin-left: 8px; color: #667eea; font-weight: bold;">(You)</span>' : ''}
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span style="font-size: 1.3rem; font-weight: bold; color: #28a745;">
+                                        ${player.spellingWins || 0}
+                                    </span>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('')}
+                </tbody>
+            </table>
+        </div>
+        
+        <div style="margin-top: 30px; padding: 20px; background: #e3f2fd; border-radius: 10px; border-left: 4px solid #0d3b66;">
+            <h3 style="color: #0d3b66; margin-bottom: 10px;">🏆 How to Climb the Leaderboard</h3>
+            <p style="color: #666; line-height: 1.6;">
+                Win live spelling challenges against other students to earn your place among the top champions! 
+                Each victory counts toward your total wins and moves you up the rankings.
+            </p>
+        </div>
+    `;
+}
+
+async function showLeaderboardPlayer(playerId, rank) {
+    try {
+        console.log('📋 Loading player details for:', playerId);
+        
+        // Find player in cached data first
+        let player = leaderboardData.find(p => p.id === playerId);
+        
+        // If not in cache, fetch from Firestore
+        if (!player) {
+            const playerDoc = await db.collection('users').doc(playerId).get();
+            if (playerDoc.exists) {
+                player = { id: playerDoc.id, ...playerDoc.data() };
+            } else {
+                alert('Player profile not found');
+                return;
+            }
+        }
+        
+        showLeaderboardPlayerModal(player, rank);
+    } catch (error) {
+        console.error('❌ Error loading player details:', error);
+        alert('Unable to load player details: ' + error.message);
+    }
+}
+
+function showLeaderboardPlayerModal(player, rank) {
+    const modal = document.getElementById('leaderboardPlayerModal');
+    if (!modal) return;
+    
+    // Student ID
+    const studentId = `WB-2025-${player.id.slice(-4).toUpperCase()}`;
+    
+    // Avatar
+    const avatar = document.getElementById('modal-leaderboard-avatar');
+    if (avatar) {
+        if (player.photoURL) {
+            avatar.style.backgroundImage = `url('${player.photoURL}')`;
+            avatar.style.backgroundSize = 'cover';
+            avatar.style.backgroundPosition = 'center';
+            avatar.textContent = '';
+        } else {
+            avatar.style.backgroundImage = 'none';
+            avatar.textContent = (player.name || 'P').charAt(0).toUpperCase();
+        }
+    }
+    
+    // Name
+    const nameEl = document.getElementById('modal-leaderboard-name');
+    if (nameEl) nameEl.textContent = player.name || 'Player';
+    
+    // Rank badge
+    const rankBadge = document.getElementById('modal-leaderboard-rank');
+    if (rankBadge) {
+        if (rank === 1) {
+            rankBadge.textContent = '🥇 #1 Champion';
+            rankBadge.style.background = 'linear-gradient(135deg, #FFD700, #FFA500)';
+            rankBadge.style.color = '#0d3b66';
+        } else if (rank === 2) {
+            rankBadge.textContent = '🥈 #2 Champion';
+            rankBadge.style.background = 'linear-gradient(135deg, #C0C0C0, #A8A8A8)';
+            rankBadge.style.color = '#0d3b66';
+        } else if (rank === 3) {
+            rankBadge.textContent = '🥉 #3 Champion';
+            rankBadge.style.background = 'linear-gradient(135deg, #CD7F32, #B8732E)';
+            rankBadge.style.color = 'white';
+        } else {
+            rankBadge.textContent = `#${rank}`;
+            rankBadge.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+            rankBadge.style.color = 'white';
+        }
+    }
+    
+    // Details
+    const idEl = document.getElementById('modal-leaderboard-id');
+    if (idEl) idEl.textContent = studentId;
+    
+    const winsEl = document.getElementById('modal-leaderboard-wins');
+    if (winsEl) winsEl.textContent = player.spellingWins || 0;
+    
+    const coinsEl = document.getElementById('modal-leaderboard-coins');
+    if (coinsEl) coinsEl.textContent = player.coins || 0;
+    
+    const emailEl = document.getElementById('modal-leaderboard-email');
+    if (emailEl) emailEl.textContent = player.email || 'N/A';
+    
+    const ageRow = document.getElementById('modal-leaderboard-age-row');
+    const ageEl = document.getElementById('modal-leaderboard-age');
+    if (ageRow && ageEl) {
+        if (player.age) {
+            ageRow.style.display = 'flex';
+            ageEl.textContent = player.age + ' years old';
+        } else {
+            ageRow.style.display = 'none';
+        }
+    }
+    
+    const countryEl = document.getElementById('modal-leaderboard-country');
+    if (countryEl) countryEl.textContent = player.country || 'N/A';
+    
+    const joinedEl = document.getElementById('modal-leaderboard-joined');
+    if (joinedEl) {
+        if (player.createdAt) {
+            const joinDate = player.createdAt.toDate();
+            joinedEl.textContent = joinDate.toLocaleDateString('en-US', { 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+            });
+        } else {
+            joinedEl.textContent = 'Recently';
+        }
+    }
+    
+    modal.classList.add('active');
+}
+
+function closeLeaderboardPlayerModal() {
+    const modal = document.getElementById('leaderboardPlayerModal');
+    if (modal) modal.classList.remove('active');
+}       
     </script>
 </body>
 </html>
