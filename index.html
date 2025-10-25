@@ -3697,7 +3697,92 @@
 
    <!-- Custom Popup -->
 <div class="custom-popup" id="customPopup"></div>
-    
+
+<!-- Leaderboard Player Detail Modal -->
+<div class="coach-detail-modal" id="leaderboardPlayerModal">
+    <div class="coach-detail-content">
+        <div class="coach-detail-header">
+            <button class="coach-detail-close" onclick="closeLeaderboardPlayerModal()">×</button>
+            <div class="coach-detail-avatar-large" id="modal-leaderboard-avatar">P</div>
+            <h2 id="modal-leaderboard-name">Player Name</h2>
+            <div class="status-badge verified" id="modal-leaderboard-rank" style="background: linear-gradient(135deg, #FFD700, #FFA500); color: #0d3b66; border: none;">
+                🏆 Rank #1
+            </div>
+        </div>
+        
+        <div class="coach-detail-body">
+            <div class="coach-info-row">
+                <div class="coach-info-label">🆔 Student ID:</div>
+                <div class="coach-info-value" id="modal-leaderboard-id-display">WB-2025-XXXX</div>
+            </div>
+            
+            <div class="coach-info-row">
+                <div class="coach-info-label">📧 Email:</div>
+                <div class="coach-info-value">
+                    <span id="modal-leaderboard-email">Loading...</span>
+                    <span style="color: #28a745; font-weight: bold; margin-left: 8px;">✓ Verified</span>
+                </div>
+            </div>
+            
+            <div class="coach-info-row" id="modal-leaderboard-age-row">
+                <div class="coach-info-label">🎂 Age:</div>
+                <div class="coach-info-value" id="modal-leaderboard-age">N/A</div>
+            </div>
+            
+            <div class="coach-info-row">
+                <div class="coach-info-label">🌍 Country:</div>
+                <div class="coach-info-value" id="modal-leaderboard-country">Loading...</div>
+            </div>
+            
+            <div class="coach-info-row">
+                <div class="coach-info-label">📅 Member Since:</div>
+                <div class="coach-info-value" id="modal-leaderboard-joined">Loading...</div>
+            </div>
+            
+            <hr style="margin: 20px 0; border: 1px solid #f0f0f0;">
+            
+            <h3 style="color: #0d3b66; margin-bottom: 15px; text-align: center;">📊 Spelling Challenge Stats</h3>
+            
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-top: 15px;">
+                <div style="background: #d4edda; padding: 15px; border-radius: 8px; text-align: center;">
+                    <div style="font-size: 2rem; font-weight: bold; color: #28a745;" id="modal-leaderboard-wins">0</div>
+                    <div style="color: #155724; font-size: 0.9rem; margin-top: 5px;">✅ Wins</div>
+                </div>
+                
+                <div style="background: #f8d7da; padding: 15px; border-radius: 8px; text-align: center;">
+                    <div style="font-size: 2rem; font-weight: bold; color: #dc3545;" id="modal-leaderboard-losses">0</div>
+                    <div style="color: #721c24; font-size: 0.9rem; margin-top: 5px;">❌ Losses</div>
+                </div>
+                
+                <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; text-align: center;">
+                    <div style="font-size: 2rem; font-weight: bold; color: #0d3b66;" id="modal-leaderboard-total">0</div>
+                    <div style="color: #0d3b66; font-size: 0.9rem; margin-top: 5px;">🎮 Total Games</div>
+                </div>
+                
+                <div style="background: #fff3cd; padding: 15px; border-radius: 8px; text-align: center;">
+                    <div style="font-size: 2rem; font-weight: bold; color: #856404;" id="modal-leaderboard-winrate">0%</div>
+                    <div style="color: #856404; font-size: 0.9rem; margin-top: 5px;">📈 Win Rate</div>
+                </div>
+                
+                <div style="background: #ffe8a1; padding: 15px; border-radius: 8px; text-align: center;">
+                    <div style="font-size: 2rem; font-weight: bold; color: #ff6b6b;" id="modal-leaderboard-streak">-</div>
+                    <div style="color: #c82333; font-size: 0.9rem; margin-top: 5px;">🔥 Current Streak</div>
+                </div>
+                
+                <div style="background: #f3e5f5; padding: 15px; border-radius: 8px; text-align: center;">
+                    <div style="font-size: 2rem; font-weight: bold; color: #7b1fa2;" id="modal-leaderboard-best">0</div>
+                    <div style="color: #4a148c; font-size: 0.9rem; margin-top: 5px;">⭐ Best Streak</div>
+                </div>
+            </div>
+            
+            <div style="background: #e8f5e9; padding: 15px; border-radius: 8px; text-align: center; margin-top: 15px;">
+                <div style="font-size: 1.8rem; font-weight: bold; color: #2e7d32;" id="modal-leaderboard-avgscore">0.0</div>
+                <div style="color: #1b5e20; font-size: 0.9rem; margin-top: 5px;">📊 Average Score per Game</div>
+            </div>
+        </div>
+    </div>
+</div>
+            
     <script>
         // ===== FIREBASE CONFIGURATION =====
         const firebaseConfig = {
@@ -3806,7 +3891,7 @@ let userCoins = 0;
 const COINS_PER_WIN = 5;
 const MAX_COINS = 1000;
       
-      // ===== INITIALIZE =====
+     // ===== INITIALIZE =====
 document.addEventListener('DOMContentLoaded', function() {
     initializeAlphabet();
     initializeSpeechRecognition();
@@ -3829,7 +3914,28 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('searchInput').addEventListener('keypress', function(e) {
         if (e.key === 'Enter') searchWord();
     });
-
+    
+    // ✅ ADD MODAL CLOSE HANDLERS
+    document.addEventListener('click', function(event) {
+        // Close coach detail modal
+        const coachModal = document.getElementById('coachDetailModal');
+        if (event.target === coachModal) {
+            closeCoachDetailModal();
+        }
+        
+        // Close student detail modal
+        const studentModal = document.getElementById('studentDetailModal');
+        if (event.target === studentModal) {
+            closeStudentDetailModal();
+        }
+        
+        // Close leaderboard player modal
+        const leaderboardModal = document.getElementById('leaderboardPlayerModal');
+        if (event.target === leaderboardModal) {
+            closeLeaderboardPlayerModal();
+        }
+    });
+    
     auth.onAuthStateChanged(async user => {
         if (user) {
             currentUser = user;
@@ -3855,6 +3961,22 @@ document.addEventListener('DOMContentLoaded', function() {
                     photoURL: user.photoURL
                 });
                 console.log('✅ PhotoURL synced!');
+            }
+            
+            // ✅ INITIALIZE SPELLING STATS IF NOT EXISTS
+            if (!userData.spellingStats) {
+                console.log('🔄 Initializing spelling stats...');
+                await userRef.update({
+                    spellingStats: {
+                        totalChallenges: 0,
+                        wins: 0,
+                        losses: 0,
+                        totalScore: 0,
+                        winStreak: 0,
+                        bestStreak: 0
+                    }
+                });
+                console.log('✅ Spelling stats initialized!');
             }
             
             if (!userData.profileComplete) {
@@ -3886,7 +4008,7 @@ document.addEventListener('DOMContentLoaded', function() {
             currentUser = null;
             updateUIForGuestUser();
         }
-});
+    });
 });
   
         
@@ -9532,6 +9654,7 @@ async function showChallengeResults(challenge) {
 
 
 // ===== SPELLING LEADERBOARD FUNCTIONS =====
+// ===== SPELLING LEADERBOARD FUNCTIONS =====
 async function loadSpellingLeaderboard() {
     const container = document.getElementById('leaderboard-container');
     
@@ -9568,7 +9691,11 @@ async function loadSpellingLeaderboard() {
                 players.push({
                     id: doc.id,
                     name: data.name,
+                    email: data.email,
                     photoURL: data.photoURL,
+                    country: data.country,
+                    age: data.age,
+                    createdAt: data.createdAt,
                     stats: data.spellingStats
                 });
             }
@@ -9595,8 +9722,7 @@ async function loadSpellingLeaderboard() {
                     <p style="font-size: 2.5rem; margin: 10px 0; font-weight: bold;">#${myRank}</p>
                     <p style="margin: 5px 0; opacity: 0.9;">
                         ${players[myRank - 1].stats.wins} Wins • 
-                        ${players[myRank - 1].stats.totalChallenges} Challenges • 
-                        ${((players[myRank - 1].stats.wins / players[myRank - 1].stats.totalChallenges) * 100).toFixed(1)}% Win Rate
+                        ${players[myRank - 1].stats.totalChallenges} Challenges
                     </p>
                 </div>
             ` : ''}
@@ -9605,16 +9731,12 @@ async function loadSpellingLeaderboard() {
                 <table>
                     <thead>
                         <tr>
-                            <th>🏆 Rank</th>
+                            <th style="text-align: center;">🏆 Rank</th>
                             <th>👤 Player</th>
-                            <th>✅ Wins</th>
-                            <th>📊 Win Rate</th>
-                            <th>🔥 Streak</th>
                         </tr>
                     </thead>
                     <tbody>
                         ${players.map((player, index) => {
-                            const winRate = ((player.stats.wins / player.stats.totalChallenges) * 100).toFixed(1);
                             const isCurrentUser = currentUser && player.id === currentUser.uid;
                             
                             let rankEmoji = '';
@@ -9624,35 +9746,22 @@ async function loadSpellingLeaderboard() {
                             
                             let avatarHTML = '';
                             if (player.photoURL) {
-                                avatarHTML = `<div style="width: 40px; height: 40px; border-radius: 50%; background-image: url('${player.photoURL}'); background-size: cover; background-position: center;"></div>`;
+                                avatarHTML = `<div style="width: 45px; height: 45px; min-width: 45px; border-radius: 50%; background-image: url('${player.photoURL}'); background-size: cover; background-position: center;"></div>`;
                             } else {
                                 const initial = (player.name || 'P').charAt(0).toUpperCase();
-                                avatarHTML = `<div class="coach-avatar" style="width: 40px; height: 40px; min-width: 40px; font-size: 1rem;">${initial}</div>`;
+                                avatarHTML = `<div class="coach-avatar" style="width: 45px; height: 45px; min-width: 45px;">${initial}</div>`;
                             }
                             
                             return `
-                                <tr style="${isCurrentUser ? 'background: #e3f2fd; font-weight: bold;' : ''}">
-                                    <td style="text-align: center; font-size: 1.2rem; font-weight: bold;">
-                                        ${rankEmoji} ${index + 1}
+                                <tr onclick="showLeaderboardPlayerDetail('${player.id}', ${index + 1})" style="cursor: pointer; ${isCurrentUser ? 'background: #e3f2fd;' : ''}">
+                                    <td style="text-align: center; font-size: 1.3rem; font-weight: bold; color: #0d3b66;">
+                                        ${rankEmoji || (index + 1)}
                                     </td>
                                     <td>
                                         <div class="coach-profile-cell">
                                             ${avatarHTML}
                                             <div class="coach-name">${player.name}${isCurrentUser ? ' (You)' : ''}</div>
                                         </div>
-                                    </td>
-                                    <td style="text-align: center; font-weight: bold; color: #28a745; font-size: 1.1rem;">
-                                        ${player.stats.wins}
-                                    </td>
-                                    <td style="text-align: center; font-size: 1rem;">
-                                        ${winRate}%
-                                        <div style="font-size: 0.8rem; color: #666;">
-                                            ${player.stats.wins}W - ${player.stats.losses}L
-                                        </div>
-                                    </td>
-                                    <td style="text-align: center; font-size: 1.1rem;">
-                                        ${player.stats.winStreak > 0 ? '🔥 ' + player.stats.winStreak : '-'}
-                                        ${player.stats.bestStreak > 0 ? `<div style="font-size: 0.8rem; color: #666;">Best: ${player.stats.bestStreak}</div>` : ''}
                                     </td>
                                 </tr>
                             `;
@@ -9665,9 +9774,8 @@ async function loadSpellingLeaderboard() {
                 <h3 style="color: #0d3b66; margin-bottom: 10px;">🏆 How Rankings Work</h3>
                 <p style="color: #666; line-height: 1.6;">
                     • Players are ranked by <strong>total wins</strong> in live spelling challenges<br>
-                    • Win rate is used as a tiebreaker<br>
-                    • Keep your win streak going to climb the ranks!<br>
-                    • Challenge top players to prove you're the best!
+                    • Click on any player to view their detailed stats<br>
+                    • Challenge top players to climb the leaderboard!
                 </p>
             </div>
         `;
@@ -9685,6 +9793,123 @@ async function loadSpellingLeaderboard() {
         `;
     }
 }
+
+
+  // Show leaderboard player details
+async function showLeaderboardPlayerDetail(playerId, rank) {
+    try {
+        console.log('📋 Loading player details for:', playerId);
+        const playerDoc = await db.collection('users').doc(playerId).get();
+        
+        if (!playerDoc.exists) {
+            console.error('❌ Player not found');
+            alert('Player profile not found');
+            return;
+        }
+        
+        const player = { id: playerDoc.id, ...playerDoc.data() };
+        console.log('Player data loaded:', player);
+        
+        const modal = document.getElementById('leaderboardPlayerModal');
+        
+        // Generate Student ID
+        const studentId = `WB-2025-${player.id.slice(-4).toUpperCase()}`;
+        
+        // Calculate stats
+        const stats = player.spellingStats || {
+            wins: 0,
+            losses: 0,
+            totalChallenges: 0,
+            winStreak: 0,
+            bestStreak: 0,
+            totalScore: 0
+        };
+        
+        const winRate = stats.totalChallenges > 0 
+            ? ((stats.wins / stats.totalChallenges) * 100).toFixed(1) 
+            : '0.0';
+        
+        const avgScore = stats.totalChallenges > 0 
+            ? (stats.totalScore / stats.totalChallenges).toFixed(1) 
+            : '0.0';
+        
+        // Rank emoji
+        let rankEmoji = '';
+        if (rank === 1) rankEmoji = '🥇';
+        else if (rank === 2) rankEmoji = '🥈';
+        else if (rank === 3) rankEmoji = '🥉';
+        
+        // Update avatar with photo
+        const avatar = document.getElementById('modal-leaderboard-avatar');
+        if (player.photoURL) {
+            console.log('🖼️ Setting photo URL:', player.photoURL);
+            avatar.style.backgroundImage = `url('${player.photoURL}')`;
+            avatar.style.backgroundSize = 'cover';
+            avatar.style.backgroundPosition = 'center';
+            avatar.textContent = '';
+        } else {
+            console.log('🔤 No photo URL, using initial');
+            avatar.style.backgroundImage = 'none';
+            avatar.textContent = (player.name || 'P').charAt(0).toUpperCase();
+        }
+        
+        // Update name
+        document.getElementById('modal-leaderboard-name').textContent = player.name || 'Player';
+        
+        // Update rank badge
+        document.getElementById('modal-leaderboard-rank').innerHTML = `${rankEmoji} Rank #${rank}`;
+        
+        // Update Student ID
+        document.getElementById('modal-leaderboard-id').textContent = studentId;
+        document.getElementById('modal-leaderboard-id-display').textContent = studentId;
+        
+        // Update email
+        document.getElementById('modal-leaderboard-email').textContent = player.email || 'N/A';
+        
+        // Update country
+        document.getElementById('modal-leaderboard-country').textContent = player.country || 'N/A';
+        
+        // Update age
+        const ageRow = document.getElementById('modal-leaderboard-age-row');
+        if (player.age) {
+            ageRow.style.display = 'flex';
+            document.getElementById('modal-leaderboard-age').textContent = player.age + ' years old';
+        } else {
+            ageRow.style.display = 'none';
+        }
+        
+        // Update member since
+        if (player.createdAt) {
+            const joinDate = player.createdAt.toDate();
+            document.getElementById('modal-leaderboard-joined').textContent = 
+                joinDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+        } else {
+            document.getElementById('modal-leaderboard-joined').textContent = 'Recently';
+        }
+        
+        // Update stats
+        document.getElementById('modal-leaderboard-wins').textContent = stats.wins;
+        document.getElementById('modal-leaderboard-losses').textContent = stats.losses;
+        document.getElementById('modal-leaderboard-total').textContent = stats.totalChallenges;
+        document.getElementById('modal-leaderboard-winrate').textContent = winRate + '%';
+        document.getElementById('modal-leaderboard-streak').textContent = stats.winStreak > 0 ? '🔥 ' + stats.winStreak : '-';
+        document.getElementById('modal-leaderboard-best').textContent = stats.bestStreak;
+        document.getElementById('modal-leaderboard-avgscore').textContent = avgScore;
+        
+        // Show modal
+        modal.classList.add('active');
+        console.log('Modal displayed');
+        
+    } catch (error) {
+        console.error('❌ Error loading player details:', error);
+        alert('Unable to load player details: ' + error.message);
+    }
+}
+
+// Close leaderboard player modal
+function closeLeaderboardPlayerModal() {
+    document.getElementById('leaderboardPlayerModal').classList.remove('active');
+}      
         
 // ===== REPLACE THE exitChallenge FUNCTION =====
 async function exitChallenge() {
