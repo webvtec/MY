@@ -2477,6 +2477,237 @@
             font-weight: bold;
             margin: 15px 0;
         }
+
+
+    /* ===== SUBSCRIPTION MODAL ===== */
+.subscription-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.95);
+    z-index: 10000;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    overflow-y: auto;
+}
+
+.subscription-modal.active {
+    display: flex;
+}
+
+.subscription-content {
+    background: white;
+    border-radius: 20px;
+    max-width: 600px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    position: relative;
+    box-shadow: 0 10px 50px rgba(255,0,0,0.4);
+    border: 4px solid #dc3545;
+}
+
+.subscription-header {
+    background: linear-gradient(135deg, #dc3545, #c82333);
+    color: white;
+    padding: 40px 30px;
+    text-align: center;
+    border-radius: 20px 20px 0 0;
+    position: relative;
+}
+
+.subscription-header h2 {
+    margin: 0 0 10px 0;
+    font-size: 2.2rem;
+}
+
+.subscription-header p {
+    margin: 0;
+    font-size: 1.1rem;
+    opacity: 0.95;
+}
+
+.subscription-body {
+    padding: 40px 30px;
+}
+
+.subscription-info {
+    background: linear-gradient(135deg, #FFD700, #FFA500);
+    padding: 25px;
+    border-radius: 15px;
+    margin-bottom: 30px;
+    text-align: center;
+    border: 3px solid #fff;
+    box-shadow: 0 5px 20px rgba(255, 215, 0, 0.3);
+}
+
+.subscription-info h3 {
+    color: #0d3b66;
+    margin: 0 0 15px 0;
+    font-size: 1.8rem;
+}
+
+.coin-requirement {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+    margin: 20px 0;
+}
+
+.coin-requirement .coin-icon {
+    font-size: 3rem;
+}
+
+.coin-requirement .amount {
+    font-size: 3rem;
+    font-weight: bold;
+    color: #0d3b66;
+}
+
+.your-coins {
+    background: rgba(255,255,255,0.9);
+    padding: 15px;
+    border-radius: 10px;
+    margin-top: 20px;
+}
+
+.your-coins p {
+    margin: 0;
+    font-size: 1.2rem;
+    color: #0d3b66;
+}
+
+.your-coins .coin-count {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #0d3b66;
+    margin: 5px 0;
+}
+
+.subscription-benefits {
+    background: #f9f9f9;
+    padding: 25px;
+    border-radius: 15px;
+    margin-bottom: 30px;
+}
+
+.subscription-benefits h3 {
+    color: #0d3b66;
+    margin: 0 0 15px 0;
+    font-size: 1.5rem;
+}
+
+.subscription-benefits ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.subscription-benefits li {
+    padding: 10px 0;
+    padding-left: 30px;
+    position: relative;
+    color: #333;
+    font-size: 1.1rem;
+}
+
+.subscription-benefits li:before {
+    content: "✅";
+    position: absolute;
+    left: 0;
+    font-size: 1.3rem;
+}
+
+.earn-more-section {
+    background: #e3f2fd;
+    padding: 20px;
+    border-radius: 10px;
+    border-left: 4px solid #0d3b66;
+    margin-bottom: 30px;
+}
+
+.earn-more-section h3 {
+    color: #0d3b66;
+    margin: 0 0 10px 0;
+    font-size: 1.3rem;
+}
+
+.earn-more-section p {
+    margin: 5px 0;
+    color: #666;
+    font-size: 1rem;
+}
+
+.subscription-actions {
+    display: flex;
+    gap: 15px;
+    flex-direction: column;
+}
+
+.btn-renew {
+    width: 100%;
+    padding: 20px;
+    background: linear-gradient(135deg, #28a745, #20c997);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 1.3rem;
+    font-weight: bold;
+    cursor: pointer;
+    font-family: Georgia, serif;
+    transition: all 0.3s;
+    box-shadow: 0 5px 20px rgba(40, 167, 69, 0.3);
+}
+
+.btn-renew:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(40, 167, 69, 0.4);
+}
+
+.btn-renew:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.countdown-timer {
+    background: #fff3cd;
+    padding: 15px;
+    border-radius: 10px;
+    border-left: 4px solid #ffc107;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.countdown-timer h4 {
+    color: #856404;
+    margin: 0 0 10px 0;
+    font-size: 1.2rem;
+}
+
+.countdown-timer .time {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #856404;
+}
+
+@keyframes pulse-warning {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.05);
+    }
+}
+
+.subscription-expired {
+    animation: pulse-warning 2s infinite;
+}
     </style>
 </head>
     </style>
@@ -3699,8 +3930,71 @@
    <!-- Custom Popup -->
 <div class="custom-popup" id="customPopup"></div>
 
-
+<!-- Subscription Required Modal -->
+<div class="auth-modal" id="subscriptionModal" style="z-index: 9999;">
+    <div class="auth-content">
+        <div class="auth-header" style="background: linear-gradient(135deg, #dc3545, #c82333);">
+            <h2>🔒 Subscription Required</h2>
+            <p style="margin-top: 10px; font-size: 0.95rem;">Your free trial has ended</p>
+        </div>
+        
+        <div class="auth-body" style="padding: 30px; text-align: center;">
+            <div style="font-size: 4rem; margin: 20px 0;">⏰</div>
             
+            <h3 style="color: #0d3b66; margin-bottom: 15px;">Renew Your Subscription</h3>
+            
+            <p style="color: #666; margin-bottom: 20px; font-size: 1.1rem;">
+                Continue learning with WordBiz Coaching Academy
+            </p>
+            
+            <div style="background: #f9f9f9; padding: 25px; border-radius: 10px; margin: 20px 0;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <span style="font-weight: bold; color: #0d3b66;">Your Coins:</span>
+                    <span style="font-size: 1.5rem; font-weight: bold; color: #FFD700;">
+                        🪙 <span id="modal-coin-balance">0</span>
+                    </span>
+                </div>
+                
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <span style="font-weight: bold; color: #0d3b66;">Cost:</span>
+                    <span style="font-size: 1.5rem; font-weight: bold; color: #dc3545;">
+                        🪙 300
+                    </span>
+                </div>
+                
+                <hr style="margin: 15px 0; border: 1px solid #ddd;">
+                
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-weight: bold; color: #0d3b66;">Duration:</span>
+                    <span style="font-size: 1.2rem; font-weight: bold; color: #28a745;">
+                        📅 30 Days
+                    </span>
+                </div>
+            </div>
+            
+            <div id="subscription-error" class="feedback error" style="display: none; margin: 20px 0;"></div>
+            
+            <button class="auth-submit" id="redeem-subscription-btn" onclick="redeemSubscription()" 
+                    style="background: #28a745; font-size: 1.2rem; padding: 18px;">
+                ✅ Redeem 300 Coins for 30 Days
+            </button>
+            
+            <div style="margin-top: 20px; padding: 15px; background: #fff3cd; border-radius: 8px; border-left: 4px solid #ffc107;">
+                <p style="color: #856404; margin: 0; font-size: 0.9rem;">
+                    <strong>💡 How to earn coins:</strong><br>
+                    • Win Live Spelling Challenges (+5 coins per win)<br>
+                    • Practice daily to improve your skills<br>
+                    • Challenge top players on the leaderboard
+                </p>
+            </div>
+            
+            <button class="auth-submit" onclick="navigateToEarnCoins()" 
+                    style="background: #17a2b8; margin-top: 15px;">
+                🎯 Earn Coins Now
+            </button>
+        </div>
+    </div>
+</div>    
     <script>
         // ===== FIREBASE CONFIGURATION =====
         const firebaseConfig = {
@@ -3808,6 +4102,11 @@ let offlineCheckTimer = null;
 let userCoins = 0;
 const COINS_PER_WIN = 5;
 const MAX_COINS = 1000;
+
+// ===== SUBSCRIPTION CONSTANTS =====
+const SUBSCRIPTION_COST = 300; // Coins needed for 1 month subscription
+const FREE_TRIAL_DAYS = 30; // 1 month free trial
+let userSubscription = null;
       
     // ===== INITIALIZE =====
 document.addEventListener('DOMContentLoaded', function() {
@@ -3983,6 +4282,15 @@ document.addEventListener('DOMContentLoaded', function() {
         
      // ===== NAVIGATION =====
 async function navigateTo(section, skipSidebarClose = false) {
+    // ✅ CHECK SUBSCRIPTION BEFORE ALLOWING NAVIGATION
+    if (currentUser) {
+        const canNavigate = await checkSubscriptionStatus();
+        if (!canNavigate) {
+            // Subscription expired - modal will be shown
+            return;
+        }
+    }
+    
     // Check if user needs to be logged in
     if ((section === 'favorites' || section === 'incorrect-quiz' || 
          section === 'spelling-favorites' || section === 'spelling-incorrect' || 
@@ -4058,6 +4366,7 @@ async function navigateTo(section, skipSidebarClose = false) {
         toggleSidebar(true);
     }
 }
+
         
        function toggleSidebar(forceClose = false) {
             const sidebar = document.getElementById('sidebar');
@@ -7396,6 +7705,128 @@ async function loadUserDashboard() {
             document.getElementById('stat-spelling-incorrect').textContent = userSpellingIncorrect.length;
         }, 500);
         
+        // ===== ADD SUBSCRIPTION STATUS SECTION FOR STUDENTS =====
+        if (userData?.userType === 'student' && userSubscription) {
+            // Check if subscription section already exists
+            let subscriptionSection = document.querySelector('.subscription-status-section');
+            
+            if (!subscriptionSection) {
+                // Create and insert subscription section after Quick Stats
+                const quickStatsSection = document.querySelector('.dashboard-section');
+                subscriptionSection = document.createElement('div');
+                subscriptionSection.className = 'dashboard-section subscription-status-section';
+                
+                // Insert after Quick Stats section
+                if (quickStatsSection && quickStatsSection.nextSibling) {
+                    quickStatsSection.parentNode.insertBefore(subscriptionSection, quickStatsSection.nextSibling);
+                } else if (quickStatsSection) {
+                    quickStatsSection.parentNode.appendChild(subscriptionSection);
+                }
+            }
+            
+            // Calculate days remaining
+            const daysRemaining = userSubscription.endDate ? 
+                Math.max(0, Math.ceil((userSubscription.endDate.toDate() - new Date()) / (1000 * 60 * 60 * 24))) : 0;
+            
+            // Determine status color and icon
+            let statusIcon = '✅';
+            let statusColor = '#28a745';
+            let statusText = 'Active';
+            
+            if (userSubscription.status === 'trial') {
+                statusIcon = '🎁';
+                statusColor = '#667eea';
+                statusText = 'Free Trial';
+            } else if (userSubscription.status === 'expired') {
+                statusIcon = '⏰';
+                statusColor = '#dc3545';
+                statusText = 'Expired';
+            }
+            
+            // Update subscription section content
+            subscriptionSection.innerHTML = `
+                <h2 class="section-title">📅 SUBSCRIPTION STATUS</h2>
+                <div class="dashboard-card" style="max-width: 600px; margin: 0 auto;">
+                    <div style="text-align: center; padding: 20px;">
+                        <div style="font-size: 3rem; margin-bottom: 15px;">${statusIcon}</div>
+                        <h3 style="color: ${statusColor}; margin-bottom: 10px; font-size: 1.5rem;">${statusText}</h3>
+                        
+                        <div style="background: #f9f9f9; padding: 20px; border-radius: 10px; margin: 20px 0;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid #e0e0e0;">
+                                <strong style="color: #0d3b66;">📆 Expires:</strong>
+                                <span style="color: #666; font-weight: 500;">
+                                    ${userSubscription.endDate ? new Date(userSubscription.endDate.toDate()).toLocaleDateString('en-US', { 
+                                        year: 'numeric', 
+                                        month: 'long', 
+                                        day: 'numeric' 
+                                    }) : 'N/A'}
+                                </span>
+                            </div>
+                            
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid #e0e0e0;">
+                                <strong style="color: #0d3b66;">⏱️ Days Remaining:</strong>
+                                <span style="color: ${daysRemaining <= 7 ? '#dc3545' : '#666'}; font-weight: bold; font-size: 1.2rem;">
+                                    ${daysRemaining} ${daysRemaining === 1 ? 'day' : 'days'}
+                                </span>
+                            </div>
+                            
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid #e0e0e0;">
+                                <strong style="color: #0d3b66;">🔄 Total Renewals:</strong>
+                                <span style="color: #666; font-weight: 500;">
+                                    ${userSubscription.renewals || 0}
+                                </span>
+                            </div>
+                            
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <strong style="color: #0d3b66;">🪙 Your Coins:</strong>
+                                <span style="color: #FFD700; font-weight: bold; font-size: 1.3rem;">
+                                    ${userCoins} / ${MAX_COINS}
+                                </span>
+                            </div>
+                        </div>
+                        
+                        ${daysRemaining <= 7 && daysRemaining > 0 ? `
+                            <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #ffc107;">
+                                <p style="color: #856404; margin: 0; font-weight: bold;">
+                                    ⚠️ Your subscription expires in ${daysRemaining} ${daysRemaining === 1 ? 'day' : 'days'}!
+                                </p>
+                                <p style="color: #856404; margin: 5px 0 0 0; font-size: 0.9rem;">
+                                    You need ${userCoins >= SUBSCRIPTION_COST ? '✅' : `${SUBSCRIPTION_COST - userCoins} more`} coins to renew
+                                </p>
+                            </div>
+                        ` : ''}
+                        
+                        ${userSubscription.status === 'expired' ? `
+                            <button class="practice-btn" onclick="showSubscriptionModal()" 
+                                    style="background: #dc3545; font-size: 1.1rem; padding: 15px 30px; margin-bottom: 10px; width: 100%;">
+                                🔒 Renew Subscription (300 Coins)
+                            </button>
+                        ` : userCoins >= SUBSCRIPTION_COST ? `
+                            <button class="practice-btn" onclick="showSubscriptionModal()" 
+                                    style="background: #28a745; font-size: 1.1rem; padding: 15px 30px; margin-bottom: 10px; width: 100%;">
+                                💰 Renew Now (300 Coins)
+                            </button>
+                        ` : ''}
+                        
+                        <button class="practice-btn" onclick="navigateToEarnCoins()" 
+                                style="background: #17a2b8; font-size: 1rem; padding: 12px 25px; width: 100%;">
+                            🎯 Earn Coins (Live Spelling Challenges)
+                        </button>
+                        
+                        <div style="margin-top: 20px; padding: 15px; background: #e3f2fd; border-radius: 8px; text-align: left;">
+                            <p style="color: #0d3b66; margin: 0; font-size: 0.9rem; line-height: 1.6;">
+                                <strong>💡 Renewal Info:</strong><br>
+                                • Cost: 300 coins for 30 days<br>
+                                • Earn 5 coins per spelling challenge win<br>
+                                • Maximum: ${MAX_COINS} coins<br>
+                                • Renew anytime before expiration
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
     } catch (error) {
         console.error('Error loading dashboard:', error);
         document.getElementById('dashboard-name').textContent = 'Error loading profile';
@@ -10282,8 +10713,47 @@ async function loadUserCoins(userId) {
             userCoins = userData.coins || 0;
         }
         
-        // Show coin display for students only
-        if (userData.userType === 'student') {
+        // ✅ INITIALIZE SUBSCRIPTION IF NOT EXISTS
+        if (!userData.subscription) {
+            // New user - give free trial
+            const trialEnd = new Date();
+            trialEnd.setDate(trialEnd.getDate() + FREE_TRIAL_DAYS);
+            
+            userSubscription = {
+                status: 'trial',
+                startDate: firebase.firestore.FieldValue.serverTimestamp(),
+                endDate: firebase.firestore.Timestamp.fromDate(trialEnd),
+                renewals: 0
+            };
+            
+            await db.collection('users').doc(userId).update({
+                subscription: userSubscription
+            });
+            
+            console.log('✅ Free trial activated for 30 days');
+        } else {
+            userSubscription = userData.subscription;
+            
+            // ✅ CHECK IF SUBSCRIPTION IS EXPIRED
+            const now = new Date();
+            const endDate = userData.subscription.endDate?.toDate();
+            
+            if (endDate && now > endDate) {
+                console.log('⏰ Subscription expired');
+                userSubscription.status = 'expired';
+                
+                await db.collection('users').doc(userId).update({
+                    'subscription.status': 'expired'
+                });
+                
+                // ✅ SHOW SUBSCRIPTION MODAL (cannot be closed)
+                showSubscriptionModal();
+                return; // Stop here - don't show coin display
+            }
+        }
+        
+        // Show coin display for students only if subscription is active
+        if (userData.userType === 'student' && userSubscription.status !== 'expired') {
             updateCoinDisplay();
         }
     } catch (error) {
@@ -10291,6 +10761,7 @@ async function loadUserCoins(userId) {
         userCoins = 0;
     }
 }
+
 
 function updateCoinDisplay() {
     const coinDisplay = document.getElementById('coinDisplay');
@@ -10365,6 +10836,173 @@ function showCoinEarnedAnimation(amount) {
         coinEarned.remove();
     }, 2000);
 }        
+
+// Show subscription modal
+function showSubscriptionModal() {
+    const modal = document.getElementById('subscriptionModal');
+    const coinBalance = document.getElementById('modal-coin-balance');
+    const redeemBtn = document.getElementById('redeem-subscription-btn');
+    const errorDiv = document.getElementById('subscription-error');
+    
+    if (!modal) {
+        console.error('❌ Subscription modal not found');
+        return;
+    }
+    
+    // Update coin balance display
+    if (coinBalance) {
+        coinBalance.textContent = userCoins;
+    }
+    
+    // Check if user has enough coins
+    if (redeemBtn) {
+        if (userCoins < SUBSCRIPTION_COST) {
+            redeemBtn.disabled = true;
+            redeemBtn.style.opacity = '0.5';
+            redeemBtn.style.cursor = 'not-allowed';
+            
+            if (errorDiv) {
+                errorDiv.textContent = `❌ You need ${SUBSCRIPTION_COST - userCoins} more coins to renew`;
+                errorDiv.style.display = 'block';
+            }
+        } else {
+            redeemBtn.disabled = false;
+            redeemBtn.style.opacity = '1';
+            redeemBtn.style.cursor = 'pointer';
+            
+            if (errorDiv) {
+                errorDiv.style.display = 'none';
+            }
+        }
+    }
+    
+    modal.classList.add('active');
+    
+    // ✅ PREVENT CLOSING - Remove click outside to close
+    modal.onclick = null;
+}
+
+// Redeem subscription with coins
+async function redeemSubscription() {
+    if (!currentUser) return;
+    
+    const errorDiv = document.getElementById('subscription-error');
+    const redeemBtn = document.getElementById('redeem-subscription-btn');
+    
+    // Check if user has enough coins
+    if (userCoins < SUBSCRIPTION_COST) {
+        if (errorDiv) {
+            errorDiv.textContent = `❌ You need ${SUBSCRIPTION_COST - userCoins} more coins to renew`;
+            errorDiv.style.display = 'block';
+        }
+        return;
+    }
+    
+    try {
+        // Disable button during processing
+        if (redeemBtn) {
+            redeemBtn.disabled = true;
+            redeemBtn.textContent = '⏳ Processing...';
+        }
+        
+        // Calculate new subscription end date (30 days from now)
+        const newEndDate = new Date();
+        newEndDate.setDate(newEndDate.getDate() + 30);
+        
+        // Deduct coins and update subscription
+        const newCoins = userCoins - SUBSCRIPTION_COST;
+        const renewalCount = (userSubscription?.renewals || 0) + 1;
+        
+        await db.collection('users').doc(currentUser.uid).update({
+            coins: newCoins,
+            subscription: {
+                status: 'active',
+                startDate: firebase.firestore.FieldValue.serverTimestamp(),
+                endDate: firebase.firestore.Timestamp.fromDate(newEndDate),
+                renewals: renewalCount,
+                lastRenewal: firebase.firestore.FieldValue.serverTimestamp()
+            }
+        });
+        
+        // Update local variables
+        userCoins = newCoins;
+        userSubscription = {
+            status: 'active',
+            endDate: firebase.firestore.Timestamp.fromDate(newEndDate),
+            renewals: renewalCount
+        };
+        
+        // Update coin display
+        updateCoinDisplay();
+        
+        // Show success message
+        if (errorDiv) {
+            errorDiv.className = 'feedback success';
+            errorDiv.textContent = '✅ Subscription renewed successfully for 30 days!';
+            errorDiv.style.display = 'block';
+        }
+        
+        // Close modal after 2 seconds
+        setTimeout(() => {
+            const modal = document.getElementById('subscriptionModal');
+            if (modal) {
+                modal.classList.remove('active');
+            }
+            
+            // Show success notification
+            showBottomNotification('🎉 Subscription renewed! Enjoy 30 more days of learning!', 'success');
+        }, 2000);
+        
+        console.log('✅ Subscription renewed successfully');
+        
+    } catch (error) {
+        console.error('Error redeeming subscription:', error);
+        
+        if (errorDiv) {
+            errorDiv.className = 'feedback error';
+            errorDiv.textContent = '❌ Failed to renew subscription. Please try again.';
+            errorDiv.style.display = 'block';
+        }
+        
+        if (redeemBtn) {
+            redeemBtn.disabled = false;
+            redeemBtn.textContent = '✅ Redeem 300 Coins for 30 Days';
+        }
+    }
+}
+
+// Navigate to earn coins section
+function navigateToEarnCoins() {
+    const modal = document.getElementById('subscriptionModal');
+    if (modal) {
+        // Don't close modal - just navigate
+        navigateTo('spelling', true);
+        switchSpellingMode('live');
+    }
+}
+
+// Check subscription status on navigation
+async function checkSubscriptionStatus() {
+    if (!currentUser || !userSubscription) return true;
+    
+    const userDoc = await db.collection('users').doc(currentUser.uid).get();
+    const userData = userDoc.data();
+    
+    // Skip check for coaches
+    if (userData.userType === 'coach' || userData.userType === 'organization') {
+        return true;
+    }
+    
+    const now = new Date();
+    const endDate = userData.subscription?.endDate?.toDate();
+    
+    if (endDate && now > endDate) {
+        showSubscriptionModal();
+        return false;
+    }
+    
+    return true;
+}
     </script>
 </body>
 </html>
