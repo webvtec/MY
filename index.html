@@ -8884,11 +8884,31 @@ function listenForChallenges() {
     challengeListener = db.collection('challenges')
         .where('opponent.id', '==', currentUser.uid)
         .onSnapshot(snapshot => {
-            snapshot.docChanges().forEach(change => {
+            snapshot.docChanges().forEach(async change => {
                 const challenge = { id: change.doc.id, ...change.doc.data() };
                 
                 if (change.type === 'added' || change.type === 'modified') {
                     if (challenge.status === 'pending') {
+                        // ✅ CHECK IF CHALLENGER IS STILL ONLINE
+                        const challengerId = challenge.challenger.id;
+                        const challengerPresence = await db.collection('onlineUsers').doc(challengerId).get();
+                        
+                        if (!challengerPresence.exists) {
+                            // Challenger went offline - delete the challenge
+                            console.log('🚫 Challenger went offline - removing challenge');
+                            await db.collection('challenges').doc(challenge.id).delete();
+                            
+                            // Remove popup if exists
+                            const popup = document.getElementById('challenge-popup-notification');
+                            if (popup) popup.remove();
+                            
+                            // Remove from shown set
+                            shownPopupIds.delete(challenge.id);
+                            
+                            return;
+                        }
+                        
+                        // Challenger is online - show challenge
                         showChallengePopup(challenge);
                         displayIncomingChallenges([challenge]);
                     } else if (challenge.status === 'active') {
@@ -8904,6 +8924,9 @@ function listenForChallenges() {
                 if (change.type === 'removed') {
                     const popup = document.getElementById('challenge-popup-notification');
                     if (popup) popup.remove();
+                    
+                    // Remove from shown set
+                    shownPopupIds.delete(challenge.id);
                 }
             });
         });
@@ -9004,6 +9027,18 @@ function displayIncomingChallenges(challenges) {
 async function acceptChallenge(challengeId) {
     console.log('✅ Starting acceptChallenge for:', challengeId);
     
+    // ✅ CHECK IF ALREADY IN A CHALLENGE
+    if (activeChallenge && activeChallenge.status === 'active') {
+        showCustomPopup('⚠️ COMPLETE CURRENT CHALLENGE FIRST');
+        setTimeout(() => hideCustomPopup(), 3000);
+        
+        // Remove the popup for this new challenge
+        const popup = document.getElementById('challenge-popup-notification');
+        if (popup) popup.remove();
+        
+        return;
+    }
+    
     try {
         const challengeRef = db.collection('challenges').doc(challengeId);
         const challengeDoc = await challengeRef.get();
@@ -9072,18 +9107,27 @@ async function acceptChallenge(challengeId) {
         
 async function declineChallenge(challengeId) {
     try {
+        // Delete the challenge from Firestore
         await db.collection('challenges').doc(challengeId).delete();
         
-        const section = document.getElementById('incoming-challenges-section');
-        section.style.display = 'none';
+        // Remove from shown popups set
+        shownPopupIds.delete(challengeId);
         
-        alert('Challenge declined.');
+        // Remove the popup if it exists
+        const popup = document.getElementById('challenge-popup-notification');
+        if (popup) popup.remove();
+        
+        // Hide incoming challenges section
+        const section = document.getElementById('incoming-challenges-section');
+        if (section) section.style.display = 'none';
+        
+        console.log('✅ Challenge declined and deleted');
     } catch (error) {
         console.error('Error declining challenge:', error);
-        alert('Failed to decline challenge.');
     }
 }
 
+        
 // ===== REPLACE THE showChallengePopup FUNCTION =====
 function showChallengePopup(challenge) {
     const challengeId = challenge.id; // Use document ID only
@@ -9146,11 +9190,14 @@ function showChallengePopup(challenge) {
 async function declineChallengeFromPopup(challengeId) {
     console.log('❌ Declining challenge from popup:', challengeId);
     
+    // Remove popup immediately
     const popup = document.getElementById('challenge-popup-notification');
     if (popup) popup.remove();
     
+    // Delete from shown popups set so it won't show again
     shownPopupIds.delete(challengeId);
     
+    // Decline and delete the challenge
     await declineChallenge(challengeId);
 }
 
@@ -9159,6 +9206,19 @@ async function declineChallengeFromPopup(challengeId) {
 async function acceptChallengeFromPopup(challengeId) {
     console.log('🎯 Accepting challenge from popup:', challengeId);
     
+    // ✅ CHECK IF ALREADY IN A CHALLENGE
+    if (activeChallenge && activeChallenge.status === 'active') {
+        showCustomPopup('⚠️ COMPLETE CURRENT CHALLENGE FIRST');
+        setTimeout(() => hideCustomPopup(), 3000);
+        
+        // Remove the popup
+        const popup = document.getElementById('challenge-popup-notification');
+        if (popup) popup.remove();
+        
+        return;
+    }
+    
+    // Remove popup
     const popup = document.getElementById('challenge-popup-notification');
     if (popup) popup.remove();
     
@@ -9167,7 +9227,6 @@ async function acceptChallengeFromPopup(challengeId) {
     // Call acceptChallenge with the correct ID
     await acceptChallenge(challengeId);
 }
-
         
 // ===== REPLACE THE startLiveChallenge FUNCTION (UPDATE THE LISTENER PART) =====
 async function startLiveChallenge(challengeId) {
