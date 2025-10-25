@@ -10583,7 +10583,7 @@ async function updateDashboardSubscriptionStatus() {
             statusText.innerHTML = `
                 Expires: ${formatDate(subscriptionExpiry)} (${daysLeft} days left)
                 ${subscriptionType === 'trial' ? 
-                    '<br><span style="font-size: 0.85rem; opacity: 0.8; margin-top: 8px; display: block;">⚠️ This is your first month free trial. After it expires, you\'ll need coins to continue. If you don\'t have coins, your parents will need to pay $1000 JMD.</span>' : 
+                    '<br><span style="font-size: 0.85rem; opacity: 0.8; margin-top: 8px; display: block;">⚠️ This is your first month free trial. After it expires, you\'ll need 300 coins to continue. If you don\'t have coins, your parents will need to pay $1000 JMD.</span>' : 
                     ''}
             `;
             renewSection.style.display = 'none';
