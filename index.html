@@ -8127,8 +8127,11 @@ async function loadUserDashboard() {
         const userDoc = await db.collection('users').doc(currentUser.uid).get();
         const userData = userDoc.data();
         
+        // ✅ CHECK IF USER IS A COACH
+        const isCoach = userData?.userType === 'coach';
+        
         // Update dashboard header
-        const displayName = userData?.name || currentUser.displayName || 'Student';
+        const displayName = userData?.name || currentUser.displayName || isCoach ? 'Coach' : 'Student';
         document.getElementById('dashboard-name').textContent = displayName;
         document.getElementById('dashboard-email').textContent = userData?.email || currentUser.email || '';
         
@@ -8150,7 +8153,6 @@ async function loadUserDashboard() {
             document.getElementById('display-joined').textContent = 
                 joinDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
         } else {
-            // Fallback for accounts without createdAt
             document.getElementById('dashboard-join-date').textContent = 'Member since: Recently joined';
             document.getElementById('display-joined').textContent = 'Recently joined';
         }
@@ -8160,9 +8162,17 @@ async function loadUserDashboard() {
         document.getElementById('edit-name').value = displayName;
         
         document.getElementById('display-email').textContent = userData?.email || currentUser.email || 'N/A';
-        // Update Student ID
-        const studentId = userData?.studentId || `WB-2025-${currentUser.uid.slice(-4).toUpperCase()}`;
-        document.getElementById('display-student-id').textContent = studentId;
+        
+        // ✅ HIDE/SHOW STUDENT ID BASED ON USER TYPE
+        const studentIdRow = document.querySelector('.profile-field:has(#display-student-id)');
+        if (isCoach) {
+            if (studentIdRow) studentIdRow.style.display = 'none';
+        } else {
+            if (studentIdRow) studentIdRow.style.display = 'flex';
+            const studentId = userData?.studentId || `WB-2025-${currentUser.uid.slice(-4).toUpperCase()}`;
+            document.getElementById('display-student-id').textContent = studentId;
+        }
+        
         document.getElementById('display-age').textContent = userData?.age || 'Not specified';
         document.getElementById('edit-age').value = userData?.age || '';
         
@@ -8173,8 +8183,6 @@ async function loadUserDashboard() {
             userData?.userType ? userData.userType.charAt(0).toUpperCase() + userData.userType.slice(1) : 'Student';
         
         // ===== COACH-SPECIFIC RESTRICTIONS =====
-        const isCoach = userData?.userType === 'coach';
-        
         if (isCoach) {
             // Hide edit button for coaches
             document.getElementById('edit-profile-btn').style.display = 'none';
@@ -8185,48 +8193,52 @@ async function loadUserDashboard() {
                 deleteAccountOption.style.display = 'none';
             }
             
-            // Hide quiz mistakes and spelling mistakes navigation items for coaches
-            const quizMistakesNav = document.querySelector('a[href="#quiz-mistakes"]');
-            if (quizMistakesNav) {
-                quizMistakesNav.style.display = 'none';
+            // ✅ HIDE QUICK STATS FOR COACHES
+            const quickStatsSection = document.querySelector('.dashboard-section:has(.dashboard-grid)');
+            if (quickStatsSection) {
+                quickStatsSection.style.display = 'none';
             }
             
-            const spellingMistakesNav = document.querySelector('a[href="#spelling-mistakes"]');
-            if (spellingMistakesNav) {
-                spellingMistakesNav.style.display = 'none';
+            // ✅ HIDE SUBSCRIPTION STATUS FOR COACHES
+            const subscriptionSection = document.querySelector('.dashboard-section:has(#sub-status-icon)');
+            if (subscriptionSection) {
+                subscriptionSection.style.display = 'none';
             }
+            
         } else {
-            // Show edit button for non-coaches (students)
+            // Show everything for students
             document.getElementById('edit-profile-btn').style.display = 'inline-block';
             
-            // Show delete account option for non-coaches
             const deleteAccountOption = document.querySelector('.setting-item[onclick="confirmDeleteAccount()"]');
             if (deleteAccountOption) {
                 deleteAccountOption.style.display = 'flex';
             }
             
-            // Show quiz mistakes and spelling mistakes navigation items for students
-            const quizMistakesNav = document.querySelector('a[href="#quiz-mistakes"]');
-            if (quizMistakesNav) {
-                quizMistakesNav.style.display = 'flex';
+            // Show quick stats for students
+            const quickStatsSection = document.querySelector('.dashboard-section:has(.dashboard-grid)');
+            if (quickStatsSection) {
+                quickStatsSection.style.display = 'block';
             }
             
-            const spellingMistakesNav = document.querySelector('a[href="#spelling-mistakes"]');
-            if (spellingMistakesNav) {
-                spellingMistakesNav.style.display = 'flex';
+            // Show subscription status for students
+            const subscriptionSection = document.querySelector('.dashboard-section:has(#sub-status-icon)');
+            if (subscriptionSection) {
+                subscriptionSection.style.display = 'block';
             }
         }
         
-        // Update stats (wait for them to be loaded)
-        setTimeout(() => {
-            document.getElementById('stat-quiz-favorites').textContent = userFavorites.length;
-            document.getElementById('stat-quiz-incorrect').textContent = userIncorrect.length;
-            document.getElementById('stat-spelling-favorites').textContent = userSpellingFavorites.length;
-            document.getElementById('stat-spelling-incorrect').textContent = userSpellingIncorrect.length;
-            
-            // ✅ UPDATE SUBSCRIPTION STATUS
-            updateDashboardSubscriptionStatus();
-        }, 500);
+        // Update stats (wait for them to be loaded) - ONLY FOR STUDENTS
+        if (!isCoach) {
+            setTimeout(() => {
+                document.getElementById('stat-quiz-favorites').textContent = userFavorites.length;
+                document.getElementById('stat-quiz-incorrect').textContent = userIncorrect.length;
+                document.getElementById('stat-spelling-favorites').textContent = userSpellingFavorites.length;
+                document.getElementById('stat-spelling-incorrect').textContent = userSpellingIncorrect.length;
+                
+                // Update subscription status
+                updateDashboardSubscriptionStatus();
+            }, 500);
+        }
         
     } catch (error) {
         console.error('Error loading dashboard:', error);
