@@ -2921,30 +2921,36 @@
                 <div id="signin-error" class="feedback error" style="display:none; margin-top:15px;"></div>
             </form>
 
-            <!-- Sign Up - User Type Selection -->
-            <div id="signup-selection" class="auth-form">
-                <h3 style="color: #0d3b66; margin-bottom: 20px; text-align: center;">Choose Your Account Type</h3>
-                
-                <div style="display: flex; flex-direction: column; gap: 15px;">
-                    <button type="button" class="user-type-btn" onclick="showSignUpForm('student')">
-                        <div style="font-size: 2rem; margin-bottom: 10px;">🎓</div>
-                        <div style="font-size: 1.2rem; font-weight: bold;">Student</div>
-                        <div style="font-size: 0.9rem; color: #666; margin-top: 5px;">Practice spelling & vocabulary</div>
-                    </button>
-                    
-                    <button type="button" class="user-type-btn" onclick="showSignUpForm('coach')">
-                        <div style="font-size: 2rem; margin-bottom: 10px;">👨‍🏫</div>
-                        <div style="font-size: 1.2rem; font-weight: bold;">Coach</div>
-                        <div style="font-size: 0.9rem; color: #666; margin-top: 5px;">Manage students & track progress</div>
-                    </button>
-                    
-                    <button type="button" class="user-type-btn" onclick="showSignUpForm('organization')">
-                        <div style="font-size: 2rem; margin-bottom: 10px;">🏫</div>
-                        <div style="font-size: 1.2rem; font-weight: bold;">School/Organization</div>
-                        <div style="font-size: 0.9rem; color: #666; margin-top: 5px;">Manage coaches & students</div>
-                    </button>
-                </div>
-            </div>
+          <!-- Sign Up - User Type Selection -->
+<div id="signup-selection" class="auth-form">
+    <h3 style="color: #0d3b66; margin-bottom: 20px; text-align: center;">Choose Your Account Type</h3>
+    
+    <div style="display: flex; flex-direction: column; gap: 15px;">
+        <button type="button" class="user-type-btn" onclick="showSignUpForm('student')">
+            <div style="font-size: 2rem; margin-bottom: 10px;">🎓</div>
+            <div style="font-size: 1.2rem; font-weight: bold;">Student</div>
+            <div style="font-size: 0.9rem; color: #666; margin-top: 5px;">Practice spelling & vocabulary</div>
+        </button>
+        
+        <button type="button" class="user-type-btn" onclick="showSignUpForm('parent')">
+            <div style="font-size: 2rem; margin-bottom: 10px;">👨‍👩‍👧</div>
+            <div style="font-size: 1.2rem; font-weight: bold;">Parent</div>
+            <div style="font-size: 0.9rem; color: #666; margin-top: 5px;">Register your child & monitor progress</div>
+        </button>
+        
+        <button type="button" class="user-type-btn" onclick="showSignUpForm('coach')">
+            <div style="font-size: 2rem; margin-bottom: 10px;">👨‍🏫</div>
+            <div style="font-size: 1.2rem; font-weight: bold;">Coach</div>
+            <div style="font-size: 0.9rem; color: #666; margin-top: 5px;">Manage students & track progress</div>
+        </button>
+        
+        <button type="button" class="user-type-btn" onclick="showSignUpForm('organization')">
+            <div style="font-size: 2rem; margin-bottom: 10px;">🏫</div>
+            <div style="font-size: 1.2rem; font-weight: bold;">School/Organization</div>
+            <div style="font-size: 0.9rem; color: #666; margin-top: 5px;">Manage coaches & students</div>
+        </button>
+    </div>
+</div>
 
             <!-- Sign Up Form - Student -->
 <form id="signup-student-form" class="auth-form" onsubmit="handleSignUp(event, 'student')" style="display: none;">
@@ -3003,6 +3009,141 @@
     </button>
     <div id="signup-student-error" class="feedback error" style="display:none; margin-top:15px;"></div>
 </form>
+
+        <!-- Sign Up Form - Parent -->
+<form id="signup-parent-form" class="auth-form" onsubmit="handleParentSignUp(event)" style="display: none;">
+    <button type="button" onclick="backToUserTypeSelection()" style="background: none; border: none; color: #0d3b66; cursor: pointer; margin-bottom: 15px; display: flex; align-items: center; gap: 5px;">
+        ← Back to selection
+    </button>
+    
+    <h3 style="color: #0d3b66; margin-bottom: 15px; text-align: center;">👨‍👩‍👧 Parent Sign Up</h3>
+    
+    <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #ffc107;">
+        <strong style="color: #856404;">📋 Requirements:</strong>
+        <ul style="color: #856404; margin: 10px 0 0 20px; line-height: 1.8;">
+            <li>Parent's government-issued ID</li>
+            <li>Child's government-issued ID or birth certificate</li>
+            <li>Valid student ID from WordBiz</li>
+        </ul>
+    </div>
+    
+    <!-- Parent Information -->
+    <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+        <h4 style="color: #0d3b66; margin: 0 0 15px 0;">👤 Parent Information</h4>
+        
+        <div class="form-group">
+            <label>Parent's Full Name *</label>
+            <input type="text" id="signup-parent-name" required>
+        </div>
+        
+        <div class="form-group">
+            <label>Email *</label>
+            <input type="email" id="signup-parent-email" required>
+        </div>
+        
+        <div class="form-group">
+            <label>Password * (min 6 characters)</label>
+            <input type="password" id="signup-parent-password" required minlength="6">
+        </div>
+        
+        <div class="form-group">
+            <label>Phone Number *</label>
+            <input type="tel" id="signup-parent-phone" required>
+        </div>
+        
+        <div class="form-group">
+            <label>Country *</label>
+            <select id="signup-parent-country" required style="width: 100%; padding: 12px 15px; border: 2px solid #0d3b66; border-radius: 5px; font-size: 1rem; font-family: Georgia, serif;">
+                <option value="">Select your country</option>
+                <option value="United States">United States</option>
+                <option value="United Kingdom">United Kingdom</option>
+                <option value="Canada">Canada</option>
+                <option value="Australia">Australia</option>
+                <option value="Jamaica">Jamaica</option>
+                <option value="India">India</option>
+                <option value="Nigeria">Nigeria</option>
+                <option value="South Africa">South Africa</option>
+                <option value="Kenya">Kenya</option>
+                <option value="Ghana">Ghana</option>
+                <option value="Trinidad and Tobago">Trinidad and Tobago</option>
+                <option value="Barbados">Barbados</option>
+                <option value="Bahamas">Bahamas</option>
+                <option value="Philippines">Philippines</option>
+                <option value="Singapore">Singapore</option>
+                <option value="New Zealand">New Zealand</option>
+                <option value="Ireland">Ireland</option>
+                <option value="Pakistan">Pakistan</option>
+                <option value="Bangladesh">Bangladesh</option>
+                <option value="Malaysia">Malaysia</option>
+                <option value="Other">Other</option>
+            </select>
+        </div>
+        
+        <!-- Parent ID Upload -->
+        <div class="form-group">
+            <label>Parent's ID Photo * (Driver's License, Passport, or National ID)</label>
+            <div class="id-upload-area" onclick="document.getElementById('parent-id-file').click()" style="background: rgba(255,255,255,0.95); border: 3px dashed #0d3b66; border-radius: 12px; padding: 20px; text-align: center; cursor: pointer; transition: all 0.3s;">
+                <div style="font-size: 2rem; margin-bottom: 10px;">📷</div>
+                <div style="font-weight: bold; margin-bottom: 5px;">Click to Upload Parent's ID</div>
+                <div style="font-size: 0.9rem; color: #666;">JPG, PNG, PDF (Max 10MB)</div>
+                <input type="file" id="parent-id-file" accept="image/*,.pdf" onchange="handleParentIDUpload(event)" style="display: none;" required>
+            </div>
+            <div id="parent-id-preview" style="display: none; margin-top: 10px;">
+                <img id="parent-id-preview-image" style="max-width: 100%; max-height: 200px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                <button type="button" onclick="changeParentID()" style="margin-top: 10px; padding: 8px 16px; background: #dc3545; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">Change Photo</button>
+            </div>
+            <div id="parent-id-status" style="margin-top: 10px; display: none;"></div>
+        </div>
+    </div>
+    
+    <!-- Child Information -->
+    <div style="background: #f3e5f5; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+        <h4 style="color: #0d3b66; margin: 0 0 15px 0;">👶 Child Information</h4>
+        
+        <div class="form-group">
+            <label>Child's Full Name *</label>
+            <input type="text" id="signup-child-name" required>
+        </div>
+        
+        <div class="form-group">
+            <label>Child's Age *</label>
+            <input type="number" id="signup-child-age" min="5" max="18" required>
+        </div>
+        
+        <div class="form-group">
+            <label>Child's Student ID * (Format: WB-2025-XXXX)</label>
+            <input type="text" id="signup-child-student-id" placeholder="WB-2025-XXXX" pattern="WB-2025-[A-Z0-9]{4}" required>
+            <small style="color: #666; margin-top: 5px; display: block;">This ID was provided when your child registered as a student</small>
+        </div>
+        
+        <!-- Child ID Upload -->
+        <div class="form-group">
+            <label>Child's ID Photo * (Birth Certificate, Student ID, or Government ID)</label>
+            <div class="id-upload-area" onclick="document.getElementById('child-id-file').click()" style="background: rgba(255,255,255,0.95); border: 3px dashed #9c27b0; border-radius: 12px; padding: 20px; text-align: center; cursor: pointer; transition: all 0.3s;">
+                <div style="font-size: 2rem; margin-bottom: 10px;">📷</div>
+                <div style="font-weight: bold; margin-bottom: 5px;">Click to Upload Child's ID</div>
+                <div style="font-size: 0.9rem; color: #666;">JPG, PNG, PDF (Max 10MB)</div>
+                <input type="file" id="child-id-file" accept="image/*,.pdf" onchange="handleChildIDUpload(event)" style="display: none;" required>
+            </div>
+            <div id="child-id-preview" style="display: none; margin-top: 10px;">
+                <img id="child-id-preview-image" style="max-width: 100%; max-height: 200px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                <button type="button" onclick="changeChildID()" style="margin-top: 10px; padding: 8px 16px; background: #dc3545; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">Change Photo</button>
+            </div>
+            <div id="child-id-status" style="margin-top: 10px; display: none;"></div>
+        </div>
+    </div>
+    
+    <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #ffc107;">
+        <strong style="color: #856404;">🔒 Privacy & Security:</strong>
+        <p style="color: #856404; margin: 10px 0 0 0; font-size: 0.9rem; line-height: 1.6;">
+            ID photos are used only for verification purposes and are not stored permanently. Only verification status is saved in our database.
+        </p>
+    </div>
+    
+    <button type="submit" class="auth-submit" id="parent-signup-btn">✅ Create Parent Account</button>
+    
+    <div id="signup-parent-error" class="feedback error" style="display:none; margin-top:15px;"></div>
+</form>    
             <!-- Sign Up Form - Coach -->
             <form id="signup-coach-form" class="auth-form" onsubmit="handleSignUp(event, 'coach')" style="display: none;">
                 <button type="button" onclick="backToUserTypeSelection()" style="background: none; border: none; color: #0d3b66; cursor: pointer; margin-bottom: 15px; display: flex; align-items: center; gap: 5px;">
@@ -3939,6 +4080,15 @@ let myChallengeListener = null;
 let shownPopupIds = new Set();
 let declinedChallengeIds = new Set(); // ✅ NEW: Track declined challenges
 let presenceInitialized = false; // ✅ NEW: Prevent duplicate presence initialization
+
+
+// ===== PARENT ID VERIFICATION VARIABLES =====
+let parentIDFile = null;
+let parentIDBase64 = null;
+let childIDFile = null;
+let childIDBase64 = null;
+let parentIDVerified = false;
+let childIDVerified = false;
 
 // ===== LEVEL-BASED WORD LOADING =====
 let currentLevel = '';
@@ -5097,6 +5247,8 @@ function showSignUpForm(userType) {
     // Show appropriate form
     if (userType === 'student') {
         document.getElementById('signup-student-form').style.display = 'block';
+    } else if (userType === 'parent') {
+        document.getElementById('signup-parent-form').style.display = 'block';
     } else if (userType === 'coach') {
         document.getElementById('signup-coach-form').style.display = 'block';
     } else if (userType === 'organization') {
@@ -5107,13 +5259,14 @@ function showSignUpForm(userType) {
 function backToUserTypeSelection() {
     // Hide all forms
     document.getElementById('signup-student-form').style.display = 'none';
+    document.getElementById('signup-parent-form').style.display = 'none';
     document.getElementById('signup-coach-form').style.display = 'none';
     document.getElementById('signup-organization-form').style.display = 'none';
     
     // Show selection
     document.getElementById('signup-selection').style.display = 'block';
 }
-
+        
 async function handleSignIn(event) {
     event.preventDefault();
     const email = document.getElementById('signin-email').value;
@@ -5756,7 +5909,420 @@ async function handleVerification(event) {
     }
 }
         
+
+
+// ===== PARENT ID UPLOAD FUNCTIONS =====
+function handleParentIDUpload(event) {
+    const file = event.target.files[0];
+    
+    if (!file) return;
+    
+    if (file.size > 10 * 1024 * 1024) {
+        alert('File is too large. Maximum size is 10MB.');
+        return;
+    }
+    
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
+    if (!validTypes.includes(file.type)) {
+        alert('Invalid file type. Please upload JPG, PNG, or PDF.');
+        return;
+    }
+    
+    parentIDFile = file;
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        parentIDBase64 = e.target.result.split(',')[1];
         
+        if (file.type.startsWith('image/')) {
+            document.getElementById('parent-id-preview-image').src = e.target.result;
+            document.getElementById('parent-id-preview').style.display = 'block';
+        }
+        
+        verifyParentID();
+    };
+    reader.readAsDataURL(file);
+}
+
+function changeParentID() {
+    document.getElementById('parent-id-file').value = '';
+    document.getElementById('parent-id-preview').style.display = 'none';
+    document.getElementById('parent-id-status').style.display = 'none';
+    parentIDFile = null;
+    parentIDBase64 = null;
+    parentIDVerified = false;
+}
+
+async function verifyParentID() {
+    if (!parentIDBase64) {
+        alert('Please upload parent ID first');
+        return;
+    }
+    
+    const statusDiv = document.getElementById('parent-id-status');
+    const parentName = document.getElementById('signup-parent-name').value.trim();
+    
+    if (!parentName) {
+        alert('Please enter parent name first');
+        return;
+    }
+    
+    statusDiv.className = 'id-verification-status verifying show';
+    statusDiv.style.display = 'block';
+    statusDiv.style.background = '#fff3cd';
+    statusDiv.style.borderLeft = '4px solid #ffc107';
+    statusDiv.style.padding = '15px';
+    statusDiv.style.borderRadius = '8px';
+    statusDiv.style.color = '#856404';
+    statusDiv.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <div class="verification-spinner"></div>
+            <strong>Verifying parent ID...</strong>
+        </div>
+        <p style="margin-top: 8px;">This may take 10-20 seconds. Please wait...</p>
+    `;
+    
+    try {
+        const response = await fetch(CLOUD_FUNCTION_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                data: {
+                    action: 'verifyCoachID',
+                    imageBase64: parentIDBase64,
+                    coachName: parentName,
+                    userId: 'temp-parent-' + Date.now()
+                }
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`Verification failed: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        const result = data.result;
+        
+        if (result.isValid && result.isOver16 && !result.documentAppearsTampered) {
+            parentIDVerified = true;
+            statusDiv.style.background = '#d4edda';
+            statusDiv.style.borderLeft = '4px solid #28a745';
+            statusDiv.style.color = '#155724';
+            statusDiv.innerHTML = `
+                <strong>✅ Parent ID Verified Successfully!</strong>
+                <p style="margin-top: 8px;">
+                    <strong>Document:</strong> ${result.documentType}<br>
+                    <strong>Name:</strong> ${result.fullName}<br>
+                    <strong>Age:</strong> ${result.age} years old
+                </p>
+            `;
+        } else {
+            parentIDVerified = false;
+            statusDiv.style.background = '#f8d7da';
+            statusDiv.style.borderLeft = '4px solid #dc3545';
+            statusDiv.style.color = '#721c24';
+            
+            let errorMessage = result.reason || 'Verification failed';
+            
+            if (!result.isValid) {
+                errorMessage = '❌ Invalid or unrecognized document. Please upload a clear photo of your Driver\'s License, Passport, or National ID.';
+            } else if (!result.isOver16) {
+                errorMessage = '❌ Parent must be at least 16 years old.';
+            } else if (result.documentAppearsTampered) {
+                errorMessage = '❌ Document appears to be altered. Please upload an original, unedited ID.';
+            }
+            
+            statusDiv.innerHTML = `
+                <strong>Verification Failed</strong>
+                <p style="margin-top: 8px;">${errorMessage}</p>
+            `;
+        }
+    } catch (error) {
+        console.error('Parent ID Verification Error:', error);
+        parentIDVerified = false;
+        statusDiv.style.background = '#f8d7da';
+        statusDiv.style.borderLeft = '4px solid #dc3545';
+        statusDiv.style.color = '#721c24';
+        statusDiv.innerHTML = `
+            <strong>❌ Verification Error</strong>
+            <p style="margin-top: 8px;">
+                Unable to verify ID. Please ensure:<br>
+                • Good lighting<br>
+                • All text is readable<br>
+                • No glare or shadows
+            </p>
+        `;
+    }
+}
+
+// ===== CHILD ID UPLOAD FUNCTIONS =====
+function handleChildIDUpload(event) {
+    const file = event.target.files[0];
+    
+    if (!file) return;
+    
+    if (file.size > 10 * 1024 * 1024) {
+        alert('File is too large. Maximum size is 10MB.');
+        return;
+    }
+    
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
+    if (!validTypes.includes(file.type)) {
+        alert('Invalid file type. Please upload JPG, PNG, or PDF.');
+        return;
+    }
+    
+    childIDFile = file;
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        childIDBase64 = e.target.result.split(',')[1];
+        
+        if (file.type.startsWith('image/')) {
+            document.getElementById('child-id-preview-image').src = e.target.result;
+            document.getElementById('child-id-preview').style.display = 'block';
+        }
+        
+        verifyChildID();
+    };
+    reader.readAsDataURL(file);
+}
+
+function changeChildID() {
+    document.getElementById('child-id-file').value = '';
+    document.getElementById('child-id-preview').style.display = 'none';
+    document.getElementById('child-id-status').style.display = 'none';
+    childIDFile = null;
+    childIDBase64 = null;
+    childIDVerified = false;
+}
+
+async function verifyChildID() {
+    if (!childIDBase64) {
+        alert('Please upload child ID first');
+        return;
+    }
+    
+    const statusDiv = document.getElementById('child-id-status');
+    const childName = document.getElementById('signup-child-name').value.trim();
+    
+    if (!childName) {
+        alert('Please enter child name first');
+        return;
+    }
+    
+    statusDiv.className = 'id-verification-status verifying show';
+    statusDiv.style.display = 'block';
+    statusDiv.style.background = '#fff3cd';
+    statusDiv.style.borderLeft = '4px solid #ffc107';
+    statusDiv.style.padding = '15px';
+    statusDiv.style.borderRadius = '8px';
+    statusDiv.style.color = '#856404';
+    statusDiv.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <div class="verification-spinner"></div>
+            <strong>Verifying child ID...</strong>
+        </div>
+        <p style="margin-top: 8px;">This may take 10-20 seconds. Please wait...</p>
+    `;
+    
+    try {
+        const response = await fetch(CLOUD_FUNCTION_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                data: {
+                    action: 'verifyCoachID',
+                    imageBase64: childIDBase64,
+                    coachName: childName,
+                    userId: 'temp-child-' + Date.now()
+                }
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`Verification failed: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        const result = data.result;
+        
+        // For children, we accept any valid document
+        if (result.isValid && !result.documentAppearsTampered) {
+            childIDVerified = true;
+            statusDiv.style.background = '#d4edda';
+            statusDiv.style.borderLeft = '4px solid #28a745';
+            statusDiv.style.color = '#155724';
+            statusDiv.innerHTML = `
+                <strong>✅ Child ID Verified Successfully!</strong>
+                <p style="margin-top: 8px;">
+                    <strong>Document:</strong> ${result.documentType}<br>
+                    <strong>Name:</strong> ${result.fullName}
+                    ${result.age ? `<br><strong>Age:</strong> ${result.age} years old` : ''}
+                </p>
+            `;
+        } else {
+            childIDVerified = false;
+            statusDiv.style.background = '#f8d7da';
+            statusDiv.style.borderLeft = '4px solid #dc3545';
+            statusDiv.style.color = '#721c24';
+            
+            let errorMessage = result.reason || 'Verification failed';
+            
+            if (!result.isValid) {
+                errorMessage = '❌ Invalid or unrecognized document. Please upload a clear photo of the child\'s Birth Certificate, Student ID, or Government ID.';
+            } else if (result.documentAppearsTampered) {
+                errorMessage = '❌ Document appears to be altered. Please upload an original, unedited ID.';
+            }
+            
+            statusDiv.innerHTML = `
+                <strong>Verification Failed</strong>
+                <p style="margin-top: 8px;">${errorMessage}</p>
+            `;
+        }
+    } catch (error) {
+        console.error('Child ID Verification Error:', error);
+        childIDVerified = false;
+        statusDiv.style.background = '#f8d7da';
+        statusDiv.style.borderLeft = '4px solid #dc3545';
+        statusDiv.style.color = '#721c24';
+        statusDiv.innerHTML = `
+            <strong>❌ Verification Error</strong>
+            <p style="margin-top: 8px;">
+                Unable to verify ID. Please ensure:<br>
+                • Good lighting<br>
+                • All text is readable<br>
+                • No glare or shadows
+            </p>
+        `;
+    }
+}
+
+// ===== PARENT SIGN UP HANDLER =====
+async function handleParentSignUp(event) {
+    event.preventDefault();
+    
+    const errorDiv = document.getElementById('signup-parent-error');
+    
+    // Check ID verifications
+    if (!parentIDVerified) {
+        errorDiv.textContent = '❌ Please upload and verify parent ID first';
+        errorDiv.style.display = 'block';
+        return;
+    }
+    
+    if (!childIDVerified) {
+        errorDiv.textContent = '❌ Please upload and verify child ID first';
+        errorDiv.style.display = 'block';
+        return;
+    }
+    
+    const parentName = document.getElementById('signup-parent-name').value.trim();
+    const email = document.getElementById('signup-parent-email').value.trim();
+    const password = document.getElementById('signup-parent-password').value;
+    const phone = document.getElementById('signup-parent-phone').value.trim();
+    const country = document.getElementById('signup-parent-country').value;
+    
+    const childName = document.getElementById('signup-child-name').value.trim();
+    const childAge = document.getElementById('signup-child-age').value;
+    const childStudentId = document.getElementById('signup-child-student-id').value.trim();
+    
+    // Validate student ID format
+    const studentIdPattern = /^WB-2025-[A-Z0-9]{4}$/;
+    if (!studentIdPattern.test(childStudentId)) {
+        errorDiv.textContent = '❌ Invalid student ID format. Must be WB-2025-XXXX';
+        errorDiv.style.display = 'block';
+        return;
+    }
+    
+    // Verify student ID exists in database
+    try {
+        const studentQuery = await db.collection('users')
+            .where('studentId', '==', childStudentId)
+            .where('userType', '==', 'student')
+            .get();
+        
+        if (studentQuery.empty) {
+            errorDiv.textContent = '❌ Student ID not found. Please verify the ID is correct.';
+            errorDiv.style.display = 'block';
+            return;
+        }
+        
+        const studentDoc = studentQuery.docs[0];
+        const studentData = studentDoc.data();
+        
+        // Check if student name matches
+        if (studentData.name.toLowerCase() !== childName.toLowerCase()) {
+            errorDiv.textContent = `❌ Student name does not match. Registered name: ${studentData.name}`;
+            errorDiv.style.display = 'block';
+            return;
+        }
+        
+        // Check if student already has a parent
+        if (studentData.parentId) {
+            errorDiv.textContent = '❌ This student already has a parent account linked.';
+            errorDiv.style.display = 'block';
+            return;
+        }
+        
+        // Disable submit button
+        const submitBtn = document.getElementById('parent-signup-btn');
+        submitBtn.disabled = true;
+        submitBtn.textContent = '⏳ Creating account...';
+        
+        // Create parent account
+        const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+        await userCredential.user.updateProfile({ displayName: parentName });
+        
+        // Save parent data to Firestore
+        await db.collection('users').doc(userCredential.user.uid).set({
+            name: parentName,
+            email: email,
+            phone: phone,
+            country: country,
+            userType: 'parent',
+            parentIDVerified: true,
+            childIDVerified: true,
+            childStudentId: childStudentId,
+            childName: childName,
+            childAge: parseInt(childAge),
+            linkedStudentId: studentDoc.id,
+            profileComplete: true,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        // Link parent to student
+        await db.collection('users').doc(studentDoc.id).update({
+            parentId: userCredential.user.uid,
+            parentName: parentName,
+            parentEmail: email,
+            parentLinkedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        closeAuthModal();
+        errorDiv.style.display = 'none';
+        
+        alert(`✅ Parent account created successfully!\n\nYou are now linked to student: ${childName}\nStudent ID: ${childStudentId}`);
+        
+        // Reset form
+        document.getElementById('signup-parent-form').reset();
+        parentIDFile = null;
+        parentIDBase64 = null;
+        childIDFile = null;
+        childIDBase64 = null;
+        parentIDVerified = false;
+        childIDVerified = false;
+        
+    } catch (error) {
+        console.error('Error creating parent account:', error);
+        errorDiv.textContent = 'Failed to create account: ' + error.message;
+        errorDiv.style.display = 'block';
+        
+        const submitBtn = document.getElementById('parent-signup-btn');
+        submitBtn.disabled = false;
+        submitBtn.textContent = '✅ Create Parent Account';
+    }
+}        
        function updateUIForAuthenticatedUser(user) {
     const displayName = user.displayName || user.email.split('@')[0];
     const photoURL = user.photoURL;
