@@ -8233,18 +8233,27 @@ if (isCoach) {
             }
         }
         
-        // Update stats (wait for them to be loaded) - ONLY FOR STUDENTS
-        if (!isCoach) {
-            setTimeout(() => {
-                document.getElementById('stat-quiz-favorites').textContent = userFavorites.length;
-                document.getElementById('stat-quiz-incorrect').textContent = userIncorrect.length;
-                document.getElementById('stat-spelling-favorites').textContent = userSpellingFavorites.length;
-                document.getElementById('stat-spelling-incorrect').textContent = userSpellingIncorrect.length;
-                
-                // Update subscription status
-                updateDashboardSubscriptionStatus();
-            }, 500);
-        }
+        // Update stats (wait for them to be loaded)
+setTimeout(() => {
+    // ✅ UPDATE FAVORITES FOR EVERYONE (including coaches)
+    const quizFavElement = document.getElementById('stat-quiz-favorites');
+    const spellingFavElement = document.getElementById('stat-spelling-favorites');
+    
+    if (quizFavElement) quizFavElement.textContent = userFavorites.length;
+    if (spellingFavElement) spellingFavElement.textContent = userSpellingFavorites.length;
+    
+    // ✅ ONLY UPDATE INCORRECT STATS FOR STUDENTS
+    if (!isCoach) {
+        const quizIncorrectElement = document.getElementById('stat-quiz-incorrect');
+        const spellingIncorrectElement = document.getElementById('stat-spelling-incorrect');
+        
+        if (quizIncorrectElement) quizIncorrectElement.textContent = userIncorrect.length;
+        if (spellingIncorrectElement) spellingIncorrectElement.textContent = userSpellingIncorrect.length;
+        
+        // Update subscription status
+        updateDashboardSubscriptionStatus();
+    }
+}, 500);
         
     } catch (error) {
         console.error('Error loading dashboard:', error);
