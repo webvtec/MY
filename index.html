@@ -5812,18 +5812,27 @@ async function handleVerification(event) {
         
        
         // ===== QUIZ FUNCTIONS =====
-      function switchQuizMode(mode) {
-    // Update active tab
+    function switchQuizMode(mode) {
+    // Remove active from ALL quiz tabs
     document.querySelectorAll('#quiz-section .quiz-tab').forEach(tab => {
         tab.classList.remove('active');
     });
-    event.target.classList.add('active');
+    
+    // Add active to clicked tab
+    if (mode === 'practice') {
+        document.querySelectorAll('#quiz-section .quiz-tab')[0].classList.add('active');
+    } else if (mode === 'live') {
+        document.querySelectorAll('#quiz-section .quiz-tab')[1].classList.add('active');
+    } else if (mode === 'leaderboard') {
+        document.querySelectorAll('#quiz-section .quiz-tab')[2].classList.add('active');
+    }
 
-    // ⚠️ ONLY hide/show quiz modes - DON'T touch other sections
+    // ✅ Remove active from ALL quiz modes
     document.querySelectorAll('#quiz-section .quiz-mode').forEach(m => {
         m.classList.remove('active');
     });
 
+    // ✅ Show only the selected mode
     if (mode === 'practice') {
         document.getElementById('practice-quiz-mode').classList.add('active');
     } else if (mode === 'live') {
@@ -7169,24 +7178,28 @@ function startSpellingPractice() {
     selectedGameLevel = '';
 }
 
-     function switchSpellingMode(mode) {
-    // Update active tab
+    function switchSpellingMode(mode) {
+    // Remove active from ALL spelling tabs
     const tabs = document.querySelectorAll('#spelling-section .quiz-tab');
-    tabs.forEach((tab, index) => {
-        tab.classList.remove('active');
-        if ((mode === 'practice' && index === 0) ||
-            (mode === 'unscramble' && index === 1) ||
-            (mode === 'live' && index === 2) ||
-            (mode === 'leaderboard' && index === 3)) {
-            tab.classList.add('active');
-        }
-    });
+    tabs.forEach(tab => tab.classList.remove('active'));
+    
+    // Add active to clicked tab
+    if (mode === 'practice') {
+        tabs[0].classList.add('active');
+    } else if (mode === 'unscramble') {
+        tabs[1].classList.add('active');
+    } else if (mode === 'live') {
+        tabs[2].classList.add('active');
+    } else if (mode === 'leaderboard') {
+        tabs[3].classList.add('active');
+    }
 
-    // ⚠️ ONLY hide/show spelling modes - DON'T touch other sections
+    // ✅ Remove active from ALL spelling modes
     document.querySelectorAll('#spelling-section .quiz-mode').forEach(m => {
         m.classList.remove('active');
     });
 
+    // ✅ Show only the selected mode
     if (mode === 'practice') {
         document.getElementById('practice-spelling-mode').classList.add('active');
     } else if (mode === 'unscramble') {
@@ -7206,7 +7219,6 @@ function startSpellingPractice() {
         loadSpellingLeaderboard();
     }
 }
-        
 
         // ===== SPELLING FAVORITES FUNCTIONS =====
 async function loadUserSpellingFavorites(userId) {
