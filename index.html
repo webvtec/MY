@@ -4041,7 +4041,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (e.key === 'Enter') searchWord();
     });
     
-    // ✅ ADD MODAL CLOSE HANDLERS
+  // âœ… ADD MODAL CLOSE HANDLERS
     document.addEventListener('click', function(event) {
         // Close coach detail modal
         const coachModal = document.getElementById('coachDetailModal');
@@ -4059,6 +4059,12 @@ document.addEventListener('DOMContentLoaded', function() {
         const leaderboardModal = document.getElementById('leaderboardPlayerModal');
         if (event.target === leaderboardModal) {
             closeLeaderboardPlayerModal();
+        }
+        
+        // Close quiz leaderboard player modal
+        const quizLeaderboardModal = document.getElementById('quizLeaderboardPlayerModal');
+        if (event.target === quizLeaderboardModal) {
+            closeQuizLeaderboardPlayerModal();
         }
     });
     
@@ -4143,7 +4149,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
      // ===== NAVIGATION =====
 async function navigateTo(section, skipSidebarClose = false) {
-    // ✅ CHECK SUBSCRIPTION FOR STUDENTS BEFORE ALLOWING NAVIGATION
+    // âœ… CHECK SUBSCRIPTION FOR STUDENTS BEFORE ALLOWING NAVIGATION
     if (currentUser && !subscriptionActive && section !== 'student-dashboard' && section !== 'about') {
         const userDoc = await db.collection('users').doc(currentUser.uid).get();
         const userData = userDoc.data();
@@ -4163,8 +4169,11 @@ async function navigateTo(section, skipSidebarClose = false) {
         return;
     }
     
-    // ✅ RESET QUIZ STATE WHEN LEAVING QUIZ SECTION
-    if (section !== 'quiz') {
+    // âœ… Track current section BEFORE changing
+    const currentSection = document.querySelector('.content-section.active')?.id.replace('-section', '');
+    
+    // âœ… RESET QUIZ STATE WHEN LEAVING QUIZ SECTION
+    if (currentSection === 'quiz' && section !== 'quiz') {
         currentQuiz = null;
         currentQuestionIndex = 0;
         quizScore = 0;
@@ -4187,15 +4196,15 @@ async function navigateTo(section, skipSidebarClose = false) {
         document.getElementById('word-database-display').style.display = 'none';
     }
     
-    // Reset Quiz section to level selection
-    if (section === 'quiz') {
+    // âœ… Reset Quiz section ONLY if coming from OUTSIDE
+    if (section === 'quiz' && currentSection !== 'quiz') {
         document.getElementById('quiz-level-selection').style.display = 'block';
         document.getElementById('practice-quiz-container').innerHTML = '';
         selectedGameLevel = '';
     }
     
-    // Reset Spelling section to level selection
-    if (section === 'spelling') {
+    // âœ… Reset Spelling section ONLY if coming from OUTSIDE
+    if (section === 'spelling' && currentSection !== 'spelling') {
         document.getElementById('spelling-level-selection').style.display = 'block';
         document.getElementById('spelling-game').style.display = 'none';
         document.getElementById('spelling-results').style.display = 'none';
@@ -5804,11 +5813,13 @@ async function handleVerification(event) {
        
         // ===== QUIZ FUNCTIONS =====
       function switchQuizMode(mode) {
+    // Update active tab
     document.querySelectorAll('#quiz-section .quiz-tab').forEach(tab => {
         tab.classList.remove('active');
     });
     event.target.classList.add('active');
 
+    // ⚠️ ONLY hide/show quiz modes - DON'T touch other sections
     document.querySelectorAll('#quiz-section .quiz-mode').forEach(m => {
         m.classList.remove('active');
     });
@@ -7171,7 +7182,7 @@ function startSpellingPractice() {
         }
     });
 
-    // Update active mode
+    // ⚠️ ONLY hide/show spelling modes - DON'T touch other sections
     document.querySelectorAll('#spelling-section .quiz-mode').forEach(m => {
         m.classList.remove('active');
     });
@@ -7192,10 +7203,10 @@ function startSpellingPractice() {
         }
     } else if (mode === 'leaderboard') {
         document.getElementById('leaderboard-spelling-mode').classList.add('active');
-        // ✅ LOAD LEADERBOARD DATA
         loadSpellingLeaderboard();
     }
 }
+        
 
         // ===== SPELLING FAVORITES FUNCTIONS =====
 async function loadUserSpellingFavorites(userId) {
