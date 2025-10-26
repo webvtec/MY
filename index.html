@@ -3937,6 +3937,7 @@ let questionStartTime = null;
 let challengeListener = null;
 let myChallengeListener = null;
 let shownPopupIds = new Set();
+let declinedChallengeIds = new Set(); // ✅ NEW: Track declined challenges
 let presenceInitialized = false; // ✅ NEW: Prevent duplicate presence initialization
 
 // ===== LEVEL-BASED WORD LOADING =====
@@ -4162,6 +4163,14 @@ async function navigateTo(section, skipSidebarClose = false) {
         return;
     }
     
+    // ✅ RESET QUIZ STATE WHEN LEAVING QUIZ SECTION
+    if (section !== 'quiz') {
+        currentQuiz = null;
+        currentQuestionIndex = 0;
+        quizScore = 0;
+        selectedGameLevel = '';
+    }
+    
     document.querySelectorAll('.content-section').forEach(sec => {
         sec.classList.remove('active');
     });
@@ -4228,7 +4237,6 @@ async function navigateTo(section, skipSidebarClose = false) {
         toggleSidebar(true);
     }
 }
-
         
        function toggleSidebar(forceClose = false) {
             const sidebar = document.getElementById('sidebar');
@@ -5210,6 +5218,11 @@ async function handleSignUp(event, userType) {
 function signOut() {
     // Remove online presence before signing out
     removeOnlinePresence();
+    
+    // ✅ CLEAR DECLINED CHALLENGES
+    declinedChallengeIds.clear();
+    shownPopupIds.clear();
+    shownQuizPopupIds.clear();
     
     // Sign out from Firebase
     auth.signOut();
@@ -9006,7 +9019,6 @@ async function sendChallenge(opponentId, opponentName) {
     }
 }
 
-        
 function listenForChallenges() {
     if (!currentUser) return;
     
@@ -9023,6 +9035,12 @@ function listenForChallenges() {
                 
                 if (change.type === 'added' || change.type === 'modified') {
                     if (challenge.status === 'pending') {
+                        // ✅ CHECK IF ALREADY DECLINED
+                        if (declinedChallengeIds.has(challenge.id)) {
+                            console.log('🚫 Challenge already declined - skipping');
+                            return;
+                        }
+                        
                         // ✅ CHECK IF CHALLENGER IS STILL ONLINE
                         const challengerId = challenge.challenger.id;
                         const challengerPresence = await db.collection('onlineUsers').doc(challengerId).get();
@@ -9065,7 +9083,6 @@ function listenForChallenges() {
             });
         });
 }
-
         
 function listenForMyChallengesAccepted() {
     if (!currentUser) return;
@@ -9241,6 +9258,9 @@ async function acceptChallenge(challengeId) {
         
 async function declineChallenge(challengeId) {
     try {
+        // ✅ ADD TO DECLINED LIST FIRST (before deleting)
+        declinedChallengeIds.add(challengeId);
+        
         // Delete the challenge from Firestore
         await db.collection('challenges').doc(challengeId).delete();
         
@@ -9920,7 +9940,7 @@ async function showChallengeResults(challenge) {
 
 
 
-// ===== SPELLING LEADERBOARD FUNCTIONS =====
+
 // ===== SPELLING LEADERBOARD FUNCTIONS =====
 async function loadSpellingLeaderboard() {
     const container = document.getElementById('leaderboard-container');
