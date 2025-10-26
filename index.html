@@ -12724,107 +12724,108 @@ Total Processed: ${studentsSnapshot.size} students
 
 
   // ===== AUTO-MIGRATION: ADD STUDENT IDs (RUNS ONCE AUTOMATICALLY) =====
+// ===== AUTO-MIGRATION: ADD STUDENT IDs (5 AT A TIME) =====
 async function autoMigrateStudentIds() {
-    // Check if migration already ran using localStorage
     const migrationKey = 'studentIdMigrationComplete_v1';
+    const progressKey = 'studentIdMigrationProgress_v1';
     
     if (localStorage.getItem(migrationKey) === 'true') {
         console.log('✅ Student ID migration already completed');
         return;
     }
     
-    // Wait for Firebase to initialize
+    // Wait for auth
+    if (!currentUser) {
+        console.log('⏳ Waiting for user authentication...');
+        return;
+    }
+    
     await new Promise(resolve => setTimeout(resolve, 2000));
     
     try {
-        console.log('🔄 Starting automatic student ID migration...');
+        console.log('🔄 Starting automatic student ID migration (5 at a time)...');
         
-        // Get all students without checking auth (read-only operation)
-        const studentsSnapshot = await db.collection('users')
+        // Get progress
+        let lastProcessedId = localStorage.getItem(progressKey) || '';
+        
+        // Query students without studentId, starting after last processed
+        let query = db.collection('users')
             .where('userType', '==', 'student')
-            .get();
+            .orderBy('__name__')
+            .limit(5);
+        
+        if (lastProcessedId) {
+            query = query.startAfter(lastProcessedId);
+        }
+        
+        const studentsSnapshot = await query.get();
         
         if (studentsSnapshot.empty) {
-            console.log('ℹ️ No students found to migrate');
+            console.log('🎉 Migration complete! No more students to process.');
             localStorage.setItem(migrationKey, 'true');
+            localStorage.removeItem(progressKey);
+            
+            showCustomPopup('✅ MIGRATION COMPLETE!');
+            setTimeout(() => hideCustomPopup(), 3000);
             return;
         }
         
-        console.log(`📊 Found ${studentsSnapshot.size} students to check`);
+        console.log(`📊 Processing batch of ${studentsSnapshot.size} students...`);
         
         let updated = 0;
         let skipped = 0;
-        
-        // Use batched writes for efficiency (max 500 per batch)
-        let batch = db.batch();
-        let batchCount = 0;
+        let lastId = '';
         
         for (const doc of studentsSnapshot.docs) {
             const data = doc.data();
+            lastId = doc.id;
             
-            // Only update if studentId doesn't exist
-            if (!data.studentId) {
-                const studentId = generateStudentId(doc.id);
-                
-                batch.update(doc.ref, { studentId: studentId });
-                batchCount++;
-                updated++;
-                
-                console.log(`✅ Queued update for ${data.name || 'Unknown'}: ${studentId}`);
-                
-                // Commit batch if we hit 500 operations
-                if (batchCount >= 500) {
-                    await batch.commit();
-                    console.log('💾 Committed batch of 500 updates');
-                    batch = db.batch();
-                    batchCount = 0;
+            try {
+                if (!data.studentId) {
+                    const studentId = generateStudentId(doc.id);
+                    
+                    await db.collection('users').doc(doc.id).update({
+                        studentId: studentId
+                    });
+                    
+                    console.log(`✅ Updated ${data.name || 'Unknown'}: ${studentId}`);
+                    updated++;
+                } else {
+                    console.log(`⏭️ Skipped ${data.name || 'Unknown'}: Already has ID`);
+                    skipped++;
                 }
-            } else {
-                skipped++;
+            } catch (error) {
+                console.error(`❌ Error updating ${doc.id}:`, error);
             }
         }
         
-        // Commit any remaining operations
-        if (batchCount > 0) {
-            await batch.commit();
-            console.log(`💾 Committed final batch of ${batchCount} updates`);
-        }
+        // Save progress
+        localStorage.setItem(progressKey, lastId);
         
-        // Mark migration as complete
-        localStorage.setItem(migrationKey, 'true');
-        
-        const summary = `
-🎉 AUTO-MIGRATION COMPLETE!
-
-📊 Results:
-- ✅ Updated: ${updated} students
-- ⏭️ Skipped: ${skipped} students (already had IDs)
-- 📝 Total: ${studentsSnapshot.size} students
-
-All students now have Student IDs!
-        `;
-        
+        const summary = `📊 Batch Complete: ${updated} updated, ${skipped} skipped`;
         console.log(summary);
         
-        // Show notification to user (non-intrusive)
-        if (updated > 0) {
-            showCustomPopup(`✅ SYSTEM UPDATE: ${updated} STUDENT IDS GENERATED`);
-            setTimeout(() => hideCustomPopup(), 5000);
-        }
+        showCustomPopup(`🔄 MIGRATING... ${updated} STUDENTS UPDATED`);
+        setTimeout(() => hideCustomPopup(), 2000);
+        
+        // Process next batch after 3 seconds
+        setTimeout(() => {
+            autoMigrateStudentIds();
+        }, 3000);
         
     } catch (error) {
         console.error('❌ Auto-migration error:', error);
-        // Don't alert user - just log the error
-        console.log('ℹ️ Migration will retry on next page load');
+        console.log('ℹ️ Will retry on next page load');
     }
 }
 
-// Run migration automatically when page loads
-document.addEventListener('DOMContentLoaded', function() {
-    // Wait a bit for Firebase to initialize
-    setTimeout(() => {
-        autoMigrateStudentIds();
-    }, 3000);
+// Run migration when user signs in
+auth.onAuthStateChanged(user => {
+    if (user) {
+        setTimeout(() => {
+            autoMigrateStudentIds();
+        }, 3000);
+    }
 });
 
 // ===== STUDENT ID GENERATION =====
