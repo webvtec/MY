@@ -2621,94 +2621,108 @@
     </div>
 </div>
 
-        <!-- Quiz Section -->
+      <!-- Quiz Section -->
         <div id="quiz-section" class="content-section">
             <div class="word-database">
-        <div class="quiz-tabs">
-    <button class="quiz-tab active" onclick="switchQuizMode('practice')">PRACTICE QUIZ</button>
-    <button class="quiz-tab" onclick="switchQuizMode('live')">LIVE QUIZ</button>
-    <button class="quiz-tab" onclick="switchQuizMode('leaderboard')">QUIZ LEADERBOARD</button>
-</div>
+                <div class="quiz-tabs">
+                    <button class="quiz-tab active" onclick="switchQuizMode('practice')">PRACTICE QUIZ</button>
+                    <button class="quiz-tab" onclick="switchQuizMode('live')">LIVE QUIZ</button>
+                    <button class="quiz-tab" onclick="switchQuizMode('leaderboard')">QUIZ LEADERBOARD</button>
+                </div>
 
-               <div id="practice-quiz-mode" class="quiz-mode active">
-    <!-- Level Selection -->
-    <div id="quiz-level-selection" class="welcome-section">
-        <h2>🎯 PRACTICE QUIZ</h2>
-        <p style="margin: 20px 0;">Select a difficulty level for your quiz:</p>
-        
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-top: 30px;">
-            <button class="user-type-btn" onclick="startPracticeQuizWithLevel('foundation')">
-                <div style="font-size: 2rem; margin-bottom: 10px;">🌱</div>
-                <div style="font-size: 1.3rem; font-weight: bold;">LEVEL 1</div>
-                <div style="font-size: 1.1rem; margin: 5px 0;">FOUNDATION</div>
-                <div style="font-size: 0.9rem; color: #666; margin-top: 5px;">Basic vocabulary quiz</div>
-            </button>
-            
-            <button class="user-type-btn" onclick="startPracticeQuizWithLevel('challenge')">
-                <div style="font-size: 2rem; margin-bottom: 10px;">🎯</div>
-                <div style="font-size: 1.3rem; font-weight: bold;">LEVEL 2</div>
-                <div style="font-size: 1.1rem; margin: 5px 0;">CHALLENGE</div>
-                <div style="font-size: 0.9rem; color: #666; margin-top: 5px;">Intermediate vocabulary quiz</div>
-            </button>
-            
-            <button class="user-type-btn" onclick="startPracticeQuizWithLevel('advanced')">
-                <div style="font-size: 2rem; margin-bottom: 10px;">🚀</div>
-                <div style="font-size: 1.3rem; font-weight: bold;">LEVEL 3</div>
-                <div style="font-size: 1.1rem; margin: 5px 0;">ADVANCED</div>
-                <div style="font-size: 0.9rem; color: #666; margin-top: 5px;">Complex vocabulary quiz</div>
-            </button>
-            
-            <button class="user-type-btn" onclick="startPracticeQuizWithLevel('championship')">
-                <div style="font-size: 2rem; margin-bottom: 10px;">🏆</div>
-                <div style="font-size: 1.3rem; font-weight: bold;">LEVEL 4</div>
-                <div style="font-size: 1.1rem; margin: 5px 0;">CHAMPIONSHIP</div>
-                <div style="font-size: 0.9rem; color: #666; margin-top: 5px;">Expert vocabulary quiz</div>
-            </button>
-        </div>
-    </div>
-    
-    <!-- Quiz Container -->
-    <div id="practice-quiz-container"></div>
-             </div>
+                <div id="practice-quiz-mode" class="quiz-mode active">
+                    <!-- Level Selection -->
+                    <div id="quiz-level-selection" class="welcome-section">
+                        <h2>🎯 PRACTICE QUIZ</h2>
+                        <p style="margin: 20px 0;">Select a difficulty level for your quiz:</p>
+                        
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-top: 30px;">
+                            <button class="user-type-btn" onclick="startPracticeQuizWithLevel('foundation')">
+                                <div style="font-size: 2rem; margin-bottom: 10px;">🌱</div>
+                                <div style="font-size: 1.3rem; font-weight: bold;">LEVEL 1</div>
+                                <div style="font-size: 1.1rem; margin: 5px 0;">FOUNDATION</div>
+                                <div style="font-size: 0.9rem; color: #666; margin-top: 5px;">Basic vocabulary quiz</div>
+                            </button>
+                            
+                            <button class="user-type-btn" onclick="startPracticeQuizWithLevel('challenge')">
+                                <div style="font-size: 2rem; margin-bottom: 10px;">🎯</div>
+                                <div style="font-size: 1.3rem; font-weight: bold;">LEVEL 2</div>
+                                <div style="font-size: 1.1rem; margin: 5px 0;">CHALLENGE</div>
+                                <div style="font-size: 0.9rem; color: #666; margin-top: 5px;">Intermediate vocabulary quiz</div>
+                            </button>
+                            
+                            <button class="user-type-btn" onclick="startPracticeQuizWithLevel('advanced')">
+                                <div style="font-size: 2rem; margin-bottom: 10px;">🚀</div>
+                                <div style="font-size: 1.3rem; font-weight: bold;">LEVEL 3</div>
+                                <div style="font-size: 1.1rem; margin: 5px 0;">ADVANCED</div>
+                                <div style="font-size: 0.9rem; color: #666; margin-top: 5px;">Complex vocabulary quiz</div>
+                            </button>
+                            
+                            <button class="user-type-btn" onclick="startPracticeQuizWithLevel('championship')">
+                                <div style="font-size: 2rem; margin-bottom: 10px;">🏆</div>
+                                <div style="font-size: 1.3rem; font-weight: bold;">LEVEL 4</div>
+                                <div style="font-size: 1.1rem; margin: 5px 0;">CHAMPIONSHIP</div>
+                                <div style="font-size: 0.9rem; color: #666; margin-top: 5px;">Expert vocabulary quiz</div>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Quiz Container -->
+                    <div id="practice-quiz-container"></div>
+                </div>
+
+                <!-- Live Quiz Mode -->
+                <div id="live-quiz-mode" class="quiz-mode">
+                    <div class="welcome-section">
+                        <h2>⚡ Live Quiz Challenges</h2>
+                        <p style="margin: 20px 0;">Challenge other students to vocabulary quiz battles in real-time!</p>
+                        
+                        <!-- Online Users Section -->
+                        <div id="quiz-online-users-section">
+                            <h3 style="color: #0d3b66; margin: 20px 0;">👥 Online Students (<span id="quiz-online-count">0</span>)</h3>
+                            <div id="quiz-online-users-list" class="favorites-grid">
+                                <div class="loading">Loading online users...</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Incoming Challenges -->
+                        <div id="quiz-incoming-challenges-section" style="margin-top: 30px; display: none;">
+                            <h3 style="color: #dc3545; margin: 20px 0;">⚡ Incoming Quiz Challenges</h3>
+                            <div id="quiz-incoming-challenges-list"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quiz Leaderboard Mode -->
+                <div id="leaderboard-quiz-mode" class="quiz-mode">
+                    <div class="welcome-section">
+                        <h2>📊 Quiz Leaderboard</h2>
+                        <p>Top quiz champions ranked by wins and performance!</p>
+                        
+                        <div id="quiz-leaderboard-container" class="loading">
+                            Loading leaderboard...
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
-
-        <!-- Live Quiz Mode -->
-<div id="live-quiz-mode" class="quiz-mode">
-    <div class="welcome-section">
-        <h2>⚡ Live Quiz Challenges</h2>
-        <p style="margin: 20px 0;">Challenge other students to vocabulary quiz battles in real-time!</p>
-        
-        <!-- Online Users Section -->
-        <div id="quiz-online-users-section">
-            <h3 style="color: #0d3b66; margin: 20px 0;">👥 Online Students (<span id="quiz-online-count">0</span>)</h3>
-            <div id="quiz-online-users-list" class="favorites-grid">
-                <div class="loading">Loading online users...</div>
+        <!-- Favorites Section -->
+        <div id="favorites-section" class="content-section">
+            <div class="word-database">
+                <div class="database-header">
+                    <h2>MY FAVORITES</h2>
+                    <button class="practice-btn" id="favoritesQuizBtn" onclick="startFavoritesQuiz()" disabled>
+                        Generate Quiz from Favorites
+                    </button>
+                </div>
+                <div id="favorites-container" class="loading">
+                    Please sign in to save favorites
+                </div>
             </div>
         </div>
-        
-        <!-- Incoming Challenges -->
-        <div id="quiz-incoming-challenges-section" style="margin-top: 30px; display: none;">
-            <h3 style="color: #dc3545; margin: 20px 0;">⚡ Incoming Quiz Challenges</h3>
-            <div id="quiz-incoming-challenges-list"></div>
-        </div>
-    </div>
-</div>
 
-<!-- Quiz Leaderboard Mode -->
-<div id="leaderboard-quiz-mode" class="quiz-mode">
-    <div class="welcome-section">
-        <h2>📊 Quiz Leaderboard</h2>
-        <p>Top quiz champions ranked by wins and performance!</p>
         
-        <div id="quiz-leaderboard-container" class="loading">
-            Loading leaderboard...
-        </div>
-    </div>
-</div>
- </div>
-</div>
         <!-- Favorites Section -->
         <div id="favorites-section" class="content-section">
             <div class="word-database">
