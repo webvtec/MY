@@ -4313,14 +4313,20 @@ document.addEventListener('DOMContentLoaded', function() {
         
      // ===== NAVIGATION =====
 async function navigateTo(section, skipSidebarClose = false) {
-    // âœ… CHECK SUBSCRIPTION FOR STUDENTS BEFORE ALLOWING NAVIGATION
+    // ✅ CHECK SUBSCRIPTION FOR STUDENTS BEFORE ALLOWING NAVIGATION
     if (currentUser && !subscriptionActive && section !== 'student-dashboard' && section !== 'about') {
-        const userDoc = await db.collection('users').doc(currentUser.uid).get();
-        const userData = userDoc.data();
-        
-        if (userData?.userType === 'student') {
-            showSubscriptionModal();
-            return;
+        try {
+            const userDoc = await db.collection('users').doc(currentUser.uid).get();
+            const userData = userDoc.data();
+            
+            // ✅ ADD: Only check if user data is fully loaded
+            if (userData && userData.profileComplete && userData.userType === 'student') {
+                showSubscriptionModal();
+                return;
+            }
+        } catch (error) {
+            console.error('Error checking subscription in navigation:', error);
+            // Allow navigation on error
         }
     }
     
@@ -4333,10 +4339,10 @@ async function navigateTo(section, skipSidebarClose = false) {
         return;
     }
     
-    // âœ… Track current section BEFORE changing
+    // ✅ Track current section BEFORE changing
     const currentSection = document.querySelector('.content-section.active')?.id.replace('-section', '');
     
-    // âœ… RESET QUIZ STATE WHEN LEAVING QUIZ SECTION
+    // ✅ RESET QUIZ STATE WHEN LEAVING QUIZ SECTION
     if (currentSection === 'quiz' && section !== 'quiz') {
         currentQuiz = null;
         currentQuestionIndex = 0;
@@ -4360,14 +4366,14 @@ async function navigateTo(section, skipSidebarClose = false) {
         document.getElementById('word-database-display').style.display = 'none';
     }
     
-    // âœ… Reset Quiz section ONLY if coming from OUTSIDE
+    // ✅ Reset Quiz section ONLY if coming from OUTSIDE
     if (section === 'quiz' && currentSection !== 'quiz') {
         document.getElementById('quiz-level-selection').style.display = 'block';
         document.getElementById('practice-quiz-container').innerHTML = '';
         selectedGameLevel = '';
     }
     
-    // âœ… Reset Spelling section ONLY if coming from OUTSIDE
+    // ✅ Reset Spelling section ONLY if coming from OUTSIDE
     if (section === 'spelling' && currentSection !== 'spelling') {
         document.getElementById('spelling-level-selection').style.display = 'block';
         document.getElementById('spelling-game').style.display = 'none';
@@ -4410,6 +4416,8 @@ async function navigateTo(section, skipSidebarClose = false) {
         toggleSidebar(true);
     }
 }
+
+        
         
        function toggleSidebar(forceClose = false) {
             const sidebar = document.getElementById('sidebar');
@@ -5784,15 +5792,21 @@ async function verifyIDWithAI() {
         
         console.log('Verification result:', result);
         
-        if (result.isValid && result.isOver16 && !result.documentAppearsTampered) {
+        // ✅ ADD: Check if name matches
+        const nameMatches = result.fullName && 
+            result.fullName.toLowerCase().includes(coachName.toLowerCase().split(' ')[0]) ||
+            coachName.toLowerCase().includes(result.fullName.toLowerCase().split(' ')[0]);
+        
+        if (result.isValid && result.isOver16 && !result.documentAppearsTampered && nameMatches) {
             // Success
             idVerificationPassed = true;
             statusDiv.className = 'id-verification-status success show';
             statusDiv.innerHTML = `
-                <strong>ID Verified Successfully!</strong>
+                <strong>✅ ID Verified Successfully!</strong>
                 <p style="margin-top: 8px;">
                     <strong>Document:</strong> ${result.documentType}<br>
-                    <strong>Name:</strong> ${result.fullName}<br>
+                    <strong>Name on ID:</strong> ${result.fullName}<br>
+                    <strong>Your Name:</strong> ${coachName}<br>
                     <strong>Age:</strong> ${result.age} years old<br>
                     <strong>Status:</strong> ${result.reason}
                 </p>
@@ -5802,7 +5816,7 @@ async function verifyIDWithAI() {
             `;
             
             completeBtn.disabled = false;
-            completeBtn.textContent = 'COMPLETE PROFILE';
+            completeBtn.textContent = '✅ COMPLETE PROFILE';
             
             // Store verification result in Firestore (without the image)
             await db.collection('users').doc(currentUser.uid).update({
@@ -5826,19 +5840,22 @@ async function verifyIDWithAI() {
                 errorMessage = '❌ You must be at least 16 years old to register as a coach.';
             } else if (result.documentAppearsTampered) {
                 errorMessage = '❌ Document appears to be altered or tampered. Please upload an original, unedited ID.';
+            } else if (!nameMatches) {
+                errorMessage = `❌ Name mismatch! The name on your ID (${result.fullName}) does not match the name you entered (${coachName}). Please ensure they match exactly.`;
             }
             
             statusDiv.innerHTML = `
                 <strong>Verification Failed</strong>
                 <p style="margin-top: 8px;">${errorMessage}</p>
-                ${result.fullName ? `<p style="margin-top: 5px;"><strong>Detected Name:</strong> ${result.fullName}</p>` : ''}
+                ${result.fullName ? `<p style="margin-top: 5px;"><strong>Detected Name on ID:</strong> ${result.fullName}</p>` : ''}
                 ${result.age ? `<p><strong>Detected Age:</strong> ${result.age}</p>` : ''}
                 <p style="margin-top: 10px; font-size: 0.9rem;">
                     <strong>Tips for better verification:</strong><br>
                     • Ensure good lighting<br>
                     • Avoid glare or shadows<br>
                     • Make sure all text is readable<br>
-                    • Use the original, unedited document
+                    • Use the original, unedited document<br>
+                    • Ensure the name you typed matches the ID exactly
                 </p>
             `;
             
@@ -5871,6 +5888,7 @@ async function verifyIDWithAI() {
     }
 }
 
+        
 // Update handleVerification function to include ID check
 async function handleVerification(event) {
     event.preventDefault();
@@ -6179,8 +6197,13 @@ async function verifyChildID() {
         const data = await response.json();
         const result = data.result;
         
-        // For children, we accept any valid document
-        if (result.isValid && !result.documentAppearsTampered) {
+        // ✅ ADD: Check if name matches
+        const nameMatches = result.fullName && 
+            (result.fullName.toLowerCase().includes(childName.toLowerCase().split(' ')[0]) ||
+            childName.toLowerCase().includes(result.fullName.toLowerCase().split(' ')[0]));
+        
+        // For children, we accept any valid document with matching name
+        if (result.isValid && !result.documentAppearsTampered && nameMatches) {
             childIDVerified = true;
             statusDiv.style.background = '#d4edda';
             statusDiv.style.borderLeft = '4px solid #28a745';
@@ -6189,7 +6212,8 @@ async function verifyChildID() {
                 <strong>✅ Child ID Verified Successfully!</strong>
                 <p style="margin-top: 8px;">
                     <strong>Document:</strong> ${result.documentType}<br>
-                    <strong>Name:</strong> ${result.fullName}
+                    <strong>Name on ID:</strong> ${result.fullName}<br>
+                    <strong>Your Child's Name:</strong> ${childName}
                     ${result.age ? `<br><strong>Age:</strong> ${result.age} years old` : ''}
                 </p>
             `;
@@ -6205,11 +6229,14 @@ async function verifyChildID() {
                 errorMessage = '❌ Invalid or unrecognized document. Please upload a clear photo of the child\'s Birth Certificate, Student ID, or Government ID.';
             } else if (result.documentAppearsTampered) {
                 errorMessage = '❌ Document appears to be altered. Please upload an original, unedited ID.';
+            } else if (!nameMatches) {
+                errorMessage = `❌ Name mismatch! The name on the ID (${result.fullName}) does not match the child's name you entered (${childName}).`;
             }
             
             statusDiv.innerHTML = `
                 <strong>Verification Failed</strong>
                 <p style="margin-top: 8px;">${errorMessage}</p>
+                ${result.fullName ? `<p style="margin-top: 5px;"><strong>Detected Name:</strong> ${result.fullName}</p>` : ''}
             `;
         }
     } catch (error) {
@@ -6224,7 +6251,8 @@ async function verifyChildID() {
                 Unable to verify ID. Please ensure:<br>
                 • Good lighting<br>
                 • All text is readable<br>
-                • No glare or shadows
+                • No glare or shadows<br>
+                • Name matches exactly
             </p>
         `;
     }
@@ -11238,6 +11266,13 @@ async function checkSubscriptionStatus() {
         const userDoc = await db.collection('users').doc(currentUser.uid).get();
         const userData = userDoc.data();
         
+        // ✅ ADD: Check if user data exists first
+        if (!userData) {
+            console.log('⚠️ User data not loaded yet');
+            subscriptionActive = false;
+            return;
+        }
+        
         // Only check for students
         if (userData.userType !== 'student') {
             subscriptionActive = true;
@@ -11277,7 +11312,8 @@ async function checkSubscriptionStatus() {
         
     } catch (error) {
         console.error('Error checking subscription:', error);
-        subscriptionActive = false;
+        // ✅ DON'T set subscriptionActive to false on error
+        subscriptionActive = true; // Assume active on error to avoid blocking user
     }
 }
 
@@ -12692,184 +12728,6 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 
-
-// ===== MIGRATION: ADD STUDENT IDs TO EXISTING STUDENTS =====
-async function migrateExistingStudentIds() {
-    if (!currentUser) {
-        alert('❌ Please sign in as an admin first');
-        return;
-    }
-    
-    if (!confirm('⚠️ This will add Student IDs to all existing students without IDs.\n\nThis is a ONE-TIME operation.\n\nContinue?')) {
-        return;
-    }
-    
-    try {
-        console.log('🔄 Starting student ID migration...');
-        
-        // Get all students
-        const studentsSnapshot = await db.collection('users')
-            .where('userType', '==', 'student')
-            .get();
-        
-        console.log(`📊 Found ${studentsSnapshot.size} total students`);
-        
-        let updated = 0;
-        let skipped = 0;
-        let errors = 0;
-        
-        // Process each student
-        for (const doc of studentsSnapshot.docs) {
-            const data = doc.data();
-            
-            try {
-                // Only update if studentId doesn't exist
-                if (!data.studentId) {
-                    const studentId = generateStudentId(doc.id);
-                    
-                    await db.collection('users').doc(doc.id).update({
-                        studentId: studentId
-                    });
-                    
-                    console.log(`✅ Updated ${data.name || 'Unknown'}: ${studentId}`);
-                    updated++;
-                } else {
-                    console.log(`⏭️ Skipped ${data.name || 'Unknown'}: Already has ID ${data.studentId}`);
-                    skipped++;
-                }
-            } catch (error) {
-                console.error(`❌ Error updating ${doc.id}:`, error);
-                errors++;
-            }
-        }
-        
-        const summary = `
-✅ Migration Complete!
-
-📊 Results:
-- Updated: ${updated} students
-- Skipped: ${skipped} students (already had IDs)
-- Errors: ${errors} students
-
-Total Processed: ${studentsSnapshot.size} students
-        `;
-        
-        console.log(summary);
-        alert(summary);
-        
-    } catch (error) {
-        console.error('❌ Migration failed:', error);
-        alert('❌ Migration failed: ' + error.message);
-    }
-}
-
-// To run migration, open browser console and type: migrateExistingStudentIds()
-
-
-  // ===== AUTO-MIGRATION: ADD STUDENT IDs (RUNS ONCE AUTOMATICALLY) =====
-// ===== AUTO-MIGRATION: ADD STUDENT IDs (5 AT A TIME) =====
-async function autoMigrateStudentIds() {
-    const migrationKey = 'studentIdMigrationComplete_v1';
-    const progressKey = 'studentIdMigrationProgress_v1';
-    
-    if (localStorage.getItem(migrationKey) === 'true') {
-        console.log('✅ Student ID migration already completed');
-        return;
-    }
-    
-    // Wait for auth
-    if (!currentUser) {
-        console.log('⏳ Waiting for user authentication...');
-        return;
-    }
-    
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    try {
-        console.log('🔄 Starting automatic student ID migration (5 at a time)...');
-        
-        // Get progress
-        let lastProcessedId = localStorage.getItem(progressKey) || '';
-        
-        // Query students without studentId, starting after last processed
-        let query = db.collection('users')
-            .where('userType', '==', 'student')
-            .orderBy('__name__')
-            .limit(5);
-        
-        if (lastProcessedId) {
-            query = query.startAfter(lastProcessedId);
-        }
-        
-        const studentsSnapshot = await query.get();
-        
-        if (studentsSnapshot.empty) {
-            console.log('🎉 Migration complete! No more students to process.');
-            localStorage.setItem(migrationKey, 'true');
-            localStorage.removeItem(progressKey);
-            
-            showCustomPopup('✅ MIGRATION COMPLETE!');
-            setTimeout(() => hideCustomPopup(), 3000);
-            return;
-        }
-        
-        console.log(`📊 Processing batch of ${studentsSnapshot.size} students...`);
-        
-        let updated = 0;
-        let skipped = 0;
-        let lastId = '';
-        
-        for (const doc of studentsSnapshot.docs) {
-            const data = doc.data();
-            lastId = doc.id;
-            
-            try {
-                if (!data.studentId) {
-                    const studentId = generateStudentId(doc.id);
-                    
-                    await db.collection('users').doc(doc.id).update({
-                        studentId: studentId
-                    });
-                    
-                    console.log(`✅ Updated ${data.name || 'Unknown'}: ${studentId}`);
-                    updated++;
-                } else {
-                    console.log(`⏭️ Skipped ${data.name || 'Unknown'}: Already has ID`);
-                    skipped++;
-                }
-            } catch (error) {
-                console.error(`❌ Error updating ${doc.id}:`, error);
-            }
-        }
-        
-        // Save progress
-        localStorage.setItem(progressKey, lastId);
-        
-        const summary = `📊 Batch Complete: ${updated} updated, ${skipped} skipped`;
-        console.log(summary);
-        
-        showCustomPopup(`🔄 MIGRATING... ${updated} STUDENTS UPDATED`);
-        setTimeout(() => hideCustomPopup(), 2000);
-        
-        // Process next batch after 3 seconds
-        setTimeout(() => {
-            autoMigrateStudentIds();
-        }, 3000);
-        
-    } catch (error) {
-        console.error('❌ Auto-migration error:', error);
-        console.log('ℹ️ Will retry on next page load');
-    }
-}
-
-// Run migration when user signs in
-auth.onAuthStateChanged(user => {
-    if (user) {
-        setTimeout(() => {
-            autoMigrateStudentIds();
-        }, 3000);
-    }
-});
 
 // ===== STUDENT ID GENERATION =====
 function generateStudentId(userId) {
