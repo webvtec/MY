@@ -5749,9 +5749,15 @@ async function verifyIDWithAI() {
     const statusDiv = document.getElementById('idVerificationStatus');
     const completeBtn = document.getElementById('completeProfileBtn');
     const coachName = document.getElementById('verify-name').value.trim();
+    const coachAge = document.getElementById('verify-age').value.trim(); // ✅ GET AGE
     
     if (!coachName) {
         alert('Please enter your full name first');
+        return;
+    }
+    
+    if (!coachAge) {
+        alert('Please enter your age first');
         return;
     }
     
@@ -5767,7 +5773,6 @@ async function verifyIDWithAI() {
     completeBtn.textContent = '⏳ Verifying ID...';
     
     try {
-        // Call your Cloud Run function
         const response = await fetch(CLOUD_FUNCTION_URL, {
             method: 'POST',
             headers: {
@@ -5778,6 +5783,7 @@ async function verifyIDWithAI() {
                     action: 'verifyCoachID',
                     imageBase64: uploadedIDBase64,
                     coachName: coachName,
+                    userAge: coachAge, // ✅ SEND AGE
                     userId: currentUser.uid
                 }
             })
@@ -5792,23 +5798,15 @@ async function verifyIDWithAI() {
         
         console.log('Verification result:', result);
         
-        // ✅ ADD: Check if name matches
-        const nameMatches = result.fullName && 
-            result.fullName.toLowerCase().includes(coachName.toLowerCase().split(' ')[0]) ||
-            coachName.toLowerCase().includes(result.fullName.toLowerCase().split(' ')[0]);
-        
-        if (result.isValid && result.isOver16 && !result.documentAppearsTampered && nameMatches) {
-            // Success
+        // ✅ SIMPLIFIED: Check if verification passed
+        if (result.verificationPassed) {
+            // ✅ SUCCESS - CLEAN MESSAGE
             idVerificationPassed = true;
             statusDiv.className = 'id-verification-status success show';
             statusDiv.innerHTML = `
                 <strong>✅ ID Verified Successfully!</strong>
                 <p style="margin-top: 8px;">
-                    <strong>Document:</strong> ${result.documentType}<br>
-                    <strong>Name on ID:</strong> ${result.fullName}<br>
-                    <strong>Your Name:</strong> ${coachName}<br>
-                    <strong>Age:</strong> ${result.age} years old<br>
-                    <strong>Status:</strong> ${result.reason}
+                    <strong>Status:</strong> Text is clear and consistent with a standard passport layout.
                 </p>
                 <p style="margin-top: 10px; font-size: 0.9rem; font-style: italic;">
                     🔒 Your ID photo has not been stored. Only verification status is saved.
@@ -5818,7 +5816,7 @@ async function verifyIDWithAI() {
             completeBtn.disabled = false;
             completeBtn.textContent = '✅ COMPLETE PROFILE';
             
-            // Store verification result in Firestore (without the image)
+            // Store verification result in Firestore
             await db.collection('users').doc(currentUser.uid).update({
                 idVerified: true,
                 idVerificationDate: firebase.firestore.FieldValue.serverTimestamp(),
@@ -5828,27 +5826,13 @@ async function verifyIDWithAI() {
             });
             
         } else {
-            // Verification failed
+            // ✅ FAILURE - CLEAN MESSAGE
             idVerificationPassed = false;
             statusDiv.className = 'id-verification-status error show';
             
-            let errorMessage = result.reason || 'Verification failed';
-            
-            if (!result.isValid) {
-                errorMessage = '❌ Invalid or unrecognized document. Please upload a clear photo of your Driver\'s License, Passport, or National ID.';
-            } else if (!result.isOver16) {
-                errorMessage = '❌ You must be at least 16 years old to register as a coach.';
-            } else if (result.documentAppearsTampered) {
-                errorMessage = '❌ Document appears to be altered or tampered. Please upload an original, unedited ID.';
-            } else if (!nameMatches) {
-                errorMessage = `❌ Name mismatch! The name on your ID (${result.fullName}) does not match the name you entered (${coachName}). Please ensure they match exactly.`;
-            }
-            
             statusDiv.innerHTML = `
                 <strong>Verification Failed</strong>
-                <p style="margin-top: 8px;">${errorMessage}</p>
-                ${result.fullName ? `<p style="margin-top: 5px;"><strong>Detected Name on ID:</strong> ${result.fullName}</p>` : ''}
-                ${result.age ? `<p><strong>Detected Age:</strong> ${result.age}</p>` : ''}
+                <p style="margin-top: 8px;">${result.reason || 'Unable to verify your ID.'}</p>
                 <p style="margin-top: 10px; font-size: 0.9rem;">
                     <strong>Tips for better verification:</strong><br>
                     • Ensure good lighting<br>
@@ -5887,7 +5871,6 @@ async function verifyIDWithAI() {
         completeBtn.textContent = '❌ Upload Valid ID';
     }
 }
-
         
 // Update handleVerification function to include ID check
 async function handleVerification(event) {
