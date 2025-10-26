@@ -8182,28 +8182,34 @@ async function loadUserDashboard() {
         document.getElementById('display-usertype').textContent = 
             userData?.userType ? userData.userType.charAt(0).toUpperCase() + userData.userType.slice(1) : 'Student';
         
-        // ===== COACH-SPECIFIC RESTRICTIONS =====
-        if (isCoach) {
-            // Hide edit button for coaches
-            document.getElementById('edit-profile-btn').style.display = 'none';
-            
-            // Hide delete account option for coaches
-            const deleteAccountOption = document.querySelector('.setting-item[onclick="confirmDeleteAccount()"]');
-            if (deleteAccountOption) {
-                deleteAccountOption.style.display = 'none';
+       // ===== COACH-SPECIFIC RESTRICTIONS =====
+if (isCoach) {
+    // Hide edit button for coaches
+    document.getElementById('edit-profile-btn').style.display = 'none';
+    
+    // Hide delete account option for coaches
+    const deleteAccountOption = document.querySelector('.setting-item[onclick="confirmDeleteAccount()"]');
+    if (deleteAccountOption) {
+        deleteAccountOption.style.display = 'none';
+    }
+    
+    // ✅ HIDE ONLY SPELLING INCORRECT AND QUIZ INCORRECT FOR COACHES
+    const allStatCards = document.querySelectorAll('.dashboard-card');
+    allStatCards.forEach(card => {
+        const label = card.querySelector('.card-label');
+        if (label) {
+            const text = label.textContent;
+            if (text.includes('MISTAKES') || text.includes('INCORRECT')) {
+                card.style.display = 'none';
             }
-            
-            // ✅ HIDE QUICK STATS FOR COACHES
-            const quickStatsSection = document.querySelector('.dashboard-section:has(.dashboard-grid)');
-            if (quickStatsSection) {
-                quickStatsSection.style.display = 'none';
-            }
-            
-            // ✅ HIDE SUBSCRIPTION STATUS FOR COACHES
-            const subscriptionSection = document.querySelector('.dashboard-section:has(#sub-status-icon)');
-            if (subscriptionSection) {
-                subscriptionSection.style.display = 'none';
-            }
+        }
+    });
+    
+    // ✅ HIDE SUBSCRIPTION STATUS FOR COACHES
+    const subscriptionSection = document.querySelector('.dashboard-section:has(#sub-status-icon)');
+    if (subscriptionSection) {
+        subscriptionSection.style.display = 'none';
+    }
             
         } else {
             // Show everything for students
