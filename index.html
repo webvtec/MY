@@ -3982,29 +3982,33 @@
    <!-- Custom Popup -->
 <div class="custom-popup" id="customPopup"></div>
 
+            
 
-       <!-- Subscription Modal (Cannot be closed) -->
+
+    <!-- Subscription Modal (Cannot be closed) -->
 <div class="auth-modal" id="subscriptionModal" style="z-index: 9999;">
     <div class="auth-content" style="max-width: 500px;">
         <div class="auth-header" style="background: linear-gradient(135deg, #FFD700, #FFA500);">
             <h2 style="color: #0d3b66;">🪙 SUBSCRIPTION REQUIRED</h2>
-            
         </div>
         <div class="auth-body" style="text-align: center;">
             <div style="font-size: 3rem; margin: 20px 0;">🔒</div>
             <h3 style="color: #0d3b66; margin-bottom: 15px;">Your subscription has ended</h3>
             <p style="color: #666; margin: 15px 0; line-height: 1.6;">
-                Please redeem your coins to continue learning at WordBiz Academy, if you have an insufficent amount of coins please allow a parent to sign up for a PARENTS PROFILE and pay a fee of $1,000 JMD so you can regain access.
+                 Please redeem your coins to continue learning at WordBiz Academy, if you have an insufficent amount of coins please allow a parent to sign up for a PARENTS PROFILE and pay a fee of $1,000 JMD so you can regain access.
             </p>
             
-            <div style="font-size: 2rem; margin-bottom: 10px;">Your Coins</div>
-<p style="font-size: 0.9rem; color: #999; margin-top: 5px;">/ 1000 max</p>
-
-<!-- Student ID Display -->
-<div style="margin-top: 20px; padding: 15px; background: #f5f5f5; border-radius: 10px;">
-    <p style="color: #666; font-size: 0.9rem; margin-bottom: 5px;">🆔 Your Student ID</p>
-    <p style="font-family: monospace; font-size: 1.3rem; font-weight: bold; color: #0d3b66;" id="sub-modal-student-id">Loading...</p>
-</div>
+            <!-- Student ID Display -->
+            <div style="margin: 20px 0; padding: 15px; background: #f5f5f5; border-radius: 10px;">
+                <p style="color: #666; font-size: 0.9rem; margin-bottom: 5px;">🆔 Your Student ID</p>
+                <p style="font-family: monospace; font-size: 1.3rem; font-weight: bold; color: #0d3b66;" id="sub-modal-student-id">Loading...</p>
+            </div>
+            
+            <!-- Coins Display -->
+            <div style="background: #f9f9f9; padding: 20px; border-radius: 10px; margin: 20px 0;">
+                <p style="font-size: 1.2rem; color: #666; margin-bottom: 10px;">Your Coins</p>
+                <p style="font-size: 3rem; font-weight: bold; color: #0d3b66; margin: 10px 0;" id="sub-modal-coins">0</p>
+                <p style="font-size: 0.9rem; color: #999; margin-top: 5px;">/ 1000 max</p>
             </div>
             
             <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 10px; margin: 20px 0; color: white;">
@@ -4045,7 +4049,7 @@
             <div id="sub-modal-error" class="feedback error" style="display: none; margin-top: 15px;"></div>
         </div>
     </div>
-</div>     
+</div>
     <script>
         // ===== FIREBASE CONFIGURATION =====
         const firebaseConfig = {
@@ -11280,39 +11284,58 @@ async function checkSubscriptionStatus() {
 function showSubscriptionModal() {
     const modal = document.getElementById('subscriptionModal');
     
+    if (!currentUser) {
+        console.error('No current user for subscription modal');
+        return;
+    }
+    
     // Update coin display
-    document.getElementById('sub-modal-coins').textContent = userCoins;
-
-
-    // Update Student ID in modal
-db.collection('users').doc(currentUser.uid).get().then(doc => {
-    const userData = doc.data();
-    const studentId = userData?.studentId || `WB-2025-${currentUser.uid.slice(-4).toUpperCase()}`;
-    document.getElementById('sub-modal-student-id').textContent = studentId;
-});
+    const coinsElement = document.getElementById('sub-modal-coins');
+    if (coinsElement) {
+        coinsElement.textContent = userCoins;
+    }
+    
+    // Update Student ID
+    const studentIdElement = document.getElementById('sub-modal-student-id');
+    if (studentIdElement) {
+        db.collection('users').doc(currentUser.uid).get().then(doc => {
+            const userData = doc.data();
+            const studentId = userData?.studentId || `WB-2025-${currentUser.uid.slice(-4).toUpperCase()}`;
+            studentIdElement.textContent = studentId;
+        }).catch(error => {
+            console.error('Error loading student ID:', error);
+            studentIdElement.textContent = `WB-2025-${currentUser.uid.slice(-4).toUpperCase()}`;
+        });
+    }
     
     // Check if user has enough coins
     const redeemBtn = document.getElementById('redeem-sub-btn');
     const insufficientDiv = document.getElementById('sub-modal-insufficient');
-    const coinsNeeded = document.getElementById('coins-needed');
+    const coinsNeededSpan = document.getElementById('coins-needed');
     
-    if (userCoins >= SUBSCRIPTION_COST) {
-        redeemBtn.disabled = false;
-        insufficientDiv.style.display = 'none';
-    } else {
-        redeemBtn.disabled = true;
-        insufficientDiv.style.display = 'block';
-        coinsNeeded.textContent = SUBSCRIPTION_COST - userCoins;
+    if (redeemBtn && insufficientDiv && coinsNeededSpan) {
+        if (userCoins >= SUBSCRIPTION_COST) {
+            redeemBtn.disabled = false;
+            insufficientDiv.style.display = 'none';
+        } else {
+            redeemBtn.disabled = true;
+            insufficientDiv.style.display = 'block';
+            coinsNeededSpan.textContent = SUBSCRIPTION_COST - userCoins;
+        }
     }
     
     // Reset UI
-    document.getElementById('sub-modal-buttons').style.display = 'block';
-    document.getElementById('sub-modal-success').style.display = 'none';
-    document.getElementById('sub-modal-error').style.display = 'none';
+    const buttonsDiv = document.getElementById('sub-modal-buttons');
+    const successDiv = document.getElementById('sub-modal-success');
+    const errorDiv = document.getElementById('sub-modal-error');
+    
+    if (buttonsDiv) buttonsDiv.style.display = 'block';
+    if (successDiv) successDiv.style.display = 'none';
+    if (errorDiv) errorDiv.style.display = 'none';
     
     modal.classList.add('active');
 }
-
+        
 function closeSubscriptionModal() {
     // Only close if subscription was successfully redeemed
     if (subscriptionActive) {
