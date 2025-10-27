@@ -4463,9 +4463,20 @@
 
         // ===== CLOUD FUNCTION URL =====
         const CLOUD_FUNCTION_URL = 'https://getworddefinition-998744778737.us-central1.run.app';
-        const PAYPAL_VERIFY_URL = 'https://verifypaypalpayment-998744778737.us-central1.run.app';
 
 
+        
+// ===== PAYPAL CONFIGURATION =====
+const PAYPAL_HANDLER_URL = 'https://verificationpaypalpayment-998744778737.us-central1.run.app';
+const PAYPAL_CLIENT_ID = 'YOUR_PAYPAL_CLIENT_ID'; // Replace with your actual client ID
+const REOPEN_ACCOUNT_COST = 6.50;
+const REOPEN_DAYS = 30;
+
+let paypalButtonRendered = false;
+let sponsorPaypalRendered = false;
+let currentChildData = null;
+
+        
 
         let paypalSDKLoaded = false;
 const PAYPAL_HANDLER_URL = 'https://us-central1-wordbiz-coaching-academy.cloudfunctions.net/paypalHandler';
@@ -4624,9 +4635,6 @@ const MAX_COINS = 1000;
 const REOPEN_ACCOUNT_COST = 6.50; // USD
 const REOPEN_DAYS = 30;
 
-// ===== GLOBAL VARIABLES FOR PARENT =====
-let currentChildData = null;
-let paypalButtonRendered = false;      
       
      // ===== INITIALIZE =====
 document.addEventListener('DOMContentLoaded', function() {
@@ -13498,66 +13506,43 @@ function initializePayPalButton() {
     paypalButtonRendered = true;
 }
         
-       async function processPaymentSuccess(order) {
+      async function processPaymentSuccess(order) {
     try {
         const errorDiv = document.getElementById('payment-error');
         const successDiv = document.getElementById('payment-success');
         
         errorDiv.style.display = 'none';
         successDiv.style.display = 'block';
-        successDiv.textContent = '✅ Payment captured! Verifying...';
+        successDiv.textContent = '✅ Payment captured! Verifying with server...';
         
-        // Verify payment with our backend
+        console.log('📤 Sending verification request to server...');
+        
+        // Verify payment with backend
         const verifyResponse = await fetch(PAYPAL_HANDLER_URL, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({ 
-                action: 'verify',
-                orderId: order.id 
+                action: 'verify_reopen',
+                orderId: order.id,
+                userId: currentUser.uid,
+                childId: currentChildData.id
             })
         });
+        
+        if (!verifyResponse.ok) {
+            const errorText = await verifyResponse.text();
+            console.error('❌ Server response error:', errorText);
+            throw new Error(`Server error: ${verifyResponse.status}`);
+        }
         
         const verifyResult = await verifyResponse.json();
         console.log('✅ Verification result:', verifyResult);
         
-        if (!verifyResult.success || !verifyResult.data.verified) {
-            throw new Error('Payment verification failed');
+        if (!verifyResult.success) {
+            throw new Error(verifyResult.error || 'Payment verification failed');
         }
-        
-        const paymentData = verifyResult.data;
-        
-        successDiv.textContent = '✅ Payment verified! Reopening account...';
-        
-        // Calculate new subscription expiry (30 days from now)
-        const newExpiry = new Date();
-        newExpiry.setDate(newExpiry.getDate() + REOPEN_DAYS);
-        
-        // Update child's subscription in Firestore
-        await db.collection('users').doc(currentChildData.id).update({
-            subscriptionExpiry: firebase.firestore.Timestamp.fromDate(newExpiry),
-            subscriptionType: 'parent_paid',
-            lastParentPayment: firebase.firestore.FieldValue.serverTimestamp(),
-            accountReopenedAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        
-        // Record transaction in parent's account
-        await db.collection('users').doc(currentUser.uid).collection('transactions').add({
-            type: 'account_reopen',
-            amount: parseFloat(paymentData.amount),
-            currency: paymentData.currency,
-            childId: currentChildData.id,
-            childName: currentChildData.name,
-            orderId: paymentData.orderId,
-            captureId: paymentData.captureId,
-            payerId: paymentData.payerId,
-            payerEmail: paymentData.payerEmail,
-            payerName: paymentData.payerName,
-            status: 'completed',
-            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-            expiryDate: firebase.firestore.Timestamp.fromDate(newExpiry)
-        });
         
         successDiv.textContent = '✅ Payment successful! Account reopened for 30 days!';
         
@@ -13570,7 +13555,7 @@ function initializePayPalButton() {
         }, 2000);
         
     } catch (error) {
-        console.error('Error processing payment success:', error);
+        console.error('❌ Error processing payment:', error);
         showPaymentError('Payment failed: ' + error.message);
     }
 }
@@ -13812,32 +13797,35 @@ async function processSponsorshipSuccess(order) {
         successDiv.style.display = 'block';
         successDiv.textContent = '✅ Processing sponsorship...';
         
-        const amount = parseFloat(order.purchase_units[0].amount.value);
+        console.log('📤 Sending sponsorship verification to server...');
         
-        // Record sponsorship in Firestore
-        const sponsorshipData = {
-            amount: amount,
-            currency: 'USD',
-            orderId: order.id,
-            status: order.status,
-            createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        };
+        // Verify with backend
+        const verifyResponse = await fetch(PAYPAL_HANDLER_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ 
+                action: 'verify_sponsorship',
+                orderId: order.id,
+                userId: currentUser ? currentUser.uid : 'anonymous'
+            })
+        });
         
-        // If user is logged in, link to their account
-        if (currentUser) {
-            sponsorshipData.userId = currentUser.uid;
-            sponsorshipData.userName = currentUser.displayName || 'Anonymous';
-            sponsorshipData.userEmail = currentUser.email;
-            
-            // Also add to user's personal sponsorship history
-            await db.collection('users').doc(currentUser.uid).collection('sponsorships').add(sponsorshipData);
-        } else {
-            sponsorshipData.userId = 'anonymous';
-            sponsorshipData.userName = 'Anonymous Sponsor';
+        if (!verifyResponse.ok) {
+            const errorText = await verifyResponse.text();
+            console.error('❌ Server response error:', errorText);
+            throw new Error(`Server error: ${verifyResponse.status}`);
         }
         
-        // Add to global sponsorships collection
-        await db.collection('sponsorships').add(sponsorshipData);
+        const verifyResult = await verifyResponse.json();
+        console.log('✅ Sponsorship verified:', verifyResult);
+        
+        if (!verifyResult.success) {
+            throw new Error(verifyResult.error || 'Sponsorship verification failed');
+        }
+        
+        const amount = verifyResult.data.amount;
         
         successDiv.innerHTML = `
             <strong>🎉 Thank You for Your Sponsorship!</strong><br><br>
@@ -13859,7 +13847,7 @@ async function processSponsorshipSuccess(order) {
         }, 5000);
         
     } catch (error) {
-        console.error('Error processing sponsorship:', error);
+        console.error('❌ Error processing sponsorship:', error);
         showSponsorError('Payment received but failed to record: ' + error.message);
     }
 }
@@ -13872,6 +13860,22 @@ function showSponsorError(message) {
     errorDiv.style.display = 'block';
     errorDiv.textContent = message;
 }        
+
+
+  function loadPayPalSDK() {
+    return new Promise((resolve, reject) => {
+        if (window.paypal) {
+            resolve();
+            return;
+        }
+        
+        const script = document.createElement('script');
+        script.src = `https://www.paypal.com/sdk/js?client-id=${PAYPAL_CLIENT_ID}&currency=USD`;
+        script.onload = resolve;
+        script.onerror = reject;
+        document.head.appendChild(script);
+    });
+}      
     </script>
 </body>
 </html>
