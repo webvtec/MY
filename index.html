@@ -2699,10 +2699,13 @@
         </div>
 
 <nav class="nav-bar">
-            <div class="nav-item" onclick="navigateTo('quiz', true)">QUIZ</div>
-            <div class="nav-item">TOURNAMENTS</div>
-           <div class="nav-item" onclick="navigateTo('spelling', true)">SPELLING</div>
-        </nav>
+    <div class="nav-item" onclick="navigateTo('quiz', true)">QUIZ</div>
+    <div class="nav-item">TOURNAMENTS</div>
+    <div class="nav-item" onclick="navigateTo('spelling', true)">SPELLING</div>
+    <div class="nav-item" onclick="showSponsorModal()" style="background: linear-gradient(135deg, #FFD700, #FFA500); color: #0d3b66; font-weight: bold;">
+        SPONSOR WORD BIZ
+    </div>
+</nav>
     </header>
 
 
@@ -4383,6 +4386,59 @@
             </div>
             
             <div id="sub-modal-error" class="feedback error" style="display: none; margin-top: 15px;"></div>
+        </div>
+    </div>
+</div>
+    </div>
+</div>
+
+
+
+    <!-- Sponsor Modal -->
+<div class="auth-modal" id="sponsorModal">
+    <div class="auth-content" style="max-width: 500px;">
+        <div class="auth-header" style="background: linear-gradient(135deg, #FFD700, #FFA500);">
+            <h2 style="color: #0d3b66; margin: 0;">💝 Sponsor WordBiz Academy</h2>
+            <button class="modal-close" onclick="closeSponsorModal()" style="color: #0d3b66;">×</button>
+        </div>
+        <div class="auth-body">
+            <div style="text-align: center; margin-bottom: 25px;">
+                <p style="font-size: 1.1rem; color: #0d3b66; line-height: 1.8; margin-bottom: 20px;">
+                    Support our mission to help children master vocabulary through innovative learning tools.
+                </p>
+                
+                <div style="background: #f9f9f9; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                    <h3 style="color: #0d3b66; margin-bottom: 15px;">Your Support Helps Us:</h3>
+                    <ul style="text-align: left; color: #666; line-height: 2;">
+                        <li>✅ Provide free resources to students</li>
+                        <li>✅ Develop new learning features</li>
+                        <li>✅ Support coaches and educators</li>
+                        <li>✅ Maintain our platform</li>
+                    </ul>
+                </div>
+                
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label style="font-size: 1.1rem; color: #0d3b66; font-weight: bold;">Enter Amount (USD)</label>
+                    <input type="number" id="sponsor-amount" min="1" step="0.01" placeholder="Enter amount (e.g., 10.00)" 
+                           style="width: 100%; padding: 15px; font-size: 1.2rem; text-align: center; border: 2px solid #FFD700; border-radius: 8px; margin-top: 10px;">
+                </div>
+                
+                <div style="background: #fff3cd; padding: 15px; border-radius: 8px; border-left: 4px solid #ffc107; margin-bottom: 20px;">
+                    <p style="color: #856404; margin: 0; font-size: 0.9rem;">
+                        💳 Secure payment powered by PayPal. You can pay with credit card, debit card, or your PayPal account.
+                    </p>
+                </div>
+            </div>
+            
+            <!-- PayPal Button Container -->
+            <div id="sponsor-paypal-button-container"></div>
+            
+            <button class="practice-btn" onclick="closeSponsorModal()" style="background: #6c757d; width: 100%; margin-top: 15px;">
+                Cancel
+            </button>
+            
+            <div id="sponsor-payment-error" class="feedback error" style="display:none; margin-top:15px;"></div>
+            <div id="sponsor-payment-success" class="feedback success" style="display:none; margin-top:15px;"></div>
         </div>
     </div>
 </div>
@@ -13593,6 +13649,150 @@ async function goToParentDashboard() {
     navigateTo('parent-dashboard');
     await loadParentDashboard();
 }       
+
+
+// ===== SPONSOR FUNCTIONS =====
+let sponsorPaypalRendered = false;
+
+function showSponsorModal() {
+    const modal = document.getElementById('sponsorModal');
+    
+    // Reset form
+    document.getElementById('sponsor-amount').value = '';
+    document.getElementById('sponsor-payment-error').style.display = 'none';
+    document.getElementById('sponsor-payment-success').style.display = 'none';
+    
+    modal.classList.add('active');
+    
+    // Initialize PayPal button if not already rendered
+    if (!sponsorPaypalRendered) {
+        initializeSponsorPayPalButton();
+    }
+}
+
+function closeSponsorModal() {
+    document.getElementById('sponsorModal').classList.remove('active');
+}
+
+function initializeSponsorPayPalButton() {
+    const container = document.getElementById('sponsor-paypal-button-container');
+    container.innerHTML = ''; // Clear any existing buttons
+    
+    paypal.Buttons({
+        createOrder: function(data, actions) {
+            const amount = document.getElementById('sponsor-amount').value;
+            
+            if (!amount || parseFloat(amount) <= 0) {
+                showSponsorError('Please enter a valid amount');
+                return;
+            }
+            
+            return actions.order.create({
+                purchase_units: [{
+                    description: 'Sponsorship for WordBiz Coaching Academy',
+                    amount: {
+                        currency_code: 'USD',
+                        value: parseFloat(amount).toFixed(2)
+                    }
+                }]
+            });
+        },
+        onApprove: async function(data, actions) {
+            try {
+                // Capture the payment
+                const order = await actions.order.capture();
+                console.log('✅ Sponsorship payment captured:', order);
+                
+                // Process the sponsorship
+                await processSponsorshipSuccess(order);
+                
+            } catch (error) {
+                console.error('❌ Sponsorship payment error:', error);
+                showSponsorError('Failed to process sponsorship: ' + error.message);
+            }
+        },
+        onError: function(err) {
+            console.error('❌ PayPal error:', err);
+            showSponsorError('Payment failed. Please try again.');
+        },
+        onCancel: function(data) {
+            console.log('⚠️ Payment cancelled by user');
+            showSponsorError('Payment was cancelled.');
+        }
+    }).render('#sponsor-paypal-button-container');
+    
+    sponsorPaypalRendered = true;
+}
+
+async function processSponsorshipSuccess(order) {
+    try {
+        const errorDiv = document.getElementById('sponsor-payment-error');
+        const successDiv = document.getElementById('sponsor-payment-success');
+        
+        errorDiv.style.display = 'none';
+        successDiv.style.display = 'block';
+        successDiv.textContent = '✅ Processing sponsorship...';
+        
+        const amount = parseFloat(order.purchase_units[0].amount.value);
+        
+        // Record sponsorship in Firestore
+        const sponsorshipData = {
+            amount: amount,
+            currency: 'USD',
+            orderId: order.id,
+            status: order.status,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+        
+        // If user is logged in, link to their account
+        if (currentUser) {
+            sponsorshipData.userId = currentUser.uid;
+            sponsorshipData.userName = currentUser.displayName || 'Anonymous';
+            sponsorshipData.userEmail = currentUser.email;
+            
+            // Also add to user's personal sponsorship history
+            await db.collection('users').doc(currentUser.uid).collection('sponsorships').add(sponsorshipData);
+        } else {
+            sponsorshipData.userId = 'anonymous';
+            sponsorshipData.userName = 'Anonymous Sponsor';
+        }
+        
+        // Add to global sponsorships collection
+        await db.collection('sponsorships').add(sponsorshipData);
+        
+        successDiv.innerHTML = `
+            <strong>🎉 Thank You for Your Sponsorship!</strong><br><br>
+            Your generous donation of <strong>$${amount.toFixed(2)} USD</strong> will help us continue providing quality education to students worldwide.<br><br>
+            We truly appreciate your support! 💝
+        `;
+        
+        // Disable amount input and PayPal button
+        document.getElementById('sponsor-amount').disabled = true;
+        document.getElementById('sponsor-paypal-button-container').style.display = 'none';
+        
+        // Auto-close after 5 seconds
+        setTimeout(() => {
+            closeSponsorModal();
+            
+            // Re-enable for next use
+            document.getElementById('sponsor-amount').disabled = false;
+            document.getElementById('sponsor-paypal-button-container').style.display = 'block';
+        }, 5000);
+        
+    } catch (error) {
+        console.error('Error processing sponsorship:', error);
+        showSponsorError('Payment received but failed to record: ' + error.message);
+    }
+}
+
+function showSponsorError(message) {
+    const errorDiv = document.getElementById('sponsor-payment-error');
+    const successDiv = document.getElementById('sponsor-payment-success');
+    
+    successDiv.style.display = 'none';
+    errorDiv.style.display = 'block';
+    errorDiv.textContent = message;
+}        
     </script>
 </body>
 </html>
