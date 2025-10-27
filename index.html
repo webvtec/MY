@@ -4465,6 +4465,48 @@
         const CLOUD_FUNCTION_URL = 'https://getworddefinition-998744778737.us-central1.run.app';
         const PAYPAL_VERIFY_URL = 'https://verifypaypalpayment-998744778737.us-central1.run.app';
 
+
+
+        let paypalSDKLoaded = false;
+const PAYPAL_HANDLER_URL = 'https://us-central1-wordbiz-coaching-academy.cloudfunctions.net/paypalHandler';
+
+async function loadPayPalSDK() {
+    if (paypalSDKLoaded) {
+        return Promise.resolve();
+    }
+    
+    try {
+        // Get client ID from Firebase function
+        const response = await fetch(`${PAYPAL_HANDLER_URL}?action=getClientId`);
+        const data = await response.json();
+        
+        if (!data.success || !data.clientId) {
+            throw new Error('Failed to get PayPal client ID');
+        }
+        
+        return new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = `https://www.paypal.com/sdk/js?client-id=${data.clientId}&currency=USD&locale=en_US`;
+            script.async = true;
+            
+            script.onload = () => {
+                paypalSDKLoaded = true;
+                console.log('✅ PayPal SDK loaded');
+                resolve();
+            };
+            
+            script.onerror = () => {
+                reject(new Error('Failed to load PayPal SDK'));
+            };
+            
+            document.head.appendChild(script);
+        });
+    } catch (error) {
+        console.error('Error loading PayPal SDK:', error);
+        throw error;
+    }
+}
+        
         // ===== GLOBAL VARIABLES =====
 let allWords = [];
 let currentLetter = '';
@@ -13366,7 +13408,7 @@ async function loadChildAccountStatus(childId) {
     }
 }
 
-function showPaymentModal() {
+async function showPaymentModal() {
     if (!currentChildData) {
         alert('Child data not loaded');
         return;
@@ -13380,9 +13422,15 @@ function showPaymentModal() {
     
     modal.classList.add('active');
     
-    // Initialize PayPal button if not already rendered
+    // Load PayPal SDK first, then initialize button
     if (!paypalButtonRendered) {
-        initializePayPalButton();
+        try {
+            await loadPayPalSDK();
+            initializePayPalButton();
+        } catch (error) {
+            console.error('Failed to load PayPal:', error);
+            showPaymentError('Failed to load payment system. Please try again.');
+        }
     }
 }
 
@@ -13450,13 +13498,36 @@ function initializePayPalButton() {
     paypalButtonRendered = true;
 }
         
-       async function processPaymentSuccess(paymentData) {
+       async function processPaymentSuccess(order) {
     try {
         const errorDiv = document.getElementById('payment-error');
         const successDiv = document.getElementById('payment-success');
         
         errorDiv.style.display = 'none';
         successDiv.style.display = 'block';
+        successDiv.textContent = '✅ Payment captured! Verifying...';
+        
+        // Verify payment with our backend
+        const verifyResponse = await fetch(PAYPAL_HANDLER_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ 
+                action: 'verify',
+                orderId: order.id 
+            })
+        });
+        
+        const verifyResult = await verifyResponse.json();
+        console.log('✅ Verification result:', verifyResult);
+        
+        if (!verifyResult.success || !verifyResult.data.verified) {
+            throw new Error('Payment verification failed');
+        }
+        
+        const paymentData = verifyResult.data;
+        
         successDiv.textContent = '✅ Payment verified! Reopening account...';
         
         // Calculate new subscription expiry (30 days from now)
@@ -13500,7 +13571,7 @@ function initializePayPalButton() {
         
     } catch (error) {
         console.error('Error processing payment success:', error);
-        showPaymentError('Payment verified but failed to update account: ' + error.message);
+        showPaymentError('Payment failed: ' + error.message);
     }
 }
 
@@ -13656,7 +13727,7 @@ async function goToParentDashboard() {
 // ===== SPONSOR FUNCTIONS =====
 let sponsorPaypalRendered = false;
 
-function showSponsorModal() {
+async function showSponsorModal() {
     const modal = document.getElementById('sponsorModal');
     
     // Reset form
@@ -13666,12 +13737,18 @@ function showSponsorModal() {
     
     modal.classList.add('active');
     
-    // Initialize PayPal button if not already rendered
+    // Load PayPal SDK first, then initialize button
     if (!sponsorPaypalRendered) {
-        initializeSponsorPayPalButton();
+        try {
+            await loadPayPalSDK();
+            initializeSponsorPayPalButton();
+        } catch (error) {
+            console.error('Failed to load PayPal:', error);
+            showSponsorError('Failed to load payment system. Please try again.');
+        }
     }
 }
-
+        
 function closeSponsorModal() {
     document.getElementById('sponsorModal').classList.remove('active');
 }
