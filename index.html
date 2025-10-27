@@ -6,7 +6,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Permissions-Policy" content="geolocation=(self 'https://www.paypal.com')">
+    <meta http-equiv="Permissions-Policy" content="geolocation=(self https://www.paypal.com)">
     <title>WORD BIZ COACHING ACADEMY</title>
     <style>
         /* ===== GLOBAL RESET ===== */
@@ -4469,7 +4469,6 @@
         
 // ===== PAYPAL CONFIGURATION =====
 const PAYPAL_HANDLER_URL = 'https://verificationpaypalpayment-998744778737.us-central1.run.app';
-const PAYPAL_CLIENT_ID = 'Aa6CIokzBSehp8YJNeeWuZcwBlDfsHQvkGX-r0WmDNPjwEl6RGIdgKke2DP1r0qeHgYXmqErnVCs0UGX'; // Replace with actual client ID
 const REOPEN_ACCOUNT_COST = 6.50;
 const REOPEN_DAYS = 30;
 
@@ -9983,16 +9982,18 @@ document.addEventListener('click', function(event) {
 });
 
 // ===== LIVE SPELLING FUNCTIONS =====
+let presenceInitializing = false; // ADD this at the top with other globals
+
 async function initializeOnlinePresence() {
     if (!currentUser) return;
     
-    // ✅ CRITICAL: Prevent multiple initializations
-    if (presenceInitialized) {
-        console.log('Presence already initialized');
+    // IMPROVED: Check both initialized and initializing
+    if (presenceInitialized || presenceInitializing) {
+        console.log('Presence already initialized or initializing');
         return;
     }
     
-    presenceInitialized = true;
+    presenceInitializing = true;
     console.log('✅ Initializing online presence for:', currentUser.uid);
     
     try {
@@ -10026,10 +10027,13 @@ async function initializeOnlinePresence() {
             }
         }, 30000);
         
+        presenceInitialized = true;
         console.log('✅ Presence initialized successfully');
     } catch (error) {
         console.error('❌ Error initializing presence:', error);
-        presenceInitialized = false; // Reset on error
+        presenceInitialized = false;
+    } finally {
+        presenceInitializing = false; // ALWAYS reset this flag
     }
 }
 
@@ -10037,7 +10041,7 @@ async function removeOnlinePresence() {
     try {
         console.log('🧹 Removing online presence...');
         
-        // Remove challenge listeners
+        // Remove ALL challenge listeners
         if (challengeListener) {
             challengeListener();
             challengeListener = null;
@@ -10046,10 +10050,22 @@ async function removeOnlinePresence() {
             myChallengeListener();
             myChallengeListener = null;
         }
-        // ✅ Add this
         if (onlineUsersRef) {
             onlineUsersRef();
             onlineUsersRef = null;
+        }
+        // ✅ ADD QUIZ LISTENERS TOO
+        if (quizChallengeListener) {
+            quizChallengeListener();
+            quizChallengeListener = null;
+        }
+        if (myQuizChallengeListener) {
+            myQuizChallengeListener();
+            myQuizChallengeListener = null;
+        }
+        if (quizOnlineUsersRef) {
+            quizOnlineUsersRef();
+            quizOnlineUsersRef = null;
         }
         
         // Remove from online users
@@ -10058,16 +10074,15 @@ async function removeOnlinePresence() {
             presenceRef = null;
         }
         
-        // Reset flag
+        // Reset flags
         presenceInitialized = false;
+        presenceInitializing = false; // ADD THIS
         
         console.log('✅ Presence removed successfully');
     } catch (error) {
         console.error('Error removing presence:', error);
     }
 }
-        
-
 
 async function loadOnlineUsers() {
     if (!currentUser) {
@@ -13858,20 +13873,7 @@ function showSponsorError(message) {
 }        
 
 
- function loadPayPalSDK() {
-    return new Promise((resolve, reject) => {
-        if (window.paypal) {
-            resolve();
-            return;
-        }
-        
-        const script = document.createElement('script');
-        script.src = `https://www.paypal.com/sdk/js?client-id=${PAYPAL_CLIENT_ID}&currency=USD`;
-        script.onload = resolve;
-        script.onerror = reject;
-        document.head.appendChild(script);
-    });
-} 
+ f
     </script>
 </body>
 </html>
