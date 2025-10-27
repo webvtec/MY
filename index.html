@@ -5,7 +5,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
     <!-- PayPal SDK -->
-    <script src="https://www.paypal.com/sdk/js?client-id=YOUR_PAYPAL_CLIENT_ID&currency=USD"></script>
+    <script src="https://www.paypal.com/sdk/js?client-id=EBBMg2jVDoOB4vNukj4xSQcQRfATYBgYBZut3giK7h2UDaTdocA2CtKMFXk3-hgpxL52RXGehGF4o_zG&currency=USD"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WORD BIZ COACHING ACADEMY</title>
@@ -4386,6 +4386,8 @@
         </div>
     </div>
 </div>
+    </div>
+</div>
     <script>
         // ===== FIREBASE CONFIGURATION =====
         const firebaseConfig = {
@@ -4403,7 +4405,8 @@
 
         // ===== CLOUD FUNCTION URL =====
         const CLOUD_FUNCTION_URL = 'https://getworddefinition-998744778737.us-central1.run.app';
-
+        const CLOUD_FUNCTION_URL = 'https://getworddefinition-998744778737.us-central1.run.app';
+        const PAYPAL_VERIFY_URL = 'https://europe-west1-your-project-id.cloudfunctions.net/verifyPayPalPayment';
 
         // ===== GLOBAL VARIABLES =====
 let allWords = [];
@@ -4519,9 +4522,6 @@ const MAX_COINS = 1000;
 
 
 
-  // ===== PAYPAL CONFIGURATION =====
-const PAYPAL_CLIENT_ID = 'YOUR_PAYPAL_CLIENT_ID_HERE'; // Replace with your PayPal Client ID
-const PAYPAL_SECRET = 'YOUR_PAYPAL_SECRET_HERE'; // Replace with your PayPal Secret
 const REOPEN_ACCOUNT_COST = 6.50; // USD
 const REOPEN_DAYS = 30;
 
@@ -13351,36 +13351,56 @@ function initializePayPalButton() {
         },
         onApprove: async function(data, actions) {
             try {
+                // Capture the payment
                 const order = await actions.order.capture();
-                console.log('Payment successful:', order);
+                console.log('✅ Payment captured:', order);
                 
-                await processPaymentSuccess(order);
+                // Verify payment with our backend
+                const verifyResponse = await fetch(PAYPAL_VERIFY_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        orderId: order.id 
+                    })
+                });
+                
+                const verifyResult = await verifyResponse.json();
+                console.log('✅ Verification result:', verifyResult);
+                
+                if (verifyResult.success && verifyResult.data.verified) {
+                    await processPaymentSuccess(verifyResult.data);
+                } else {
+                    throw new Error('Payment verification failed');
+                }
                 
             } catch (error) {
-                console.error('Payment capture error:', error);
+                console.error('❌ Payment error:', error);
                 showPaymentError('Failed to process payment: ' + error.message);
             }
         },
         onError: function(err) {
-            console.error('PayPal error:', err);
+            console.error('❌ PayPal error:', err);
             showPaymentError('Payment failed. Please try again.');
         },
         onCancel: function(data) {
-            console.log('Payment cancelled:', data);
+            console.log('⚠️ Payment cancelled by user');
+            showPaymentError('Payment was cancelled.');
         }
     }).render('#paypal-button-container');
     
     paypalButtonRendered = true;
 }
-
-async function processPaymentSuccess(orderData) {
+        
+       async function processPaymentSuccess(paymentData) {
     try {
         const errorDiv = document.getElementById('payment-error');
         const successDiv = document.getElementById('payment-success');
         
         errorDiv.style.display = 'none';
         successDiv.style.display = 'block';
-        successDiv.textContent = '✅ Payment successful! Reopening account...';
+        successDiv.textContent = '✅ Payment verified! Reopening account...';
         
         // Calculate new subscription expiry (30 days from now)
         const newExpiry = new Date();
@@ -13397,13 +13417,15 @@ async function processPaymentSuccess(orderData) {
         // Record transaction in parent's account
         await db.collection('users').doc(currentUser.uid).collection('transactions').add({
             type: 'account_reopen',
-            amount: REOPEN_ACCOUNT_COST,
-            currency: 'USD',
+            amount: parseFloat(paymentData.amount),
+            currency: paymentData.currency,
             childId: currentChildData.id,
             childName: currentChildData.name,
-            orderId: orderData.id,
-            payerId: orderData.payer.payer_id,
-            payerEmail: orderData.payer.email_address,
+            orderId: paymentData.orderId,
+            captureId: paymentData.captureId,
+            payerId: paymentData.payerId,
+            payerEmail: paymentData.payerEmail,
+            payerName: paymentData.payerName,
             status: 'completed',
             createdAt: firebase.firestore.FieldValue.serverTimestamp(),
             expiryDate: firebase.firestore.Timestamp.fromDate(newExpiry)
@@ -13421,7 +13443,7 @@ async function processPaymentSuccess(orderData) {
         
     } catch (error) {
         console.error('Error processing payment success:', error);
-        showPaymentError('Payment successful but failed to update account: ' + error.message);
+        showPaymentError('Payment verified but failed to update account: ' + error.message);
     }
 }
 
