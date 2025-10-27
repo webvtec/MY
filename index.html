@@ -6,7 +6,6 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Permissions-Policy" content="geolocation=()">
     <title>WORD BIZ COACHING ACADEMY</title>
     <style>
         /* ===== GLOBAL RESET ===== */
@@ -2478,180 +2477,6 @@
             font-weight: bold;
             margin: 15px 0;
         }
-
-
-
-        /* ===== PARENT DASHBOARD STYLES ===== */
-.parent-dashboard-container {
-    max-width: 1000px;
-    margin: 0 auto;
-    padding: 20px;
-}
-
-.child-status-card {
-    background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
-    border-radius: 20px;
-    padding: 30px;
-    margin-bottom: 25px;
-    box-shadow: 0 4px 20px rgba(255,107,107,0.3);
-    color: white;
-}
-
-.child-status-card.active {
-    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-    box-shadow: 0 4px 20px rgba(40,167,69,0.3);
-}
-
-.child-status-card.warning {
-    background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
-    box-shadow: 0 4px 20px rgba(255,193,7,0.3);
-}
-
-.child-info-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 15px;
-    margin-top: 20px;
-}
-
-.child-info-item {
-    background: rgba(255,255,255,0.2);
-    padding: 15px;
-    border-radius: 10px;
-}
-
-.child-info-label {
-    font-size: 0.9rem;
-    opacity: 0.9;
-    margin-bottom: 5px;
-}
-
-.child-info-value {
-    font-size: 1.5rem;
-    font-weight: bold;
-}
-
-.reopen-account-btn {
-    width: 100%;
-    padding: 20px;
-    background: white;
-    color: #dc3545;
-    border: none;
-    border-radius: 15px;
-    font-size: 1.3rem;
-    font-weight: bold;
-    cursor: pointer;
-    margin-top: 20px;
-    transition: all 0.3s;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-}
-
-.reopen-account-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(0,0,0,0.3);
-}
-
-.reopen-account-btn:disabled {
-    background: #ccc;
-    color: #666;
-    cursor: not-allowed;
-}
-
-.payment-modal {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0,0,0,0.8);
-    z-index: 10000;
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
-    overflow-y: auto;
-}
-
-.payment-modal.active {
-    display: flex;
-}
-
-.payment-modal-content {
-    background: white;
-    border-radius: 20px;
-    max-width: 500px;
-    width: 100%;
-    max-height: 90vh;
-    overflow-y: auto;
-    position: relative;
-    box-shadow: 0 10px 50px rgba(0,0,0,0.5);
-}
-
-.payment-modal-header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    padding: 30px;
-    border-radius: 20px 20px 0 0;
-    text-align: center;
-}
-
-.payment-modal-body {
-    padding: 30px;
-}
-
-.payment-summary {
-    background: #f9f9f9;
-    padding: 20px;
-    border-radius: 10px;
-    margin-bottom: 20px;
-}
-
-.payment-summary-row {
-    display: flex;
-    justify-content: space-between;
-    padding: 10px 0;
-    border-bottom: 1px solid #e0e0e0;
-}
-
-.payment-summary-row:last-child {
-    border-bottom: none;
-    font-weight: bold;
-    font-size: 1.2rem;
-    color: #0d3b66;
-}
-
-#paypal-button-container {
-    margin: 20px 0;
-}
-
-.transaction-history {
-    margin-top: 30px;
-}
-
-.transaction-item {
-    background: white;
-    padding: 15px;
-    border-radius: 10px;
-    border-left: 4px solid #28a745;
-    margin-bottom: 10px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-}
-
-.transaction-item.failed {
-    border-left-color: #dc3545;
-}
-
-.transaction-date {
-    font-size: 0.9rem;
-    color: #666;
-    margin-bottom: 5px;
-}
-
-.transaction-amount {
-    font-size: 1.3rem;
-    font-weight: bold;
-    color: #0d3b66;
-}
     </style>
 </head>
     </style>
@@ -2698,17 +2523,10 @@
         </div>
 
 <nav class="nav-bar">
-    <div class="nav-item" onclick="navigateTo('quiz', true)">QUIZ</div>
-    <div class="nav-item">TOURNAMENTS</div>
-    <div class="nav-item" onclick="navigateTo('spelling', true)">SPELLING</div>
-</nav>
-
-<!-- Sponsor Button Below Navigation -->
-<div style="background: #0a2f4d; padding: 0; width: 100%; border-top: 2px solid rgba(255,255,255,0.1);">
-    <div class="nav-item" onclick="showSponsorModal()" style="background: linear-gradient(135deg, #FFD700, #FFA500); color: #0d3b66; font-weight: bold; width: 100%; border-radius: 0; margin: 0;">
-        SPONSOR WORD BIZ
-    </div>
-</div>
+            <div class="nav-item" onclick="navigateTo('quiz', true)">QUIZ</div>
+            <div class="nav-item">TOURNAMENTS</div>
+           <div class="nav-item" onclick="navigateTo('spelling', true)">SPELLING</div>
+        </nav>
     </header>
 
 
@@ -4000,166 +3818,6 @@
 </div>
 
 
-    <!-- Parent Dashboard Section -->
-<div id="parent-dashboard-section" class="content-section">
-    <div class="parent-dashboard-container">
-        <!-- Welcome Header -->
-        <div class="dashboard-welcome-card">
-            <div class="dashboard-profile-section">
-                <div class="profile-avatar-large" id="parent-dashboard-avatar">P</div>
-                <div class="profile-info">
-                    <h1 id="parent-dashboard-name">Parent Name</h1>
-                    <p id="parent-dashboard-email">parent@email.com</p>
-                    <p style="font-size: 0.9rem; opacity: 0.8; margin-top: 5px;">Parent Account</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- Child Account Status -->
-        <div id="child-status-container" class="loading">
-            Loading child account information...
-        </div>
-
-        <!-- Transaction History -->
-        <div class="dashboard-section">
-            <h2 class="section-title">💳 PAYMENT HISTORY</h2>
-            <div id="transaction-history-container" class="loading">
-                Loading transaction history...
-            </div>
-        </div>
-
-        <!-- Profile Information -->
-        <div class="dashboard-section">
-            <div class="section-header">
-                <h2 class="section-title">👤 PROFILE INFORMATION</h2>
-                <div class="profile-actions">
-                    <button class="profile-action-btn" id="parent-edit-profile-btn" onclick="toggleParentEditMode()">
-                        ✏️ Edit
-                    </button>
-                    
-                    <button class="profile-action-btn profile-action-btn-cancel" id="parent-cancel-edit-btn" onclick="cancelParentEditMode()" style="display: none;">
-                        ✖️ Cancel
-                    </button>
-
-                    <button class="profile-action-btn profile-action-btn-save" id="parent-save-profile-btn" onclick="saveParentProfile()" style="display: none;">
-                        ✅ Save
-                    </button>
-                </div>
-            </div>
-
-            <div class="profile-card">
-                <div class="profile-field">
-                    <div class="field-label">📛 Full Name</div>
-                    <div class="field-value">
-                        <span id="parent-display-name">Loading...</span>
-                        <input type="text" id="parent-edit-name" class="field-input" style="display: none;">
-                    </div>
-                </div>
-
-                <div class="profile-field">
-                    <div class="field-label">📧 Email</div>
-                    <div class="field-value">
-                        <span id="parent-display-email">Loading...</span>
-                    </div>
-                </div>
-
-                <div class="profile-field">
-                    <div class="field-label">📱 Phone</div>
-                    <div class="field-value">
-                        <span id="parent-display-phone">Loading...</span>
-                        <input type="tel" id="parent-edit-phone" class="field-input" style="display: none;">
-                    </div>
-                </div>
-
-                <div class="profile-field">
-                    <div class="field-label">🌍 Country</div>
-                    <div class="field-value">
-                        <span id="parent-display-country">Loading...</span>
-                        <select id="parent-edit-country" class="field-input" style="display: none;">
-                            <option value="">Select your country</option>
-                            <option value="United States">United States</option>
-                            <option value="United Kingdom">United Kingdom</option>
-                            <option value="Canada">Canada</option>
-                            <option value="Australia">Australia</option>
-                            <option value="Jamaica">Jamaica</option>
-                            <option value="India">India</option>
-                            <option value="Nigeria">Nigeria</option>
-                            <option value="South Africa">South Africa</option>
-                            <option value="Kenya">Kenya</option>
-                            <option value="Ghana">Ghana</option>
-                            <option value="Other">Other</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="profile-field">
-                    <div class="field-label">👥 Account Type</div>
-                    <div class="field-value">
-                        <span>Parent</span>
-                    </div>
-                </div>
-
-                <div class="profile-field">
-                    <div class="field-label">📅 Member Since</div>
-                    <div class="field-value">
-                        <span id="parent-display-joined">Loading...</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Payment Modal -->
-<div class="payment-modal" id="paymentModal">
-    <div class="payment-modal-content">
-        <div class="payment-modal-header">
-            <h2 style="margin: 0 0 10px 0;">💳 Reopen Child Account</h2>
-            <p style="margin: 0; opacity: 0.9;">Complete payment to reactivate learning access</p>
-        </div>
-        <div class="payment-modal-body">
-            <div class="payment-summary">
-                <h3 style="color: #0d3b66; margin: 0 0 15px 0;">Payment Summary</h3>
-                <div class="payment-summary-row">
-                    <span>Service</span>
-                    <span>30-Day Access</span>
-                </div>
-                <div class="payment-summary-row">
-                    <span>Child Account</span>
-                    <span id="payment-child-name">Loading...</span>
-                </div>
-                <div class="payment-summary-row">
-                    <span>Student ID</span>
-                    <span id="payment-child-id">Loading...</span>
-                </div>
-                <div class="payment-summary-row">
-                    <span>Total Amount</span>
-                    <span>$6.50 USD</span>
-                </div>
-            </div>
-
-            <div style="background: #fff3cd; padding: 15px; border-radius: 10px; border-left: 4px solid #ffc107; margin-bottom: 20px;">
-                <p style="color: #856404; margin: 0; font-size: 0.9rem;">
-                    ⚠️ <strong>Note:</strong> Payment will immediately reopen your child's account for 30 days. They will be able to resume learning right away.
-                </p>
-            </div>
-
-            <!-- PayPal Button Container -->
-            <div id="paypal-button-container"></div>
-
-            <div style="text-align: center; margin-top: 20px;">
-                <button class="practice-btn" onclick="closePaymentModal()" style="background: #6c757d;">
-                    Cancel
-                </button>
-            </div>
-
-            <div id="payment-error" class="feedback error" style="display:none; margin-top:15px;"></div>
-            <div id="payment-success" class="feedback success" style="display:none; margin-top:15px;"></div>
-        </div>
-    </div>
-</div>
-
-
 <!-- Quiz Leaderboard Player Detail Modal -->
 <div class="coach-detail-modal" id="quizLeaderboardPlayerModal">
     <div class="coach-detail-content">
@@ -4392,61 +4050,6 @@
         </div>
     </div>
 </div>
-    </div>
-</div>
-
-
-
-    <!-- Sponsor Modal -->
-<div class="auth-modal" id="sponsorModal">
-    <div class="auth-content" style="max-width: 500px;">
-        <div class="auth-header" style="background: linear-gradient(135deg, #FFD700, #FFA500);">
-            <h2 style="color: #0d3b66; margin: 0;">💝 Sponsor WordBiz Academy</h2>
-            <button class="modal-close" onclick="closeSponsorModal()" style="color: #0d3b66;">×</button>
-        </div>
-        <div class="auth-body">
-            <div style="text-align: center; margin-bottom: 25px;">
-                <p style="font-size: 1.1rem; color: #0d3b66; line-height: 1.8; margin-bottom: 20px;">
-                    Support our mission to help children master vocabulary through innovative learning tools.
-                </p>
-                
-                <div style="background: #f9f9f9; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
-                    <h3 style="color: #0d3b66; margin-bottom: 15px;">Your Support Helps Us:</h3>
-                    <ul style="text-align: left; color: #666; line-height: 2;">
-                        <li>✅ Provide free resources to students</li>
-                        <li>✅ Develop new learning features</li>
-                        <li>✅ Support coaches and educators</li>
-                        <li>✅ Maintain our platform</li>
-                    </ul>
-                </div>
-                
-                <div class="form-group" style="margin-bottom: 20px;">
-                    <label style="font-size: 1.1rem; color: #0d3b66; font-weight: bold;">Enter Amount (USD)</label>
-                    <input type="number" id="sponsor-amount" min="1" step="0.01" placeholder="Enter amount (e.g., 10.00)" 
-                           style="width: 100%; padding: 15px; font-size: 1.2rem; text-align: center; border: 2px solid #FFD700; border-radius: 8px; margin-top: 10px;">
-                </div>
-                
-                <div style="background: #fff3cd; padding: 15px; border-radius: 8px; border-left: 4px solid #ffc107; margin-bottom: 20px;">
-                    <p style="color: #856404; margin: 0; font-size: 0.9rem;">
-                        💳 Secure payment powered by PayPal. You can pay with credit card, debit card, or your PayPal account.
-                    </p>
-                </div>
-            </div>
-            
-            <!-- PayPal Button Container -->
-            <div id="sponsor-paypal-button-container"></div>
-            
-            <button class="practice-btn" onclick="closeSponsorModal()" style="background: #6c757d; width: 100%; margin-top: 15px;">
-                Cancel
-            </button>
-            
-            <div id="sponsor-payment-error" class="feedback error" style="display:none; margin-top:15px;"></div>
-            <div id="sponsor-payment-success" class="feedback success" style="display:none; margin-top:15px;"></div>
-        </div>
-    </div>
-</div>
-    </div>
-</div>
     <script>
         // ===== FIREBASE CONFIGURATION =====
         const firebaseConfig = {
@@ -4466,58 +4069,6 @@
         const CLOUD_FUNCTION_URL = 'https://getworddefinition-998744778737.us-central1.run.app';
 
 
-        
-// ===== PAYPAL CONFIGURATION =====
-const PAYPAL_HANDLER_URL = 'https://verificationpaypalpayment-998744778737.us-central1.run.app';
-const PAYPAL_CLIENT_ID = 'Aa6CIokzBSehp8YJNeeWuZcwBlDfsHQvkGX-r0WmDNPjwEl6RGIdgKke2DP1r0qeHgYXmqErnVCs0UGX'; // Replace with actual client ID
-const REOPEN_ACCOUNT_COST = 6.50;
-const REOPEN_DAYS = 30;
-
-let paypalButtonRendered = false;
-let sponsorPaypalRendered = false;
-let currentChildData = null;
-
-        
-
-        let paypalSDKLoaded = false;
-
-async function loadPayPalSDK() {
-    if (paypalSDKLoaded) {
-        return Promise.resolve();
-    }
-    
-    try {
-        // Get client ID from Firebase function
-        const response = await fetch(`${PAYPAL_HANDLER_URL}?action=getClientId`);
-        const data = await response.json();
-        
-        if (!data.success || !data.clientId) {
-            throw new Error('Failed to get PayPal client ID');
-        }
-        
-        return new Promise((resolve, reject) => {
-            const script = document.createElement('script');
-            script.src = `https://www.paypal.com/sdk/js?client-id=${data.clientId}&currency=USD&locale=en_US`;
-            script.async = true;
-            
-            script.onload = () => {
-                paypalSDKLoaded = true;
-                console.log('✅ PayPal SDK loaded');
-                resolve();
-            };
-            
-            script.onerror = () => {
-                reject(new Error('Failed to load PayPal SDK'));
-            };
-            
-            document.head.appendChild(script);
-        });
-    } catch (error) {
-        console.error('Error loading PayPal SDK:', error);
-        throw error;
-    }
-}
-        
         // ===== GLOBAL VARIABLES =====
 let allWords = [];
 let currentLetter = '';
@@ -4629,9 +4180,6 @@ let offlineCheckTimer = null;
 let userCoins = 0;
 const COINS_PER_WIN = 5;
 const MAX_COINS = 1000;
-
-
-
       
      // ===== INITIALIZE =====
 document.addEventListener('DOMContentLoaded', function() {
@@ -4684,109 +4232,89 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-auth.onAuthStateChanged(async user => {
-    if (user) {
-        currentUser = user;
-        
-        console.log('👤 User signed in:', user.email);
-        console.log('🖼️ Auth photoURL:', user.photoURL);
-        
-        const userRef = db.collection('users').doc(user.uid);
-        const userDoc = await userRef.get();
-        
-        if (!userDoc.exists) {
-            await auth.signOut();
-            alert('Account error. Please sign up again.');
-            return;
-        }
-        
-        const userData = userDoc.data();
-        console.log('📄 Firestore photoURL:', userData.photoURL);
-        
-        if (user.photoURL && !userData.photoURL) {
-            console.log('🔄 Syncing photoURL to Firestore...');
-            await userRef.update({
-                photoURL: user.photoURL
-            });
-            console.log('✅ PhotoURL synced!');
-        }
-        
-        // ✅ INITIALIZE SPELLING STATS IF NOT EXISTS
-        if (!userData.spellingStats) {
-            console.log('🔄 Initializing spelling stats...');
-            await userRef.update({
-                spellingStats: {
-                    totalChallenges: 0,
-                    wins: 0,
-                    losses: 0,
-                    totalScore: 0,
-                    winStreak: 0,
-                    bestStreak: 0
-                }
-            });
-            console.log('✅ Spelling stats initialized!');
-        }
-        
-        // ✅ CHECK USER TYPE AND HANDLE ACCORDINGLY
-        if (userData.userType === 'parent') {
-            // Parent user - no profile completion needed
-            if (!userData.profileComplete) {
-                await userRef.update({ profileComplete: true });
+   auth.onAuthStateChanged(async user => {
+        if (user) {
+            currentUser = user;
+            
+            console.log('👤 User signed in:', user.email);
+            console.log('🖼️ Auth photoURL:', user.photoURL);
+            
+            const userRef = db.collection('users').doc(user.uid);
+            const userDoc = await userRef.get();
+            
+            if (!userDoc.exists) {
+                await auth.signOut();
+                alert('Account error. Please sign up again.');
+                return;
             }
+            
+            const userData = userDoc.data();
+            console.log('📄 Firestore photoURL:', userData.photoURL);
+            
+            if (user.photoURL && !userData.photoURL) {
+                console.log('🔄 Syncing photoURL to Firestore...');
+                await userRef.update({
+                    photoURL: user.photoURL
+                });
+                console.log('✅ PhotoURL synced!');
+            }
+            
+            // ✅ INITIALIZE SPELLING STATS IF NOT EXISTS
+            if (!userData.spellingStats) {
+                console.log('🔄 Initializing spelling stats...');
+                await userRef.update({
+                    spellingStats: {
+                        totalChallenges: 0,
+                        wins: 0,
+                        losses: 0,
+                        totalScore: 0,
+                        winStreak: 0,
+                        bestStreak: 0
+                    }
+                });
+                console.log('✅ Spelling stats initialized!');
+            }
+            
+            if (!userData.profileComplete) {
+                showVerificationModal(userData);
+                return;
+            }
+            
             updateUIForAuthenticatedUser(user);
             
-            // Navigate to parent dashboard
-            navigateTo('parent-dashboard');
-            return;
-        }
-        
-        // STUDENT/COACH HANDLING
-        if (!userData.profileComplete) {
-            showVerificationModal(userData);
-            return;
-        }
-        
-        updateUIForAuthenticatedUser(user);
-        
-        // ✅ LOAD USER COINS (for students only)
-        if (userData.userType === 'student') {
+            // ✅ LOAD USER COINS
             await loadUserCoins(user.uid);
+            
+            // ✅ CHECK SUBSCRIPTION STATUS
             await checkSubscriptionStatus();
-        }
-        
-        await cleanupInvalidFavorites();
-        
-        await Promise.all([
-            loadUserFavorites(user.uid),
-            loadUserIncorrect(user.uid),
-            loadUserSpellingFavorites(user.uid),
-            loadUserSpellingIncorrect(user.uid)
-        ]);
-        
-        // ✅ Initialize presence immediately on login (only for students/coaches)
-        if (userData.userType !== 'parent') {
+            
+            await cleanupInvalidFavorites();
+            
+            await Promise.all([
+                loadUserFavorites(user.uid),
+                loadUserIncorrect(user.uid),
+                loadUserSpellingFavorites(user.uid),
+                loadUserSpellingIncorrect(user.uid)
+            ]);
+            
+            // ✅ Initialize presence immediately on login
             await initializeOnlinePresence();
-        }
-        
-        // Load appropriate dashboard
-        if (userData.userType === 'student') {
+            
             if (document.getElementById('student-dashboard-section').classList.contains('active')) {
                 loadUserDashboard();
             }
+        } else {
+            currentUser = null;
+            updateUIForGuestUser();
         }
-    } else {
-        currentUser = null;
-        updateUIForGuestUser();
-    }
-});
+      });
     });
         
         
-    
-// ===== NAVIGATION =====
+     // ===== NAVIGATION =====
 async function navigateTo(section, skipSidebarClose = false) {
     // ✅ CHECK SUBSCRIPTION FOR STUDENTS BEFORE ALLOWING NAVIGATION
-    if (currentUser && !subscriptionActive && section !== 'student-dashboard' && section !== 'parent-dashboard' && section !== 'about') {
+    if (currentUser && !subscriptionActive && section !== 'student-dashboard' && section !== 'about') {
         try {
             const userDoc = await db.collection('users').doc(currentUser.uid).get();
             const userData = userDoc.data();
@@ -4805,26 +4333,10 @@ async function navigateTo(section, skipSidebarClose = false) {
     // Check if user needs to be logged in
     if ((section === 'favorites' || section === 'incorrect-quiz' || 
          section === 'spelling-favorites' || section === 'spelling-incorrect' || 
-         section === 'student-dashboard' || section === 'parent-dashboard') && !currentUser) {
+         section === 'student-dashboard') && !currentUser) {
         alert('Please sign in to access this feature');
         showAuthModal();
         return;
-    }
-    
-    // ✅ PREVENT PARENTS FROM ACCESSING STUDENT FEATURES
-    if (currentUser && section !== 'parent-dashboard' && section !== 'home' && section !== 'about' && section !== 'coaches' && section !== 'students') {
-        try {
-            const userDoc = await db.collection('users').doc(currentUser.uid).get();
-            const userData = userDoc.data();
-            
-            if (userData && userData.userType === 'parent') {
-                alert('⚠️ Parents can only access:\n• Parent Dashboard\n• Home\n• About\n• Coaches\n• Students\n\nPlease use the Parent Dashboard to manage your child\'s account.');
-                navigateTo('parent-dashboard');
-                return;
-            }
-        } catch (error) {
-            console.error('Error checking user type:', error);
-        }
     }
     
     // ✅ Track current section BEFORE changing
@@ -4895,20 +4407,17 @@ async function navigateTo(section, skipSidebarClose = false) {
         await loadAndDisplayStudents();
     }
     
-    // ✅ Load student dashboard when navigating to it
+    // Load dashboard when navigating to it
     if (section === 'student-dashboard' && currentUser) {
         await loadUserDashboard();
-    }
-    
-    // ✅ Load parent dashboard when navigating to it
-    if (section === 'parent-dashboard' && currentUser) {
-        await loadParentDashboard();
     }
     
     if (!skipSidebarClose) {
         toggleSidebar(true);
     }
 }
+
+        
         
        function toggleSidebar(forceClose = false) {
             const sidebar = document.getElementById('sidebar');
@@ -6857,7 +6366,7 @@ async function handleParentSignUp(event) {
         submitBtn.textContent = '✅ Create Parent Account';
     }
 }        
-     async function updateUIForAuthenticatedUser(user) {
+       function updateUIForAuthenticatedUser(user) {
     const displayName = user.displayName || user.email.split('@')[0];
     const photoURL = user.photoURL;
     
@@ -6873,34 +6382,14 @@ async function handleParentSignUp(event) {
         sidebarAvatar.textContent = displayName.charAt(0).toUpperCase();
     }
     
-    // ✅ SHOW MY PROFILE BUTTON BASED ON USER TYPE
-    const myProfileBtn = document.getElementById('myProfileBtn');
-    
-    try {
-        const userDoc = await db.collection('users').doc(user.uid).get();
-        const userData = userDoc.data();
-        
-        if (userData && userData.userType === 'parent') {
-            myProfileBtn.innerHTML = '👨‍👩‍👧 PARENT DASHBOARD';
-            myProfileBtn.onclick = () => goToParentDashboard();
-        } else if (userData && userData.userType === 'coach') {
-            myProfileBtn.innerHTML = '👨‍🏫 MY PROFILE';
-            myProfileBtn.onclick = () => goToUserDashboard();
-        } else {
-            myProfileBtn.innerHTML = '👤 MY PROFILE';
-            myProfileBtn.onclick = () => goToUserDashboard();
-        }
-        
-        myProfileBtn.style.display = 'block';
-    } catch (error) {
-        console.error('Error loading user type:', error);
-        myProfileBtn.innerHTML = '👤 MY PROFILE';
-        myProfileBtn.onclick = () => goToUserDashboard();
-        myProfileBtn.style.display = 'block';
-    }
+    // Show My Profile button
+    document.getElementById('myProfileBtn').style.display = 'block';
     
     document.getElementById('sidebar-signin').style.display = 'none';
     document.getElementById('sidebar-signout').style.display = 'block';
+    
+    // ✅ REMOVED: Do NOT initialize presence here
+    // Let it be initialized only when user goes to Live Spelling
 }
 
         
@@ -13253,625 +12742,7 @@ document.addEventListener('DOMContentLoaded', function() {
 // ===== STUDENT ID GENERATION =====
 function generateStudentId(userId) {
     return `WB-2025-${userId.slice(-4).toUpperCase()}`;
-}  
-
-
- // ===== PARENT DASHBOARD FUNCTIONS =====
-async function loadParentDashboard() {
-    if (!currentUser) return;
-    
-    try {
-        const userDoc = await db.collection('users').doc(currentUser.uid).get();
-        const userData = userDoc.data();
-        
-        if (userData.userType !== 'parent') {
-            alert('Access denied. Parent accounts only.');
-            navigateTo('home');
-            return;
-        }
-        
-        // Update parent profile
-        document.getElementById('parent-dashboard-name').textContent = userData.name || 'Parent';
-        document.getElementById('parent-dashboard-email').textContent = userData.email || '';
-        
-        const parentAvatar = document.getElementById('parent-dashboard-avatar');
-        if (currentUser.photoURL) {
-            parentAvatar.style.backgroundImage = `url(${currentUser.photoURL})`;
-            parentAvatar.textContent = '';
-        } else {
-            parentAvatar.style.backgroundImage = 'none';
-            parentAvatar.textContent = userData.name.charAt(0).toUpperCase();
-        }
-        
-        // Update profile fields
-        document.getElementById('parent-display-name').textContent = userData.name;
-        document.getElementById('parent-edit-name').value = userData.name;
-        document.getElementById('parent-display-email').textContent = userData.email;
-        document.getElementById('parent-display-phone').textContent = userData.phone || 'Not set';
-        document.getElementById('parent-edit-phone').value = userData.phone || '';
-        document.getElementById('parent-display-country').textContent = userData.country || 'Not set';
-        document.getElementById('parent-edit-country').value = userData.country || '';
-        
-        if (userData.createdAt) {
-            const joinDate = userData.createdAt.toDate();
-            document.getElementById('parent-display-joined').textContent = 
-                joinDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-        }
-        
-        // Load child information
-        await loadChildAccountStatus(userData.linkedStudentId);
-        
-        // Load transaction history
-        await loadTransactionHistory();
-        
-    } catch (error) {
-        console.error('Error loading parent dashboard:', error);
-        alert('Failed to load dashboard: ' + error.message);
-    }
-}
-
-async function loadChildAccountStatus(childId) {
-    const container = document.getElementById('child-status-container');
-    
-    try {
-        container.innerHTML = '<div class="loading">Loading child account status...</div>';
-        
-        const childDoc = await db.collection('users').doc(childId).get();
-        
-        if (!childDoc.exists) {
-            container.innerHTML = '<div class="feedback error">❌ Child account not found</div>';
-            return;
-        }
-        
-        const childData = childDoc.data();
-        currentChildData = { id: childId, ...childData };
-        
-        const subscriptionExpiry = childData.subscriptionExpiry?.toDate();
-        const coins = childData.coins || 0;
-        const now = new Date();
-        
-        let statusClass = 'active';
-        let statusIcon = '✅';
-        let statusTitle = 'Account Active';
-        let statusMessage = 'Your child\'s account is active and they can continue learning.';
-        let showReopenButton = false;
-        
-        // Check if subscription expired
-        if (subscriptionExpiry && now > subscriptionExpiry) {
-            statusClass = '';
-            statusIcon = '🔒';
-            statusTitle = 'Account Locked';
-            statusMessage = 'Subscription has expired. Your child cannot access learning materials until account is reopened.';
-            showReopenButton = true;
-        } else if (coins < 300 && subscriptionExpiry) {
-            // Check if expiring soon (within 7 days)
-            const daysLeft = Math.ceil((subscriptionExpiry - now) / (1000 * 60 * 60 * 24));
-            if (daysLeft <= 7) {
-                statusClass = 'warning';
-                statusIcon = '⚠️';
-                statusTitle = 'Low Coins Warning';
-                statusMessage = `Your child has only ${coins} coins and ${daysLeft} days left. They won\'t be able to renew their subscription when it expires.`;
-                showReopenButton = false;
-            }
-        }
-        
-        const studentId = childData.studentId || `WB-2025-${childId.slice(-4).toUpperCase()}`;
-        
-        container.innerHTML = `
-            <div class="child-status-card ${statusClass}">
-                <div style="text-align: center; margin-bottom: 20px;">
-                    <div style="font-size: 4rem; margin-bottom: 10px;">${statusIcon}</div>
-                    <h2 style="margin: 0 0 10px 0; color: white;">${statusTitle}</h2>
-                    <p style="margin: 0; opacity: 0.95; font-size: 1.1rem;">${statusMessage}</p>
-                </div>
-                
-                <div class="child-info-grid">
-                    <div class="child-info-item">
-                        <div class="child-info-label">👤 Child Name</div>
-                        <div class="child-info-value">${childData.name || 'Student'}</div>
-                    </div>
-                    
-                    <div class="child-info-item">
-                        <div class="child-info-label">🆔 Student ID</div>
-                        <div class="child-info-value" style="font-size: 1.2rem;">${studentId}</div>
-                    </div>
-                    
-                    <div class="child-info-item">
-                        <div class="child-info-label">🪙 Coins</div>
-                        <div class="child-info-value">${coins} / 1000</div>
-                    </div>
-                    
-                    <div class="child-info-item">
-                        <div class="child-info-label">📅 Subscription</div>
-                        <div class="child-info-value" style="font-size: 1rem;">
-                            ${subscriptionExpiry ? 
-                                (now > subscriptionExpiry ? 'Expired' : 
-                                `${Math.ceil((subscriptionExpiry - now) / (1000 * 60 * 60 * 24))} days left`) 
-                                : 'Never activated'}
-                        </div>
-                    </div>
-                </div>
-                
-                ${showReopenButton ? `
-                    <button class="reopen-account-btn" onclick="showPaymentModal()">
-                        💳 Reopen Account for $6.50 USD
-                    </button>
-                    
-                    <div style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 10px; margin-top: 15px;">
-                        <p style="margin: 0; font-size: 0.9rem; opacity: 0.95;">
-                            ℹ️ Payment will immediately reopen your child's account for 30 days. 
-                            They will regain full access to all learning materials.
-                        </p>
-                    </div>
-                ` : ''}
-            </div>
-        `;
-        
-    } catch (error) {
-        console.error('Error loading child account status:', error);
-        container.innerHTML = '<div class="feedback error">❌ Failed to load child account status</div>';
-    }
-}
-
-async function showPaymentModal() {
-    if (!currentChildData) {
-        alert('Child data not loaded');
-        return;
-    }
-    
-    const modal = document.getElementById('paymentModal');
-    const studentId = currentChildData.studentId || `WB-2025-${currentChildData.id.slice(-4).toUpperCase()}`;
-    
-    document.getElementById('payment-child-name').textContent = currentChildData.name || 'Student';
-    document.getElementById('payment-child-id').textContent = studentId;
-    
-    modal.classList.add('active');
-    
-    // Load PayPal SDK first, then initialize button
-    if (!paypalButtonRendered) {
-        try {
-            await loadPayPalSDK();
-            initializePayPalButton();
-        } catch (error) {
-            console.error('Failed to load PayPal:', error);
-            showPaymentError('Failed to load payment system. Please try again.');
-        }
-    }
-}
-
-function closePaymentModal() {
-    document.getElementById('paymentModal').classList.remove('active');
-}
-
-function initializePayPalButton() {
-    const container = document.getElementById('paypal-button-container');
-    container.innerHTML = ''; // Clear any existing buttons
-    
-    paypal.Buttons({
-        createOrder: function(data, actions) {
-            return actions.order.create({
-                purchase_units: [{
-                    description: `WordBiz Academy - 30 Day Access for ${currentChildData.name}`,
-                    amount: {
-                        currency_code: 'USD',
-                        value: REOPEN_ACCOUNT_COST.toFixed(2)
-                    }
-                }]
-            });
-        },
-        onApprove: async function(data, actions) {
-            try {
-                // Capture the payment
-                const order = await actions.order.capture();
-                console.log('✅ Payment captured:', order);
-                
-                // Verify payment with our backend
-                const verifyResponse = await fetch(PAYPAL_VERIFY_URL, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ 
-                        orderId: order.id 
-                    })
-                });
-                
-                const verifyResult = await verifyResponse.json();
-                console.log('✅ Verification result:', verifyResult);
-                
-                if (verifyResult.success && verifyResult.data.verified) {
-                    await processPaymentSuccess(verifyResult.data);
-                } else {
-                    throw new Error('Payment verification failed');
-                }
-                
-            } catch (error) {
-                console.error('❌ Payment error:', error);
-                showPaymentError('Failed to process payment: ' + error.message);
-            }
-        },
-        onError: function(err) {
-            console.error('❌ PayPal error:', err);
-            showPaymentError('Payment failed. Please try again.');
-        },
-        onCancel: function(data) {
-            console.log('⚠️ Payment cancelled by user');
-            showPaymentError('Payment was cancelled.');
-        }
-    }).render('#paypal-button-container');
-    
-    paypalButtonRendered = true;
-}
-        
-      async function processPaymentSuccess(order) {
-    try {
-        const errorDiv = document.getElementById('payment-error');
-        const successDiv = document.getElementById('payment-success');
-        
-        errorDiv.style.display = 'none';
-        successDiv.style.display = 'block';
-        successDiv.textContent = '✅ Payment captured! Verifying with server...';
-        
-        console.log('📤 Sending verification request to server...');
-        
-        // Verify payment with backend
-        const verifyResponse = await fetch(PAYPAL_HANDLER_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ 
-                action: 'verify_reopen',
-                orderId: order.id,
-                userId: currentUser.uid,
-                childId: currentChildData.id
-            })
-        });
-        
-        if (!verifyResponse.ok) {
-            const errorText = await verifyResponse.text();
-            console.error('❌ Server response error:', errorText);
-            throw new Error(`Server error: ${verifyResponse.status}`);
-        }
-        
-        const verifyResult = await verifyResponse.json();
-        console.log('✅ Verification result:', verifyResult);
-        
-        if (!verifyResult.success) {
-            throw new Error(verifyResult.error || 'Payment verification failed');
-        }
-        
-        successDiv.textContent = '✅ Payment successful! Account reopened for 30 days!';
-        
-        // Reload child status
-        setTimeout(async () => {
-            closePaymentModal();
-            await loadChildAccountStatus(currentChildData.id);
-            
-            alert('✅ Success!\n\nYour child\'s account has been reopened for 30 days.\nThey can now resume learning immediately.');
-        }, 2000);
-        
-    } catch (error) {
-        console.error('❌ Error processing payment:', error);
-        showPaymentError('Payment failed: ' + error.message);
-    }
-}
-
-function showPaymentError(message) {
-    const errorDiv = document.getElementById('payment-error');
-    const successDiv = document.getElementById('payment-success');
-    
-    successDiv.style.display = 'none';
-    errorDiv.style.display = 'block';
-    errorDiv.textContent = message;
-}
-
-async function loadTransactionHistory() {
-    const container = document.getElementById('transaction-history-container');
-    
-    try {
-        container.innerHTML = '<div class="loading">Loading payment history...</div>';
-        
-        const transactionsSnapshot = await db.collection('users')
-            .doc(currentUser.uid)
-            .collection('transactions')
-            .orderBy('createdAt', 'desc')
-            .limit(10)
-            .get();
-        
-        if (transactionsSnapshot.empty) {
-            container.innerHTML = '<div class="loading">No payment history yet</div>';
-            return;
-        }
-        
-        let html = '<div class="transaction-history">';
-        
-        transactionsSnapshot.forEach(doc => {
-            const transaction = doc.data();
-            const date = transaction.createdAt?.toDate();
-            const expiryDate = transaction.expiryDate?.toDate();
-            
-            html += `
-                <div class="transaction-item ${transaction.status === 'failed' ? 'failed' : ''}">
-                    <div class="transaction-date">
-                        📅 ${date ? date.toLocaleDateString('en-US', { 
-                            year: 'numeric', 
-                            month: 'long', 
-                            day: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                        }) : 'Unknown date'}
-                    </div>
-                    <div class="transaction-amount">
-                        💳 $${transaction.amount.toFixed(2)} USD
-                    </div>
-                    <div style="margin-top: 10px; font-size: 0.9rem; color: #666;">
-                        <strong>For:</strong> ${transaction.childName}<br>
-                        <strong>Service:</strong> 30-Day Access<br>
-                        ${expiryDate ? `<strong>Valid Until:</strong> ${expiryDate.toLocaleDateString('en-US', { 
-                            year: 'numeric', 
-                            month: 'long', 
-                            day: 'numeric'
-                        })}<br>` : ''}
-                        <strong>Status:</strong> ${transaction.status === 'completed' ? '✅ Completed' : '❌ Failed'}
-                    </div>
-                </div>
-            `;
-        });
-        
-        html += '</div>';
-        
-        container.innerHTML = html;
-        
-    } catch (error) {
-        console.error('Error loading transaction history:', error);
-        container.innerHTML = '<div class="feedback error">❌ Failed to load payment history</div>';
-    }
-}
-
-function toggleParentEditMode() {
-    document.getElementById('parent-display-name').style.display = 'none';
-    document.getElementById('parent-edit-name').style.display = 'block';
-    
-    document.getElementById('parent-display-phone').style.display = 'none';
-    document.getElementById('parent-edit-phone').style.display = 'block';
-    
-    document.getElementById('parent-display-country').style.display = 'none';
-    document.getElementById('parent-edit-country').style.display = 'block';
-    
-    document.getElementById('parent-edit-profile-btn').style.display = 'none';
-    document.getElementById('parent-save-profile-btn').style.display = 'inline-block';
-    document.getElementById('parent-cancel-edit-btn').style.display = 'inline-block';
-}
-
-function cancelParentEditMode() {
-    document.getElementById('parent-display-name').style.display = 'inline';
-    document.getElementById('parent-edit-name').style.display = 'none';
-    
-    document.getElementById('parent-display-phone').style.display = 'inline';
-    document.getElementById('parent-edit-phone').style.display = 'none';
-    
-    document.getElementById('parent-display-country').style.display = 'inline';
-    document.getElementById('parent-edit-country').style.display = 'none';
-    
-    document.getElementById('parent-edit-profile-btn').style.display = 'inline-block';
-    document.getElementById('parent-save-profile-btn').style.display = 'none';
-    document.getElementById('parent-cancel-edit-btn').style.display = 'none';
-}
-
-async function saveParentProfile() {
-    if (!currentUser) return;
-    
-    const newName = document.getElementById('parent-edit-name').value.trim();
-    const newPhone = document.getElementById('parent-edit-phone').value.trim();
-    const newCountry = document.getElementById('parent-edit-country').value;
-    
-    if (!newName) {
-        alert('Name cannot be empty');
-        return;
-    }
-    
-    try {
-        await db.collection('users').doc(currentUser.uid).update({
-            name: newName,
-            phone: newPhone,
-            country: newCountry
-        });
-        
-        await currentUser.updateProfile({ displayName: newName });
-        
-        document.getElementById('parent-display-name').textContent = newName;
-        document.getElementById('parent-display-phone').textContent = newPhone || 'Not set';
-        document.getElementById('parent-display-country').textContent = newCountry || 'Not set';
-        
-        document.getElementById('parent-dashboard-name').textContent = newName;
-        
-        cancelParentEditMode();
-        alert('Profile updated successfully!');
-    } catch (error) {
-        console.error('Error updating parent profile:', error);
-        alert('Failed to update profile: ' + error.message);
-    }
-}
-
-// Add parent dashboard to navigation
-async function goToParentDashboard() {
-    if (!currentUser) {
-        showAuthModal();
-        return;
-    }
-    
-    navigateTo('parent-dashboard');
-    await loadParentDashboard();
-}       
-
-
-// ===== SPONSOR FUNCTIONS =====
-
-async function showSponsorModal() {
-    const modal = document.getElementById('sponsorModal');
-    
-    // Reset form
-    document.getElementById('sponsor-amount').value = '';
-    document.getElementById('sponsor-payment-error').style.display = 'none';
-    document.getElementById('sponsor-payment-success').style.display = 'none';
-    
-    modal.classList.add('active');
-    
-    // Load PayPal SDK first, then initialize button
-    if (!sponsorPaypalRendered) {
-        try {
-            await loadPayPalSDK();
-            initializeSponsorPayPalButton();
-        } catch (error) {
-            console.error('Failed to load PayPal:', error);
-            showSponsorError('Failed to load payment system. Please try again.');
-        }
-    }
-}
-        
-function closeSponsorModal() {
-    document.getElementById('sponsorModal').classList.remove('active');
-}
-
-function initializeSponsorPayPalButton() {
-    const container = document.getElementById('sponsor-paypal-button-container');
-    container.innerHTML = ''; // Clear any existing buttons
-    
-    paypal.Buttons({
-        createOrder: function(data, actions) {
-            const amount = document.getElementById('sponsor-amount').value;
-            
-            if (!amount || parseFloat(amount) <= 0) {
-                showSponsorError('Please enter a valid amount');
-                return;
-            }
-            
-            return actions.order.create({
-                purchase_units: [{
-                    description: 'Sponsorship for WordBiz Coaching Academy',
-                    amount: {
-                        currency_code: 'USD',
-                        value: parseFloat(amount).toFixed(2)
-                    }
-                }]
-            });
-        },
-        onApprove: async function(data, actions) {
-            try {
-                // Capture the payment
-                const order = await actions.order.capture();
-                console.log('✅ Sponsorship payment captured:', order);
-                
-                // Process the sponsorship
-                await processSponsorshipSuccess(order);
-                
-            } catch (error) {
-                console.error('❌ Sponsorship payment error:', error);
-                showSponsorError('Failed to process sponsorship: ' + error.message);
-            }
-        },
-        onError: function(err) {
-            console.error('❌ PayPal error:', err);
-            showSponsorError('Payment failed. Please try again.');
-        },
-        onCancel: function(data) {
-            console.log('⚠️ Payment cancelled by user');
-            showSponsorError('Payment was cancelled.');
-        }
-    }).render('#sponsor-paypal-button-container');
-    
-    sponsorPaypalRendered = true;
-}
-
-async function processSponsorshipSuccess(order) {
-    try {
-        const errorDiv = document.getElementById('sponsor-payment-error');
-        const successDiv = document.getElementById('sponsor-payment-success');
-        
-        errorDiv.style.display = 'none';
-        successDiv.style.display = 'block';
-        successDiv.textContent = '✅ Processing sponsorship...';
-        
-        console.log('📤 Sending sponsorship verification to server...');
-        
-        // Verify with backend
-        const verifyResponse = await fetch(PAYPAL_HANDLER_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ 
-                action: 'verify_sponsorship',
-                orderId: order.id,
-                userId: currentUser ? currentUser.uid : 'anonymous'
-            })
-        });
-        
-        if (!verifyResponse.ok) {
-            const errorText = await verifyResponse.text();
-            console.error('❌ Server response error:', errorText);
-            throw new Error(`Server error: ${verifyResponse.status}`);
-        }
-        
-        const verifyResult = await verifyResponse.json();
-        console.log('✅ Sponsorship verified:', verifyResult);
-        
-        if (!verifyResult.success) {
-            throw new Error(verifyResult.error || 'Sponsorship verification failed');
-        }
-        
-        const amount = verifyResult.data.amount;
-        
-        successDiv.innerHTML = `
-            <strong>🎉 Thank You for Your Sponsorship!</strong><br><br>
-            Your generous donation of <strong>$${amount.toFixed(2)} USD</strong> will help us continue providing quality education to students worldwide.<br><br>
-            We truly appreciate your support! 💝
-        `;
-        
-        // Disable amount input and PayPal button
-        document.getElementById('sponsor-amount').disabled = true;
-        document.getElementById('sponsor-paypal-button-container').style.display = 'none';
-        
-        // Auto-close after 5 seconds
-        setTimeout(() => {
-            closeSponsorModal();
-            
-            // Re-enable for next use
-            document.getElementById('sponsor-amount').disabled = false;
-            document.getElementById('sponsor-paypal-button-container').style.display = 'block';
-        }, 5000);
-        
-    } catch (error) {
-        console.error('❌ Error processing sponsorship:', error);
-        showSponsorError('Payment received but failed to record: ' + error.message);
-    }
-}
-
-function showSponsorError(message) {
-    const errorDiv = document.getElementById('sponsor-payment-error');
-    const successDiv = document.getElementById('sponsor-payment-success');
-    
-    successDiv.style.display = 'none';
-    errorDiv.style.display = 'block';
-    errorDiv.textContent = message;
 }        
-
-
-  function loadPayPalSDK() {
-    return new Promise((resolve, reject) => {
-        if (window.paypal) {
-            resolve();
-            return;
-        }
-        
-        const script = document.createElement('script');
-        script.src = `https://www.paypal.com/sdk/js?client-id=${PAYPAL_CLIENT_ID}&currency=USD`;
-        script.onload = resolve;
-        script.onerror = reject;
-        document.head.appendChild(script);
-    });
-}      
     </script>
 </body>
 </html>
