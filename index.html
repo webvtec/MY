@@ -13735,7 +13735,23 @@ async function goToParentDashboard() {
     await loadParentDashboard();
 }       
 
+// ===== SPONSOR FUNCTIONS =====
 
+function showSponsorModal() {
+    const modal = document.getElementById('sponsorModal');
+    if (modal) {
+        modal.classList.add('active');
+    } else {
+        console.error('Sponsor modal not found');
+    }
+}
+        
+function closeSponsorModal() {
+    const modal = document.getElementById('sponsorModal');
+    if (modal) {
+        modal.classList.remove('active');
+    }
+}
     </script>
 </body>
 </html>
