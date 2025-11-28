@@ -2699,7 +2699,7 @@
 
 <nav class="nav-bar">
     <div class="nav-item" onclick="navigateTo('quiz', true)">QUIZ</div>
-    <div class="nav-item">TOURNAMENTS</div>
+   <div class="nav-item" onclick="navigateTo('tournaments', true)">TOURNAMENTS</div>
     <div class="nav-item" onclick="navigateTo('spelling', true)">SPELLING</div>
 </nav>
 
@@ -4463,6 +4463,75 @@
         </div>
     </div>
 </div>
+
+
+    <!-- Tournament Section -->
+<div id="tournaments-section" class="content-section">
+    <div class="word-database">
+        <div class="database-header">
+            <h2>🏆 SPELLING TOURNAMENTS</h2>
+            <p style="color: #666; margin-top: 10px;">Compete in 7-stage tournaments to become the champion!</p>
+        </div>
+        
+        <!-- Tournament Lobby -->
+        <div id="tournament-lobby" class="welcome-section">
+            <h2>🎯 Available Tournaments</h2>
+            <p style="margin: 20px 0;">Join live tournaments and compete against other spellers worldwide!</p>
+            
+            <div id="tournament-list-container" class="loading">
+                Loading tournaments...
+            </div>
+            
+            <!-- Create Tournament Button (Admin/Coach Only) -->
+            <div id="create-tournament-section" style="display: none; margin-top: 30px;">
+                <button class="practice-btn" onclick="showCreateTournamentModal()" style="font-size: 1.2rem; padding: 15px 40px;">
+                    ➕ Create New Tournament
+                </button>
+            </div>
+        </div>
+        
+        <!-- Stage 1: Antonym/Synonym Selection -->
+        <div id="tournament-stage1" style="display: none;">
+            <div class="quiz-question-card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2 style="color: #0d3b66; margin: 0;">📚 Stage 1: Antonym/Synonym Selection</h2>
+                    <button class="practice-btn" onclick="exitTournament()" style="background: #dc3545; padding: 10px 20px;">
+                        🚪 Exit
+                    </button>
+                </div>
+                
+                <!-- Timer and Score -->
+                <div style="display: flex; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
+                    <div style="background: #f9f9f9; padding: 15px; border-radius: 8px; flex: 1; min-width: 150px;">
+                        <div style="font-size: 0.9rem; color: #666; margin-bottom: 5px;">⏱️ Time Remaining</div>
+                        <div id="stage1-timer" style="font-size: 2rem; font-weight: bold; color: #0d3b66;">10:00</div>
+                    </div>
+                    <div style="background: #f9f9f9; padding: 15px; border-radius: 8px; flex: 1; min-width: 150px;">
+                        <div style="font-size: 0.9rem; color: #666; margin-bottom: 5px;">✅ Correct</div>
+                        <div id="stage1-score" style="font-size: 2rem; font-weight: bold; color: #28a745;">0</div>
+                    </div>
+                    <div style="background: #f9f9f9; padding: 15px; border-radius: 8px; flex: 1; min-width: 150px;">
+                        <div style="font-size: 0.9rem; color: #666; margin-bottom: 5px;">❌ Errors</div>
+                        <div id="stage1-errors" style="font-size: 2rem; font-weight: bold; color: #dc3545;">0</div>
+                    </div>
+                    <div style="background: #f9f9f9; padding: 15px; border-radius: 8px; flex: 1; min-width: 150px;">
+                        <div style="font-size: 0.9rem; color: #666; margin-bottom: 5px;">🛡️ Handicaps</div>
+                        <div id="stage1-handicaps" style="font-size: 2rem; font-weight: bold; color: #667eea;">2</div>
+                    </div>
+                </div>
+                
+                <!-- Question Progress -->
+                <h3 id="stage1-progress">Question 1 of 25</h3>
+                
+                <!-- Question Display -->
+                <div id="stage1-question-container">
+                    <!-- Questions will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
     <script>
         // ===== FIREBASE CONFIGURATION =====
         const firebaseConfig = {
@@ -4646,6 +4715,16 @@ const COINS_PER_WIN = 5;
 const MAX_COINS = 1000;
 
 
+// ===== TOURNAMENT VARIABLES =====
+let currentTournament = null;
+let tournamentStage = 0;
+let stage1Questions = [];
+let stage1CurrentIndex = 0;
+let stage1Score = 0;
+let stage1Errors = 0;
+let stage1Handicaps = 2;
+let stage1TimeLeft = 600; // 10 minutes in seconds
+let stage1Timer = null;
 
       
      // ===== INITIALIZE =====
@@ -13753,6 +13832,313 @@ function closeSponsorModal() {
         modal.classList.remove('active');
     }
 }
+
+
+
+     // ===== TOURNAMENT STAGE 1 FUNCTIONS =====
+
+async function startTournamentStage1(tournamentId) {
+    try {
+        console.log('🏆 Starting Tournament Stage 1:', tournamentId);
+        
+        currentTournament = tournamentId;
+        tournamentStage = 1;
+        stage1CurrentIndex = 0;
+        stage1Score = 0;
+        stage1Errors = 0;
+        stage1Handicaps = 2;
+        stage1TimeLeft = 600; // 10 minutes
+        
+        // Hide lobby, show stage 1
+        document.getElementById('tournament-lobby').style.display = 'none';
+        document.getElementById('tournament-stage1').style.display = 'block';
+        
+        // Generate 25 antonym/synonym questions
+        await generateStage1Questions();
+        
+        // Start timer
+        startStage1Timer();
+        
+        // Load first question
+        loadStage1Question();
+        
+    } catch (error) {
+        console.error('Error starting Stage 1:', error);
+        alert('Failed to start tournament: ' + error.message);
+    }
+}
+
+async function generateStage1Questions() {
+    try {
+        // Load words from current level
+        if (!selectedGameLevel) {
+            selectedGameLevel = 'challenge'; // Default to challenge level
+        }
+        
+        if (levelWords[selectedGameLevel].length === 0) {
+            await loadLevelWords(selectedGameLevel);
+        }
+        
+        // Select 25 random words
+        const shuffled = [...levelWords[selectedGameLevel]].sort(() => 0.5 - Math.random());
+        const selectedWords = shuffled.slice(0, 25);
+        
+        console.log('📝 Generating questions for:', selectedWords);
+        
+        // Generate questions using AI
+        const response = await fetch(CLOUD_FUNCTION_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                data: { 
+                    action: 'generateAntonymSynonymQuestions',
+                    words: selectedWords 
+                } 
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to generate questions');
+        }
+        
+        const data = await response.json();
+        stage1Questions = data.result.questions;
+        
+        console.log('✅ Generated', stage1Questions.length, 'questions');
+        
+    } catch (error) {
+        console.error('Error generating Stage 1 questions:', error);
+        throw error;
+    }
+}
+
+function loadStage1Question() {
+    if (stage1CurrentIndex >= stage1Questions.length) {
+        completeStage1();
+        return;
+    }
+    
+    const question = stage1Questions[stage1CurrentIndex];
+    const container = document.getElementById('stage1-question-container');
+    
+    document.getElementById('stage1-progress').textContent = 
+        `Question ${stage1CurrentIndex + 1} of ${stage1Questions.length}`;
+    
+    container.innerHTML = `
+        <div style="margin: 30px 0;">
+            <p style="font-size: 1.3rem; margin-bottom: 20px; line-height: 1.6;">
+                <strong>${question.sentence}</strong>
+            </p>
+            <p style="color: #666; margin-bottom: 10px;">
+                Select the best ${question.type === 'synonym' ? 'SYNONYM' : 'ANTONYM'} for the word: 
+                <strong style="color: #0d3b66;">${question.targetWord}</strong>
+            </p>
+        </div>
+        
+        <div class="quiz-options">
+            ${question.options.map((option, index) => `
+                <div class="quiz-option" onclick="checkStage1Answer(${index})">
+                    ${option}
+                </div>
+            `).join('')}
+        </div>
+        
+        <div id="stage1-feedback" style="margin-top: 20px;"></div>
+    `;
+}
+
+function checkStage1Answer(selectedIndex) {
+    const question = stage1Questions[stage1CurrentIndex];
+    const options = document.querySelectorAll('.quiz-option');
+    const feedbackDiv = document.getElementById('stage1-feedback');
+    
+    // Disable all options
+    options.forEach(opt => opt.style.pointerEvents = 'none');
+    
+    const isCorrect = selectedIndex === question.correctAnswer;
+    
+    if (isCorrect) {
+        stage1Score++;
+        options[selectedIndex].classList.add('correct');
+        feedbackDiv.innerHTML = '<div class="feedback success">✅ Correct!</div>';
+        
+        // Update score display
+        document.getElementById('stage1-score').textContent = stage1Score;
+        
+        // Move to next question after 1 second
+        setTimeout(() => {
+            stage1CurrentIndex++;
+            loadStage1Question();
+        }, 1000);
+        
+    } else {
+        stage1Errors++;
+        options[selectedIndex].classList.add('wrong');
+        options[question.correctAnswer].classList.add('correct');
+        
+        // Update errors display
+        document.getElementById('stage1-errors').textContent = stage1Errors;
+        
+        // Check if eliminated
+        if (stage1Errors >= 2 && stage1Handicaps === 0) {
+            feedbackDiv.innerHTML = '<div class="feedback error">❌ Eliminated! You made 2 errors with no handicaps remaining.</div>';
+            setTimeout(() => eliminateFromStage1(), 2000);
+        } else if (stage1Errors >= 2 && stage1Handicaps > 0) {
+            // Use handicap
+            stage1Handicaps--;
+            stage1Errors = 0; // Reset errors
+            document.getElementById('stage1-handicaps').textContent = stage1Handicaps;
+            document.getElementById('stage1-errors').textContent = stage1Errors;
+            
+            feedbackDiv.innerHTML = `
+                <div class="feedback error">
+                    ❌ Wrong answer!<br>
+                    🛡️ Handicap used! Errors reset. Handicaps remaining: ${stage1Handicaps}
+                </div>
+            `;
+            
+            setTimeout(() => {
+                stage1CurrentIndex++;
+                loadStage1Question();
+            }, 2000);
+        } else {
+            feedbackDiv.innerHTML = `<div class="feedback error">❌ Wrong! Correct answer: ${question.options[question.correctAnswer]}</div>`;
+            setTimeout(() => {
+                stage1CurrentIndex++;
+                loadStage1Question();
+            }, 2000);
+        }
+    }
+}
+
+function startStage1Timer() {
+    if (stage1Timer) clearInterval(stage1Timer);
+    
+    stage1Timer = setInterval(() => {
+        stage1TimeLeft--;
+        
+        const minutes = Math.floor(stage1TimeLeft / 60);
+        const seconds = stage1TimeLeft % 60;
+        document.getElementById('stage1-timer').textContent = 
+            `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        
+        // Change color when time is low
+        if (stage1TimeLeft <= 60) {
+            document.getElementById('stage1-timer').style.color = '#dc3545';
+        }
+        
+        if (stage1TimeLeft <= 0) {
+            clearInterval(stage1Timer);
+            completeStage1();
+        }
+    }, 1000);
+}
+
+function completeStage1() {
+    clearInterval(stage1Timer);
+    
+    const container = document.getElementById('stage1-question-container');
+    const feedbackDiv = document.getElementById('stage1-feedback');
+    
+    const percentage = Math.round((stage1Score / stage1Questions.length) * 100);
+    
+    container.innerHTML = `
+        <div style="text-align: center; padding: 40px;">
+            <div style="font-size: 4rem; margin-bottom: 20px;">
+                ${percentage >= 80 ? '🏆' : percentage >= 60 ? '⭐' : '📚'}
+            </div>
+            <h2 style="color: #0d3b66; margin-bottom: 20px;">Stage 1 Complete!</h2>
+            <div style="font-size: 2rem; font-weight: bold; color: #0d3b66; margin: 20px 0;">
+                ${stage1Score} / ${stage1Questions.length} Correct
+            </div>
+            <p style="font-size: 1.2rem; color: #666; margin: 20px 0;">
+                Accuracy: ${percentage}%
+            </p>
+            <p style="font-size: 1.1rem; color: #667eea; margin: 20px 0;">
+                🛡️ Handicaps Remaining: ${stage1Handicaps}
+            </p>
+            
+            ${percentage >= 60 ? `
+                <div style="background: #d4edda; padding: 20px; border-radius: 10px; margin: 20px 0;">
+                    <h3 style="color: #155724; margin-bottom: 10px;">✅ Qualified for Stage 2!</h3>
+                    <p style="color: #155724;">
+                        You'll carry ${stage1Handicaps} handicap(s) into the next round.
+                    </p>
+                </div>
+                <button class="practice-btn" onclick="proceedToStage2()" style="font-size: 1.2rem; padding: 15px 40px;">
+                    ➡️ Proceed to Stage 2
+                </button>
+            ` : `
+                <div style="background: #f8d7da; padding: 20px; border-radius: 10px; margin: 20px 0;">
+                    <h3 style="color: #721c24; margin-bottom: 10px;">❌ Did Not Qualify</h3>
+                    <p style="color: #721c24;">
+                        You need at least 60% accuracy to advance to Stage 2.
+                    </p>
+                </div>
+                <button class="practice-btn" onclick="exitTournament()" style="font-size: 1.2rem; padding: 15px 40px;">
+                    🏠 Return to Lobby
+                </button>
+            `}
+        </div>
+    `;
+    
+    feedbackDiv.innerHTML = '';
+}
+
+function eliminateFromStage1() {
+    clearInterval(stage1Timer);
+    
+    const container = document.getElementById('stage1-question-container');
+    
+    container.innerHTML = `
+        <div style="text-align: center; padding: 40px;">
+            <div style="font-size: 4rem; margin-bottom: 20px;">😢</div>
+            <h2 style="color: #dc3545; margin-bottom: 20px;">Eliminated from Stage 1</h2>
+            <p style="font-size: 1.2rem; color: #666; margin: 20px 0;">
+                You made 2 errors with no handicaps remaining.
+            </p>
+            <div style="font-size: 1.5rem; font-weight: bold; color: #0d3b66; margin: 20px 0;">
+                Final Score: ${stage1Score} / ${stage1CurrentIndex + 1}
+            </div>
+            <button class="practice-btn" onclick="exitTournament()" style="font-size: 1.2rem; padding: 15px 40px; margin-top: 20px;">
+                🏠 Return to Lobby
+            </button>
+        </div>
+    `;
+}
+
+function exitTournament() {
+    if (stage1Timer) clearInterval(stage1Timer);
+    
+    currentTournament = null;
+    tournamentStage = 0;
+    
+    document.getElementById('tournament-lobby').style.display = 'block';
+    document.getElementById('tournament-stage1').style.display = 'none';
+    
+    // Reload tournament list
+    loadTournamentList();
+}
+
+function proceedToStage2() {
+    alert('Stage 2 will be implemented next! 🎉');
+    // This will be implemented in the next step
+}
+
+async function loadTournamentList() {
+    const container = document.getElementById('tournament-list-container');
+    container.innerHTML = `
+        <div style="text-align: center; padding: 40px;">
+            <div style="font-size: 3rem; margin-bottom: 20px;">🏆</div>
+            <h3 style="color: #0d3b66; margin-bottom: 15px;">Demo Tournament</h3>
+            <p style="color: #666; margin-bottom: 20px;">Practice all tournament stages</p>
+            <button class="practice-btn" onclick="startTournamentStage1('demo')" style="font-size: 1.2rem; padding: 15px 40px;">
+                🎯 Join Tournament
+            </button>
+        </div>
+    `;
+}
+   
     </script>
 </body>
 </html>
