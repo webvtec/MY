@@ -4528,10 +4528,15 @@
                     <!-- Questions will be loaded here -->
                 </div>
             </div>
+            <!-- Stage 3: Spelling Challenge -->
+<div id="tournament-stage3" style="display: none;">
+    <!-- Content will be dynamically generated -->
+</div>
         </div>
     </div>
 </div>
 
+  
     <script>
         // ===== FIREBASE CONFIGURATION =====
         const firebaseConfig = {
@@ -4736,7 +4741,18 @@ let stage2Errors = 0;
 let stage2TimeLeft = 900; // 15 minutes
 let stage2Timer = null;
 let stage2HandicapsRemaining = 1; // Base 1 + carried from Stage 1
-      
+
+
+   // ===== TOURNAMENT STAGE 3 FUNCTIONS =====
+let stage3Words = [];
+let stage3CurrentIndex = 0;
+let stage3Score = 0;
+let stage3Errors = 0;
+let stage3TimeLeft = 900; // 15 minutes
+let stage3Timer = null;
+let stage3HandicapsRemaining = 0;
+let stage3CurrentLetterOrder = [];
+let stage3DraggedElement = null;       
      // ===== INITIALIZE =====
 document.addEventListener('DOMContentLoaded', function() {
     initializeAlphabet();
@@ -14528,6 +14544,484 @@ function eliminateFromStage2() {
         </div>
     `;
 }
+
+
+     
+
+async function proceedToStage3() {
+    try {
+        console.log('🎯 Starting Stage 3: Spelling Challenge');
+        
+        tournamentStage = 3;
+        stage3CurrentIndex = 0;
+        stage3Score = 0;
+        stage3Errors = 0;
+        stage3TimeLeft = 900;
+        stage3HandicapsRemaining = stage2HandicapsRemaining; // Carry from Stage 2
+        
+        // Hide Stage 2
+        document.getElementById('tournament-stage2').style.display = 'none';
+        
+        // Create Stage 3 container
+        const tournamentsSection = document.querySelector('#tournaments-section .word-database');
+        let stage3Container = document.getElementById('tournament-stage3');
+        
+        if (!stage3Container) {
+            stage3Container = document.createElement('div');
+            stage3Container.id = 'tournament-stage3';
+            tournamentsSection.appendChild(stage3Container);
+        }
+        
+        stage3Container.style.display = 'block';
+        stage3Container.innerHTML = '<div class="loading">📚 Loading Stage 3 words...</div>';
+        
+        // Generate words
+        await generateStage3Words();
+        
+        // Build UI
+        buildStage3UI();
+        
+        // Start timer
+        startStage3Timer();
+        
+        // Load first word
+        loadStage3Word();
+        
+    } catch (error) {
+        console.error('Error starting Stage 3:', error);
+        alert('Failed to start Stage 3: ' + error.message);
+    }
+}
+
+async function generateStage3Words() {
+    try {
+        if (levelWords[selectedGameLevel].length === 0) {
+            await loadLevelWords(selectedGameLevel);
+        }
+        
+        // Select 25 random words for unscrambling
+        const shuffled = [...levelWords[selectedGameLevel]].sort(() => 0.5 - Math.random());
+        stage3Words = shuffled.slice(0, 25);
+        
+        console.log('✅ Generated 25 words for Stage 3:', stage3Words);
+        
+    } catch (error) {
+        console.error('Error generating Stage 3 words:', error);
+        throw error;
+    }
+}
+
+function buildStage3UI() {
+    const container = document.getElementById('tournament-stage3');
+    
+    container.innerHTML = `
+        <div class="quiz-question-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
+                <h2 style="color: #0d3b66; margin: 0;">🔤 Stage 3: Unscramble Challenge</h2>
+                <button class="practice-btn" onclick="exitTournament()" style="background: #dc3545; padding: 10px 20px;">
+                    🚪 Exit
+                </button>
+            </div>
+            
+            <!-- Timer and Stats -->
+            <div style="display: flex; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
+                <div style="background: #f9f9f9; padding: 15px; border-radius: 8px; flex: 1; min-width: 150px;">
+                    <div style="font-size: 0.9rem; color: #666; margin-bottom: 5px;">⏱️ Time Remaining</div>
+                    <div id="stage3-timer" style="font-size: 2rem; font-weight: bold; color: #0d3b66;">15:00</div>
+                </div>
+                <div style="background: #f9f9f9; padding: 15px; border-radius: 8px; flex: 1; min-width: 150px;">
+                    <div style="font-size: 0.9rem; color: #666; margin-bottom: 5px;">✅ Correct</div>
+                    <div id="stage3-score" style="font-size: 2rem; font-weight: bold; color: #28a745;">0</div>
+                </div>
+                <div style="background: #f9f9f9; padding: 15px; border-radius: 8px; flex: 1; min-width: 150px;">
+                    <div style="font-size: 0.9rem; color: #666; margin-bottom: 5px;">❌ Errors</div>
+                    <div id="stage3-errors" style="font-size: 2rem; font-weight: bold; color: #dc3545;">0</div>
+                </div>
+                <div style="background: #f9f9f9; padding: 15px; border-radius: 8px; flex: 1; min-width: 150px;">
+                    <div style="font-size: 0.9rem; color: #666; margin-bottom: 5px;">🛡️ Handicaps</div>
+                    <div id="stage3-handicaps" style="font-size: 2rem; font-weight: bold; color: #667eea;">${stage3HandicapsRemaining}</div>
+                </div>
+            </div>
+            
+            <h3 id="stage3-progress">Word 1 of 25</h3>
+            
+            <div style="text-align: center; margin: 30px 0;">
+                <h2 style="color: #0d3b66; margin-bottom: 20px;">Drag the letters to form the word:</h2>
+                
+                <div id="stage3-letter-tiles" class="letter-tiles-container">
+                    <!-- Letter tiles will be inserted here -->
+                </div>
+                
+                <div style="margin-top: 20px;">
+                    <button class="practice-btn" onclick="shuffleStage3Letters()" style="font-size: 1.1rem; padding: 15px 30px; margin: 10px;">
+                        🔀 Shuffle
+                    </button>
+                    
+                    <button class="practice-btn" onclick="submitStage3Answer()" style="font-size: 1.2rem; padding: 15px 40px; margin: 10px;">
+                        ✓ Submit Answer
+                    </button>
+                </div>
+            </div>
+            
+            <div id="stage3-feedback" style="margin-top: 20px;"></div>
+        </div>
+    `;
+}
+
+function startStage3Timer() {
+    if (stage3Timer) clearInterval(stage3Timer);
+    
+    stage3Timer = setInterval(() => {
+        stage3TimeLeft--;
+        
+        const minutes = Math.floor(stage3TimeLeft / 60);
+        const seconds = stage3TimeLeft % 60;
+        document.getElementById('stage3-timer').textContent = 
+            `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        
+        if (stage3TimeLeft <= 60) {
+            document.getElementById('stage3-timer').style.color = '#dc3545';
+        }
+        
+        if (stage3TimeLeft <= 0) {
+            clearInterval(stage3Timer);
+            completeStage3();
+        }
+    }, 1000);
+}
+
+function loadStage3Word() {
+    if (stage3CurrentIndex >= stage3Words.length) {
+        completeStage3();
+        return;
+    }
+    
+    const word = stage3Words[stage3CurrentIndex];
+    
+    document.getElementById('stage3-progress').textContent = 
+        `Word ${stage3CurrentIndex + 1} of ${stage3Words.length}`;
+    
+    document.getElementById('stage3-feedback').innerHTML = '';
+    
+    // Scramble the letters
+    shuffleStage3Letters();
+}
+
+function shuffleStage3Letters() {
+    const word = stage3Words[stage3CurrentIndex];
+    const letters = word.split('');
+    let scrambled = [...letters];
+    
+    // Shuffle the array
+    let attempts = 0;
+    do {
+        for (let i = scrambled.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [scrambled[i], scrambled[j]] = [scrambled[j], scrambled[i]];
+        }
+        attempts++;
+    } while (scrambled.join('') === word && attempts < 10);
+    
+    stage3CurrentLetterOrder = scrambled;
+    renderStage3LetterTiles();
+}
+
+function renderStage3LetterTiles() {
+    const container = document.getElementById('stage3-letter-tiles');
+    container.innerHTML = '';
+    
+    stage3CurrentLetterOrder.forEach((letter, index) => {
+        const tile = document.createElement('div');
+        tile.className = 'letter-tile';
+        tile.textContent = letter.toUpperCase();
+        tile.draggable = true;
+        tile.dataset.index = index;
+        
+        // Drag events
+        tile.addEventListener('dragstart', handleStage3DragStart);
+        tile.addEventListener('dragend', handleStage3DragEnd);
+        tile.addEventListener('dragover', handleStage3DragOver);
+        tile.addEventListener('drop', handleStage3Drop);
+        tile.addEventListener('dragenter', handleStage3DragEnter);
+        tile.addEventListener('dragleave', handleStage3DragLeave);
+        
+        // Touch events for mobile
+        tile.addEventListener('touchstart', handleStage3TouchStart, { passive: false });
+        tile.addEventListener('touchmove', handleStage3TouchMove, { passive: false });
+        tile.addEventListener('touchend', handleStage3TouchEnd);
+        
+        container.appendChild(tile);
+    });
+}
+
+function handleStage3DragStart(e) {
+    stage3DraggedElement = this;
+    this.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/html', this.innerHTML);
+}
+
+function handleStage3DragEnd(e) {
+    this.classList.remove('dragging');
+    document.querySelectorAll('#stage3-letter-tiles .letter-tile').forEach(tile => {
+        tile.classList.remove('drag-over');
+    });
+}
+
+function handleStage3DragOver(e) {
+    if (e.preventDefault) {
+        e.preventDefault();
+    }
+    e.dataTransfer.dropEffect = 'move';
+    return false;
+}
+
+function handleStage3DragEnter(e) {
+    if (this !== stage3DraggedElement) {
+        this.classList.add('drag-over');
+    }
+}
+
+function handleStage3DragLeave(e) {
+    this.classList.remove('drag-over');
+}
+
+function handleStage3Drop(e) {
+    if (e.stopPropagation) {
+        e.stopPropagation();
+    }
+    
+    this.classList.remove('drag-over');
+    
+    if (stage3DraggedElement !== this) {
+        const draggedIndex = parseInt(stage3DraggedElement.dataset.index);
+        const targetIndex = parseInt(this.dataset.index);
+        
+        [stage3CurrentLetterOrder[draggedIndex], stage3CurrentLetterOrder[targetIndex]] = 
+        [stage3CurrentLetterOrder[targetIndex], stage3CurrentLetterOrder[draggedIndex]];
+        
+        renderStage3LetterTiles();
+    }
+    
+    return false;
+}
+
+// Touch support for mobile
+let stage3TouchTarget = null;
+let stage3TouchClone = null;
+
+function handleStage3TouchStart(e) {
+    e.preventDefault();
+    stage3TouchTarget = this;
+    this.classList.add('dragging');
+    
+    stage3TouchClone = this.cloneNode(true);
+    stage3TouchClone.style.position = 'fixed';
+    stage3TouchClone.style.zIndex = '10000';
+    stage3TouchClone.style.pointerEvents = 'none';
+    stage3TouchClone.style.opacity = '0.8';
+    document.body.appendChild(stage3TouchClone);
+    
+    updateStage3TouchClonePosition(e.touches[0]);
+}
+
+function handleStage3TouchMove(e) {
+    e.preventDefault();
+    if (!stage3TouchTarget) return;
+    
+    updateStage3TouchClonePosition(e.touches[0]);
+    
+    const touch = e.touches[0];
+    const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+    
+    document.querySelectorAll('#stage3-letter-tiles .letter-tile').forEach(tile => {
+        tile.classList.remove('drag-over');
+    });
+    
+    if (elementBelow && elementBelow.classList.contains('letter-tile') && elementBelow !== stage3TouchTarget) {
+        elementBelow.classList.add('drag-over');
+    }
+}
+
+function handleStage3TouchEnd(e) {
+    e.preventDefault();
+    if (!stage3TouchTarget) return;
+    
+    stage3TouchTarget.classList.remove('dragging');
+    
+    if (stage3TouchClone) {
+        stage3TouchClone.remove();
+        stage3TouchClone = null;
+    }
+    
+    const touch = e.changedTouches[0];
+    const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+    
+    if (elementBelow && elementBelow.classList.contains('letter-tile') && elementBelow !== stage3TouchTarget) {
+        const draggedIndex = parseInt(stage3TouchTarget.dataset.index);
+        const targetIndex = parseInt(elementBelow.dataset.index);
+        
+        [stage3CurrentLetterOrder[draggedIndex], stage3CurrentLetterOrder[targetIndex]] = 
+        [stage3CurrentLetterOrder[targetIndex], stage3CurrentLetterOrder[draggedIndex]];
+        
+        renderStage3LetterTiles();
+    }
+    
+    document.querySelectorAll('#stage3-letter-tiles .letter-tile').forEach(tile => {
+        tile.classList.remove('drag-over');
+    });
+    
+    stage3TouchTarget = null;
+}
+
+function updateStage3TouchClonePosition(touch) {
+    if (stage3TouchClone) {
+        stage3TouchClone.style.left = (touch.clientX - 30) + 'px';
+        stage3TouchClone.style.top = (touch.clientY - 30) + 'px';
+    }
+}
+
+function submitStage3Answer() {
+    const userWord = stage3CurrentLetterOrder.join('').toLowerCase();
+    const correctWord = stage3Words[stage3CurrentIndex].toLowerCase();
+    const feedbackDiv = document.getElementById('stage3-feedback');
+    
+    if (userWord === correctWord) {
+        stage3Score++;
+        feedbackDiv.innerHTML = '<div class="feedback success">✅ Correct!</div>';
+        document.getElementById('stage3-score').textContent = stage3Score;
+        
+        setTimeout(() => {
+            stage3CurrentIndex++;
+            loadStage3Word();
+        }, 1000);
+        
+    } else {
+        stage3Errors++;
+        document.getElementById('stage3-errors').textContent = stage3Errors;
+        
+        // Check elimination
+        if (stage3Errors >= 1 && stage3HandicapsRemaining === 0) {
+            feedbackDiv.innerHTML = `<div class="feedback error">❌ Eliminated! Wrong word. Correct: ${correctWord}</div>`;
+            setTimeout(() => eliminateFromStage3(), 2000);
+        } else if (stage3Errors >= 1 && stage3HandicapsRemaining > 0) {
+            // Use handicap
+            stage3HandicapsRemaining--;
+            stage3Errors = 0;
+            document.getElementById('stage3-handicaps').textContent = stage3HandicapsRemaining;
+            document.getElementById('stage3-errors').textContent = stage3Errors;
+            
+            feedbackDiv.innerHTML = `
+                <div class="feedback error">
+                    ❌ Wrong! Correct: ${correctWord}<br>
+                    🛡️ Handicap used! Errors reset. Handicaps remaining: ${stage3HandicapsRemaining}
+                </div>
+            `;
+            
+            setTimeout(() => {
+                stage3CurrentIndex++;
+                loadStage3Word();
+            }, 2000);
+        }
+    }
+}
+
+function completeStage3() {
+    clearInterval(stage3Timer);
+    
+    const container = document.getElementById('tournament-stage3');
+    const percentage = Math.round((stage3Score / stage3Words.length) * 100);
+    
+    container.innerHTML = `
+        <div class="quiz-question-card" style="text-align: center; padding: 40px;">
+            <div style="font-size: 4rem; margin-bottom: 20px;">
+                ${percentage >= 80 ? '🏆' : percentage >= 60 ? '⭐' : '📚'}
+            </div>
+            <h2 style="color: #0d3b66; margin-bottom: 20px;">Stage 3 Complete!</h2>
+            <div style="font-size: 2rem; font-weight: bold; color: #0d3b66; margin: 20px 0;">
+                ${stage3Score} / ${stage3Words.length} Correct
+            </div>
+            <p style="font-size: 1.2rem; color: #666; margin: 20px 0;">
+                Accuracy: ${percentage}%
+            </p>
+            <p style="font-size: 1.1rem; color: #667eea; margin: 20px 0;">
+                🛡️ Handicaps Used: ${stage2HandicapsRemaining - stage3HandicapsRemaining}
+            </p>
+            
+            ${percentage >= 60 ? `
+                <div style="background: #d4edda; padding: 20px; border-radius: 10px; margin: 20px 0;">
+                    <h3 style="color: #155724; margin-bottom: 10px;">✅ Qualified for Live Rounds!</h3>
+                    <p style="color: #155724;">
+                        Congratulations! You've completed all automated rounds.<br>
+                        <strong>Next:</strong> Live Spell Master with human caller
+                    </p>
+                </div>
+                <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ffc107;">
+                    <p style="color: #856404; margin: 0;">
+                        ℹ️ <strong>Note:</strong> Stages 4-7 (Live Spell Master rounds) require a live human caller 
+                        and will be available during scheduled tournament events.
+                    </p>
+                </div>
+                <button class="practice-btn" onclick="exitTournament()" style="font-size: 1.2rem; padding: 15px 40px;">
+                    🏠 Return to Lobby
+                </button>
+            ` : `
+                <div style="background: #f8d7da; padding: 20px; border-radius: 10px; margin: 20px 0;">
+                    <h3 style="color: #721c24; margin-bottom: 10px;">❌ Did Not Qualify</h3>
+                    <p style="color: #721c24;">
+                        You need at least 60% accuracy to advance to the Live Rounds.
+                    </p>
+                </div>
+                <button class="practice-btn" onclick="exitTournament()" style="font-size: 1.2rem; padding: 15px 40px;">
+                    🏠 Return to Lobby
+                </button>
+            `}
+        </div>
+    `;
+}
+
+function eliminateFromStage3() {
+    clearInterval(stage3Timer);
+    
+    const container = document.getElementById('tournament-stage3');
+    
+    container.innerHTML = `
+        <div class="quiz-question-card" style="text-align: center; padding: 40px;">
+            <div style="font-size: 4rem; margin-bottom: 20px;">😢</div>
+            <h2 style="color: #dc3545; margin-bottom: 20px;">Eliminated from Stage 3</h2>
+            <p style="font-size: 1.2rem; color: #666; margin: 20px 0;">
+                One error with no handicaps remaining.
+            </p>
+            <div style="font-size: 1.5rem; font-weight: bold; color: #0d3b66; margin: 20px 0;">
+                Final Score: ${stage3Score} / ${stage3CurrentIndex + 1}
+            </div>
+            <button class="practice-btn" onclick="exitTournament()" style="font-size: 1.2rem; padding: 15px 40px; margin-top: 20px;">
+                🏠 Return to Lobby
+            </button>
+        </div>
+    `;
+}
+
+// Update exitTournament to handle all stages
+function exitTournament() {
+    if (stage1Timer) clearInterval(stage1Timer);
+    if (stage2Timer) clearInterval(stage2Timer);
+    if (stage3Timer) clearInterval(stage3Timer);
+    
+    currentTournament = null;
+    tournamentStage = 0;
+    
+    document.getElementById('tournament-lobby').style.display = 'block';
+    document.getElementById('tournament-stage1').style.display = 'none';
+    
+    const stage2 = document.getElementById('tournament-stage2');
+    if (stage2) stage2.style.display = 'none';
+    
+    const stage3 = document.getElementById('tournament-stage3');
+    if (stage3) stage3.style.display = 'none';
+    
+    loadTournamentList();
+} 
     </script>
 </body>
 </html>
