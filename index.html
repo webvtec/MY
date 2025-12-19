@@ -4726,6 +4726,16 @@ let stage1Handicaps = 2;
 let stage1TimeLeft = 600; // 10 minutes in seconds
 let stage1Timer = null;
 
+
+
+// ===== STAGE 2: AI AUDIO SPELLING =====
+let stage2Words = [];
+let stage2CurrentIndex = 0;
+let stage2Score = 0;
+let stage2Errors = 0;
+let stage2TimeLeft = 900; // 15 minutes
+let stage2Timer = null;
+let stage2HandicapsRemaining = 1; // Base 1 + carried from Stage 1
       
      // ===== INITIALIZE =====
 document.addEventListener('DOMContentLoaded', function() {
@@ -14138,7 +14148,386 @@ async function loadTournamentList() {
         </div>
     `;
 }
-   
+
+
+  
+async function proceedToStage2() {
+    try {
+        console.log('🎯 Starting Stage 2: AI Audio Spelling');
+        
+        tournamentStage = 2;
+        stage2CurrentIndex = 0;
+        stage2Score = 0;
+        stage2Errors = 0;
+        stage2TimeLeft = 900;
+        stage2HandicapsRemaining = 1 + stage1Handicaps; // Add carried handicaps
+        
+        // Hide Stage 1
+        document.getElementById('tournament-stage1').style.display = 'none';
+        
+        // Create Stage 2 container
+        const tournamentsSection = document.querySelector('#tournaments-section .word-database');
+        let stage2Container = document.getElementById('tournament-stage2');
+        
+        if (!stage2Container) {
+            stage2Container = document.createElement('div');
+            stage2Container.id = 'tournament-stage2';
+            tournamentsSection.appendChild(stage2Container);
+        }
+        
+        stage2Container.style.display = 'block';
+        
+        // Show loading
+        stage2Container.innerHTML = '<div class="loading">📚 Loading Stage 2 words...</div>';
+        
+        // Generate words
+        await generateStage2Words();
+        
+        // Build Stage 2 UI
+        buildStage2UI();
+        
+        // Start timer
+        startStage2Timer();
+        
+        // Load first word
+        loadStage2Word();
+        
+    } catch (error) {
+        console.error('Error starting Stage 2:', error);
+        alert('Failed to start Stage 2: ' + error.message);
+    }
+}
+
+async function generateStage2Words() {
+    try {
+        // Use words from current level
+        if (levelWords[selectedGameLevel].length === 0) {
+            await loadLevelWords(selectedGameLevel);
+        }
+        
+        // Select 25 random words
+        const shuffled = [...levelWords[selectedGameLevel]].sort(() => 0.5 - Math.random());
+        stage2Words = shuffled.slice(0, 25);
+        
+        console.log('✅ Generated 25 words for Stage 2:', stage2Words);
+        
+    } catch (error) {
+        console.error('Error generating Stage 2 words:', error);
+        throw error;
+    }
+}
+
+function buildStage2UI() {
+    const container = document.getElementById('tournament-stage2');
+    
+    container.innerHTML = `
+        <div class="quiz-question-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
+                <h2 style="color: #0d3b66; margin: 0;">🎤 Stage 2: AI Audio Spelling</h2>
+                <button class="practice-btn" onclick="exitTournament()" style="background: #dc3545; padding: 10px 20px;">
+                    🚪 Exit
+                </button>
+            </div>
+            
+            <!-- Timer and Stats -->
+            <div style="display: flex; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
+                <div style="background: #f9f9f9; padding: 15px; border-radius: 8px; flex: 1; min-width: 150px;">
+                    <div style="font-size: 0.9rem; color: #666; margin-bottom: 5px;">⏱️ Time Remaining</div>
+                    <div id="stage2-timer" style="font-size: 2rem; font-weight: bold; color: #0d3b66;">15:00</div>
+                </div>
+                <div style="background: #f9f9f9; padding: 15px; border-radius: 8px; flex: 1; min-width: 150px;">
+                    <div style="font-size: 0.9rem; color: #666; margin-bottom: 5px;">✅ Correct</div>
+                    <div id="stage2-score" style="font-size: 2rem; font-weight: bold; color: #28a745;">0</div>
+                </div>
+                <div style="background: #f9f9f9; padding: 15px; border-radius: 8px; flex: 1; min-width: 150px;">
+                    <div style="font-size: 0.9rem; color: #666; margin-bottom: 5px;">❌ Errors</div>
+                    <div id="stage2-errors" style="font-size: 2rem; font-weight: bold; color: #dc3545;">0</div>
+                </div>
+                <div style="background: #f9f9f9; padding: 15px; border-radius: 8px; flex: 1; min-width: 150px;">
+                    <div style="font-size: 0.9rem; color: #666; margin-bottom: 5px;">🛡️ Handicaps</div>
+                    <div id="stage2-handicaps" style="font-size: 2rem; font-weight: bold; color: #667eea;">${stage2HandicapsRemaining}</div>
+                </div>
+            </div>
+            
+            <!-- Progress -->
+            <h3 id="stage2-progress">Word 1 of 25</h3>
+            
+            <!-- Audio Controls -->
+            <div style="text-align: center; margin: 30px 0;">
+                <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-bottom: 15px;">
+                    <button class="practice-btn" onclick="speakStage2Word()" style="font-size: 1.1rem; padding: 15px 30px;">
+                        🔊 Play Word
+                    </button>
+                    <button class="practice-btn" onclick="speakStage2Sentence()" style="font-size: 1.1rem; padding: 15px 30px; background: #17a2b8;">
+                        💬 Use in Sentence
+                    </button>
+                </div>
+                <p style="color: #666; font-style: italic; font-size: 0.9rem;">Listen and spell the word you hear</p>
+            </div>
+            
+            <!-- Input Field -->
+            <div class="form-group" style="margin: 30px 0;">
+                <label style="font-size: 1.2rem;">Type what you hear:</label>
+                <input type="text" id="stage2-input" 
+                       placeholder="Use the keyboard below..." 
+                       style="width: 100%; padding: 15px; font-size: 1.3rem; text-align: center; border: 3px solid #0d3b66; border-radius: 8px; margin-top: 10px;"
+                       readonly>
+            </div>
+            
+            <!-- Virtual Keyboard -->
+            <div class="virtual-keyboard">
+                <div class="keyboard-row">
+                    <button class="keyboard-key" onclick="typeStage2Key('Q')">Q</button>
+                    <button class="keyboard-key" onclick="typeStage2Key('W')">W</button>
+                    <button class="keyboard-key" onclick="typeStage2Key('E')">E</button>
+                    <button class="keyboard-key" onclick="typeStage2Key('R')">R</button>
+                    <button class="keyboard-key" onclick="typeStage2Key('T')">T</button>
+                    <button class="keyboard-key" onclick="typeStage2Key('Y')">Y</button>
+                    <button class="keyboard-key" onclick="typeStage2Key('U')">U</button>
+                    <button class="keyboard-key" onclick="typeStage2Key('I')">I</button>
+                    <button class="keyboard-key" onclick="typeStage2Key('O')">O</button>
+                    <button class="keyboard-key" onclick="typeStage2Key('P')">P</button>
+                </div>
+                <div class="keyboard-row">
+                    <button class="keyboard-key" onclick="typeStage2Key('A')">A</button>
+                    <button class="keyboard-key" onclick="typeStage2Key('S')">S</button>
+                    <button class="keyboard-key" onclick="typeStage2Key('D')">D</button>
+                    <button class="keyboard-key" onclick="typeStage2Key('F')">F</button>
+                    <button class="keyboard-key" onclick="typeStage2Key('G')">G</button>
+                    <button class="keyboard-key" onclick="typeStage2Key('H')">H</button>
+                    <button class="keyboard-key" onclick="typeStage2Key('J')">J</button>
+                    <button class="keyboard-key" onclick="typeStage2Key('K')">K</button>
+                    <button class="keyboard-key" onclick="typeStage2Key('L')">L</button>
+                </div>
+                <div class="keyboard-row">
+                    <button class="keyboard-key" onclick="typeStage2Key('Z')">Z</button>
+                    <button class="keyboard-key" onclick="typeStage2Key('X')">X</button>
+                    <button class="keyboard-key" onclick="typeStage2Key('C')">C</button>
+                    <button class="keyboard-key" onclick="typeStage2Key('V')">V</button>
+                    <button class="keyboard-key" onclick="typeStage2Key('B')">B</button>
+                    <button class="keyboard-key" onclick="typeStage2Key('N')">N</button>
+                    <button class="keyboard-key" onclick="typeStage2Key('M')">M</button>
+                </div>
+                <div class="keyboard-row">
+                    <button class="keyboard-key backspace" onclick="backspaceStage2Key()">⌫ Delete</button>
+                    <button class="keyboard-key space" onclick="typeStage2Key(' ')">Space</button>
+                    <button class="keyboard-key enter" onclick="submitStage2Answer()">✓ Enter</button>
+                </div>
+            </div>
+            
+            <div id="stage2-feedback" style="margin-top: 20px;"></div>
+        </div>
+    `;
+}
+
+function startStage2Timer() {
+    if (stage2Timer) clearInterval(stage2Timer);
+    
+    stage2Timer = setInterval(() => {
+        stage2TimeLeft--;
+        
+        const minutes = Math.floor(stage2TimeLeft / 60);
+        const seconds = stage2TimeLeft % 60;
+        document.getElementById('stage2-timer').textContent = 
+            `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        
+        if (stage2TimeLeft <= 60) {
+            document.getElementById('stage2-timer').style.color = '#dc3545';
+        }
+        
+        if (stage2TimeLeft <= 0) {
+            clearInterval(stage2Timer);
+            completeStage2();
+        }
+    }, 1000);
+}
+
+function loadStage2Word() {
+    if (stage2CurrentIndex >= stage2Words.length) {
+        completeStage2();
+        return;
+    }
+    
+    document.getElementById('stage2-progress').textContent = 
+        `Word ${stage2CurrentIndex + 1} of ${stage2Words.length}`;
+    
+    document.getElementById('stage2-input').value = '';
+    document.getElementById('stage2-feedback').innerHTML = '';
+    
+    // Auto-play word
+    setTimeout(() => speakStage2Word(), 500);
+}
+
+function speakStage2Word() {
+    const word = stage2Words[stage2CurrentIndex];
+    const utterance = new SpeechSynthesisUtterance(word);
+    utterance.rate = 0.7;
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utterance);
+}
+
+async function speakStage2Sentence() {
+    const word = stage2Words[stage2CurrentIndex];
+    
+    try {
+        const wordRef = db.collection('dictionary').doc(word.toLowerCase());
+        const wordDoc = await wordRef.get();
+        
+        let sentence = `The word is ${word}.`;
+        
+        if (wordDoc.exists) {
+            const data = wordDoc.data();
+            if (data.meanings && data.meanings.length > 0) {
+                for (let meaning of data.meanings) {
+                    if (meaning.example) {
+                        sentence = meaning.example;
+                        break;
+                    }
+                }
+            }
+        }
+        
+        const utterance = new SpeechSynthesisUtterance(sentence);
+        utterance.rate = 0.8;
+        window.speechSynthesis.cancel();
+        window.speechSynthesis.speak(utterance);
+        
+    } catch (error) {
+        console.error('Error getting sentence:', error);
+        speakStage2Word();
+    }
+}
+
+function typeStage2Key(letter) {
+    const input = document.getElementById('stage2-input');
+    input.value += letter.toLowerCase();
+}
+
+function backspaceStage2Key() {
+    const input = document.getElementById('stage2-input');
+    input.value = input.value.slice(0, -1);
+}
+
+function submitStage2Answer() {
+    const userAnswer = document.getElementById('stage2-input').value.trim().toLowerCase();
+    const correctWord = stage2Words[stage2CurrentIndex].toLowerCase();
+    const feedbackDiv = document.getElementById('stage2-feedback');
+    
+    if (!userAnswer) {
+        feedbackDiv.innerHTML = '<div class="feedback error">⚠️ Please type a word</div>';
+        return;
+    }
+    
+    const isCorrect = userAnswer === correctWord;
+    
+    if (isCorrect) {
+        stage2Score++;
+        feedbackDiv.innerHTML = '<div class="feedback success">✅ Correct!</div>';
+        document.getElementById('stage2-score').textContent = stage2Score;
+        
+        setTimeout(() => {
+            stage2CurrentIndex++;
+            loadStage2Word();
+        }, 1000);
+        
+    } else {
+        stage2Errors++;
+        document.getElementById('stage2-errors').textContent = stage2Errors;
+        
+        // Check elimination
+        if (stage2Errors >= 1 && stage2HandicapsRemaining === 0) {
+            feedbackDiv.innerHTML = `<div class="feedback error">❌ Eliminated! Wrong spelling. Correct: ${correctWord}</div>`;
+            setTimeout(() => eliminateFromStage2(), 2000);
+        } else if (stage2Errors >= 1 && stage2HandicapsRemaining > 0) {
+            // Use handicap
+            stage2HandicapsRemaining--;
+            stage2Errors = 0;
+            document.getElementById('stage2-handicaps').textContent = stage2HandicapsRemaining;
+            document.getElementById('stage2-errors').textContent = stage2Errors;
+            
+            feedbackDiv.innerHTML = `
+                <div class="feedback error">
+                    ❌ Wrong! Correct: ${correctWord}<br>
+                    🛡️ Handicap used! Errors reset. Handicaps remaining: ${stage2HandicapsRemaining}
+                </div>
+            `;
+            
+            setTimeout(() => {
+                stage2CurrentIndex++;
+                loadStage2Word();
+            }, 2000);
+        }
+    }
+}
+
+function completeStage2() {
+    clearInterval(stage2Timer);
+    
+    const container = document.getElementById('tournament-stage2');
+    const percentage = Math.round((stage2Score / stage2Words.length) * 100);
+    
+    container.innerHTML = `
+        <div class="quiz-question-card" style="text-align: center; padding: 40px;">
+            <div style="font-size: 4rem; margin-bottom: 20px;">
+                ${percentage >= 80 ? '🏆' : percentage >= 60 ? '⭐' : '📚'}
+            </div>
+            <h2 style="color: #0d3b66; margin-bottom: 20px;">Stage 2 Complete!</h2>
+            <div style="font-size: 2rem; font-weight: bold; color: #0d3b66; margin: 20px 0;">
+                ${stage2Score} / ${stage2Words.length} Correct
+            </div>
+            <p style="font-size: 1.2rem; color: #666; margin: 20px 0;">
+                Accuracy: ${percentage}%
+            </p>
+            <p style="font-size: 1.1rem; color: #667eea; margin: 20px 0;">
+                🛡️ Handicaps Remaining: ${stage2HandicapsRemaining}
+            </p>
+            
+            ${percentage >= 60 ? `
+                <div style="background: #d4edda; padding: 20px; border-radius: 10px; margin: 20px 0;">
+                    <h3 style="color: #155724; margin-bottom: 10px;">✅ Qualified for Stage 3!</h3>
+                    <p style="color: #155724;">
+                        You'll carry ${stage2HandicapsRemaining} handicap(s) into Stage 3.
+                    </p>
+                </div>
+                <button class="practice-btn" onclick="proceedToStage3()" style="font-size: 1.2rem; padding: 15px 40px;">
+                    ➡️ Proceed to Stage 3
+                </button>
+            ` : `
+                <div style="background: #f8d7da; padding: 20px; border-radius: 10px; margin: 20px 0;">
+                    <h3 style="color: #721c24; margin-bottom: 10px;">❌ Did Not Qualify</h3>
+                    <p style="color: #721c24;">
+                        You need at least 60% accuracy to advance to Stage 3.
+                    </p>
+                </div>
+                <button class="practice-btn" onclick="exitTournament()" style="font-size: 1.2rem; padding: 15px 40px;">
+                    🏠 Return to Lobby
+                </button>
+            `}
+        </div>
+    `;
+}
+
+function eliminateFromStage2() {
+    clearInterval(stage2Timer);
+    
+    const container = document.getElementById('tournament-stage2');
+    
+    container.innerHTML = `
+        <div class="quiz-question-card" style="text-align: center; padding: 40px;">
+            <div style="font-size: 4rem; margin-bottom: 20px;">😢</div>
+            <h2 style="color: #dc3545; margin-bottom: 20px;">Eliminated from Stage 2</h2>
+            <p style="font-size: 1.2rem; color: #666; margin: 20px 0;">
+                One error with no handicaps remaining.
+            </p>
+            <div style="font-size: 1.5rem; font-weight: bold; color: #0d3b66; margin: 20px 0;">
+                Final Score: ${stage2Score} / ${stage2CurrentIndex + 1}
+            </div>
+            <button class="practice-btn" onclick="exitTournament()" style="font-size: 1.2rem; padding: 15px 40px; margin-top: 20px;">
+                🏠 Return to Lobby
+            </button>
+        </div>
+    `;
+}
     </script>
 </body>
 </html>
