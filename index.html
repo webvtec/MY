@@ -4752,7 +4752,19 @@ let stage3TimeLeft = 900; // 15 minutes
 let stage3Timer = null;
 let stage3HandicapsRemaining = 0;
 let stage3CurrentLetterOrder = [];
-let stage3DraggedElement = null;       
+let stage3DraggedElement = null; 
+
+ // ===== LIVE SPELL MASTER STAGES (4-7) =====
+let liveStageParticipants = [];
+let currentLiveStageIndex = 0;
+let liveStageTimer = null;
+let callerMode = false; // true if user is the caller
+let liveStageWords = [];
+let eliminatedPlayers = [];
+let currentSpellerIndex = 0;
+let finalRoundSpelling = null;
+
+        
      // ===== INITIALIZE =====
 document.addEventListener('DOMContentLoaded', function() {
     initializeAlphabet();
@@ -14945,24 +14957,35 @@ function completeStage3() {
                 Accuracy: ${percentage}%
             </p>
             <p style="font-size: 1.1rem; color: #667eea; margin: 20px 0;">
-                🛡️ Handicaps Used: ${stage2HandicapsRemaining - stage3HandicapsRemaining}
+                🛡️ Handicaps Remaining: ${stage3HandicapsRemaining}
             </p>
             
             ${percentage >= 60 ? `
                 <div style="background: #d4edda; padding: 20px; border-radius: 10px; margin: 20px 0;">
-                    <h3 style="color: #155724; margin-bottom: 10px;">✅ Qualified for Live Rounds!</h3>
+                    <h3 style="color: #155724; margin-bottom: 10px;">✅ Qualified for Stage 4!</h3>
                     <p style="color: #155724;">
-                        Congratulations! You've completed all automated rounds.<br>
-                        <strong>Next:</strong> Live Spell Master with human caller
+                        Congratulations! You've reached the Live Spell Master rounds.<br>
+                        <strong>Next:</strong> Top 10 compete with live human caller
                     </p>
                 </div>
-                <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ffc107;">
-                    <p style="color: #856404; margin: 0;">
-                        ℹ️ <strong>Note:</strong> Stages 4-7 (Live Spell Master rounds) require a live human caller 
-                        and will be available during scheduled tournament events.
+                
+                <div style="background: #fff3cd; padding: 20px; border-radius: 10px; margin: 20px 0; border-left: 4px solid #ffc107;">
+                    <h4 style="color: #856404; margin: 0 0 15px 0;">🎭 Choose Your Role:</h4>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px;">
+                        <button class="practice-btn" onclick="joinAsSpeller()" style="background: #667eea; font-size: 1rem; padding: 15px;">
+                            🎯 Join as Speller
+                        </button>
+                        <button class="practice-btn" onclick="joinAsCaller()" style="background: #764ba2; font-size: 1rem; padding: 15px;">
+                            🎤 Join as Caller
+                        </button>
+                    </div>
+                    <p style="color: #856404; margin: 15px 0 0 0; font-size: 0.9rem;">
+                        ℹ️ <strong>Speller:</strong> Compete to spell words correctly<br>
+                        ℹ️ <strong>Caller:</strong> Read words aloud for spellers
                     </p>
                 </div>
-                <button class="practice-btn" onclick="exitTournament()" style="font-size: 1.2rem; padding: 15px 40px;">
+                
+                <button class="practice-btn" onclick="exitTournament()" style="font-size: 1rem; padding: 12px 30px; background: #6c757d;">
                     🏠 Return to Lobby
                 </button>
             ` : `
@@ -15022,6 +15045,222 @@ function exitTournament() {
     
     loadTournamentList();
 } 
+
+
+ async function joinAsSpeller() {
+    callerMode = false;
+    
+    // Show waiting room
+    const container = document.getElementById('tournament-stage3');
+    container.innerHTML = `
+        <div class="quiz-question-card" style="text-align: center; padding: 40px;">
+            <div style="font-size: 4rem; margin: 20px 0; animation: pulse 2s infinite;">⏳</div>
+            <h2 style="color: #0d3b66; margin-bottom: 20px;">Waiting for Stage 4 to Begin...</h2>
+            <p style="font-size: 1.2rem; color: #666; margin: 20px 0;">
+                You've joined as a <strong style="color: #667eea;">SPELLER</strong>
+            </p>
+            <div style="background: #e3f2fd; padding: 20px; border-radius: 10px; margin: 20px 0;">
+                <h3 style="color: #0d3b66; margin-bottom: 15px;">📋 Stage 4: Live Spell Master (Top 10)</h3>
+                <p style="color: #666; line-height: 1.8;">
+                    • Live human caller will read words<br>
+                    • One mistake = eliminated (unless you have a Shield)<br>
+                    • Top 10 spellers advance<br>
+                    • 5-minute break after this round
+                </p>
+            </div>
+            <div class="loading">Waiting for a caller to start the round...</div>
+            
+            <button class="practice-btn" onclick="exitTournament()" style="margin-top: 20px; background: #6c757d;">
+                🚪 Leave Waiting Room
+            </button>
+        </div>
+    `;
+    
+    // In a real implementation, this would connect to a live session
+    // For demo purposes, we'll simulate
+    setTimeout(() => {
+        alert('⏰ In a live tournament, you would wait here for a caller to start Stage 4.\n\nFor demo purposes, the caller interface is available by choosing "Join as Caller".');
+    }, 2000);
+}
+
+async function joinAsCaller() {
+    callerMode = true;
+    
+    try {
+        // Hide Stage 3
+        document.getElementById('tournament-stage3').style.display = 'none';
+        
+        // Generate words for Stage 4
+        await generateLiveStageWords(10); // 10 words for Stage 4
+        
+        // Show caller interface
+        startStage4AsCaller();
+        
+    } catch (error) {
+        console.error('Error starting as caller:', error);
+        alert('Failed to start as caller: ' + error.message);
+    }
+}
+
+  async function generateLiveStageWords(count) {
+    try {
+        if (!selectedGameLevel) {
+            selectedGameLevel = 'championship'; // Use hardest level for finals
+        }
+        
+        if (levelWords[selectedGameLevel].length === 0) {
+            await loadLevelWords(selectedGameLevel);
+        }
+        
+        // Select random words
+        const shuffled = [...levelWords[selectedGameLevel]].sort(() => 0.5 - Math.random());
+        liveStageWords = shuffled.slice(0, count);
+        
+        console.log(`✅ Generated ${count} words for live stage:`, liveStageWords);
+        
+    } catch (error) {
+        console.error('Error generating live stage words:', error);
+        throw error;
+    }
+}
+
+ function startStage4AsCaller() {
+    tournamentStage = 4;
+    currentLiveStageIndex = 0;
+    liveStageParticipants = ['Demo Player 1', 'Demo Player 2', 'Demo Player 3']; // Simulated players
+    eliminatedPlayers = [];
+    
+    const tournamentsSection = document.querySelector('#tournaments-section .word-database');
+    let stage4Container = document.getElementById('tournament-stage4');
+    
+    if (!stage4Container) {
+        stage4Container = document.createElement('div');
+        stage4Container.id = 'tournament-stage4';
+        tournamentsSection.appendChild(stage4Container);
+    }
+    
+    stage4Container.style.display = 'block';
+    
+    buildStage4CallerUI();
+}
+
+function buildStage4CallerUI() {
+    const container = document.getElementById('tournament-stage4');
+    
+    container.innerHTML = `
+        <div class="quiz-question-card">
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 10px; margin-bottom: 20px; color: white;">
+                <h2 style="margin: 0 0 10px 0; color: white;">🎤 Stage 4: Live Spell Master (Caller Mode)</h2>
+                <p style="margin: 0; opacity: 0.9;">You are the human caller for this round</p>
+            </div>
+            
+            <!-- Active Players -->
+            <div style="background: #f9f9f9; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                <h3 style="color: #0d3b66; margin: 0 0 15px 0;">👥 Active Spellers (${liveStageParticipants.length})</h3>
+                <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                    ${liveStageParticipants.map(player => `
+                        <div style="background: #d4edda; padding: 10px 20px; border-radius: 20px; color: #155724; font-weight: bold;">
+                            ✅ ${player}
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+            
+            ${eliminatedPlayers.length > 0 ? `
+                <div style="background: #f8d7da; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                    <h3 style="color: #721c24; margin: 0 0 15px 0;">❌ Eliminated (${eliminatedPlayers.length})</h3>
+                    <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                        ${eliminatedPlayers.map(player => `
+                            <div style="background: white; padding: 10px 20px; border-radius: 20px; color: #721c24;">
+                                ${player}
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            ` : ''}
+            
+            <!-- Current Word -->
+            <div style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); padding: 30px; border-radius: 15px; margin: 20px 0; color: white; text-align: center;">
+                <h3 style="margin: 0 0 15px 0; color: white;">📝 Word ${currentLiveStageIndex + 1} of ${liveStageWords.length}</h3>
+                <div id="caller-word-display" style="font-size: 3rem; font-weight: bold; margin: 20px 0; letter-spacing: 2px;">
+                    ${currentLiveStageIndex < liveStageWords.length ? liveStageWords[currentLiveStageIndex].toUpperCase() : 'COMPLETE'}
+                </div>
+                
+                ${currentLiveStageIndex < liveStageWords.length ? `
+                    <button class="practice-btn" onclick="speakCallerWord()" style="background: white; color: #0d3b66; font-size: 1.2rem; padding: 15px 40px; margin: 10px;">
+                        🔊 Pronounce Word
+                    </button>
+                    <button class="practice-btn" onclick="speakCallerSentence()" style="background: rgba(255,255,255,0.9); color: #0d3b66; font-size: 1.1rem; padding: 12px 30px; margin: 10px;">
+                        💬 Use in Sentence
+                    </button>
+                ` : ''}
+            </div>
+            
+            <!-- Caller Controls -->
+            <div id="caller-controls">
+                ${currentLiveStageIndex < liveStageWords.length ? `
+                    <div style="background: #fff3cd; padding: 20px; border-radius: 10px; margin: 20px 0; border-left: 4px solid #ffc107;">
+                        <h4 style="color: #856404; margin: 0 0 15px 0;">📋 Caller Instructions:</h4>
+                        <ol style="color: #856404; margin: 0; padding-left: 20px; line-height: 1.8;">
+                            <li>Pronounce the word clearly</li>
+                            <li>Use it in a sentence if requested</li>
+                            <li>Mark each speller as correct or incorrect</li>
+                            <li>One mistake eliminates a speller (unless they have a Shield)</li>
+                        </ol>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 20px 0;">
+                        ${liveStageParticipants.map((player, index) => `
+                            <div style="background: white; padding: 20px; border-radius: 10px; border: 2px solid #0d3b66; text-align: center;">
+                                <h4 style="color: #0d3b66; margin: 0 0 15px 0;">${player}</h4>
+                                <div style="display: flex; gap: 10px; justify-content: center;">
+                                    <button class="practice-btn" onclick="markSpellerCorrect(${index})" style="background: #28a745; font-size: 0.9rem; padding: 10px 20px;">
+                                        ✅ Correct
+                                    </button>
+                                    <button class="practice-btn" onclick="markSpellerIncorrect(${index})" style="background: #dc3545; font-size: 0.9rem; padding: 10px 20px;">
+                                        ❌ Wrong
+                                    </button>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                    
+                    <div style="text-align: center; margin-top: 30px;">
+                        <button class="practice-btn" onclick="nextCallerWord()" style="font-size: 1.2rem; padding: 15px 40px; background: #667eea;">
+                            ➡️ Next Word
+                        </button>
+                    </div>
+                ` : `
+                    <div style="text-align: center; padding: 40px;">
+                        <div style="font-size: 4rem; margin-bottom: 20px;">🏆</div>
+                        <h2 style="color: #0d3b66; margin-bottom: 20px;">Stage 4 Complete!</h2>
+                        <p style="font-size: 1.2rem; color: #666; margin: 20px 0;">
+                            Top ${liveStageParticipants.length} spellers advance to Stage 5
+                        </p>
+                        
+                        <div style="background: #d4edda; padding: 20px; border-radius: 10px; margin: 20px 0;">
+                            <h3 style="color: #155724; margin-bottom: 15px;">✅ Qualified for Stage 5:</h3>
+                            <div style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;">
+                                ${liveStageParticipants.map(player => `
+                                    <div style="background: white; padding: 15px 25px; border-radius: 10px; color: #155724; font-weight: bold; font-size: 1.1rem;">
+                                        🌟 ${player}
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                        
+                        <button class="practice-btn" onclick="proceedToStage5()" style="font-size: 1.2rem; padding: 15px 40px; margin: 10px;">
+                            ➡️ Proceed to Stage 5 (Top 5)
+                        </button>
+                        <button class="practice-btn" onclick="exitTournament()" style="font-size: 1rem; padding: 12px 30px; background: #6c757d; margin: 10px;">
+                            🏠 Exit Tournament
+                        </button>
+                    </div>
+                `}
+            </div>
+        </div>
+    `;
+}       
     </script>
 </body>
 </html>
