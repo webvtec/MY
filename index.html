@@ -15260,7 +15260,558 @@ function buildStage4CallerUI() {
             </div>
         </div>
     `;
-}       
+}   
+
+    // ===== TOURNAMENT STAGE 5 FUNCTIONS (Top 10 → Top 5) =====
+
+async function proceedToStage5() {
+    try {
+        console.log('🎯 Starting Stage 5: Live Spell Master (Top 10 → Top 5)');
+        
+        tournamentStage = 5;
+        currentLiveStageIndex = 0;
+        
+        // Keep current participants from Stage 4
+        if (liveStageParticipants.length > 10) {
+            liveStageParticipants = liveStageParticipants.slice(0, 10);
+        }
+        
+        eliminatedPlayers = [];
+        
+        // Generate words for Stage 5
+        await generateLiveStageWords(15); // 15 words for Stage 5
+        
+        // Hide Stage 4
+        const stage4 = document.getElementById('tournament-stage4');
+        if (stage4) stage4.style.display = 'none';
+        
+        // Create Stage 5 container
+        const tournamentsSection = document.querySelector('#tournaments-section .word-database');
+        let stage5Container = document.getElementById('tournament-stage5');
+        
+        if (!stage5Container) {
+            stage5Container = document.createElement('div');
+            stage5Container.id = 'tournament-stage5';
+            tournamentsSection.appendChild(stage5Container);
+        }
+        
+        stage5Container.style.display = 'block';
+        
+        // Show caller interface for Stage 5
+        buildStage5CallerUI();
+        
+    } catch (error) {
+        console.error('Error starting Stage 5:', error);
+        alert('Failed to start Stage 5: ' + error.message);
+    }
+}
+
+function buildStage5CallerUI() {
+    const container = document.getElementById('tournament-stage5');
+    const targetCount = 5; // Advance top 5
+    
+    container.innerHTML = `
+        <div class="quiz-question-card">
+            <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); padding: 20px; border-radius: 10px; margin-bottom: 20px; color: white;">
+                <h2 style="margin: 0 0 10px 0; color: white;">🎤 Stage 5: Live Spell Master (Top 10 → Top 5)</h2>
+                <p style="margin: 0; opacity: 0.9;">Spell until ${targetCount} spellers remain</p>
+            </div>
+            
+            <!-- Progress Bar -->
+            <div style="background: #f9f9f9; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                    <span style="color: #666; font-weight: bold;">Active: ${liveStageParticipants.length}</span>
+                    <span style="color: #667eea; font-weight: bold;">Target: ${targetCount}</span>
+                    <span style="color: #dc3545; font-weight: bold;">Eliminated: ${eliminatedPlayers.length}</span>
+                </div>
+                <div style="background: #e0e0e0; height: 20px; border-radius: 10px; overflow: hidden;">
+                    <div style="background: linear-gradient(90deg, #667eea, #764ba2); height: 100%; width: ${((liveStageParticipants.length / 10) * 100)}%; transition: width 0.3s;"></div>
+                </div>
+            </div>
+            
+            <!-- Active Players -->
+            <div style="background: #f9f9f9; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                <h3 style="color: #0d3b66; margin: 0 0 15px 0;">👥 Active Spellers (${liveStageParticipants.length})</h3>
+                <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                    ${liveStageParticipants.map(player => `
+                        <div style="background: #d4edda; padding: 10px 20px; border-radius: 20px; color: #155724; font-weight: bold;">
+                            ✅ ${player}
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+            
+            ${eliminatedPlayers.length > 0 ? `
+                <div style="background: #f8d7da; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                    <h3 style="color: #721c24; margin: 0 0 15px 0;">❌ Eliminated (${eliminatedPlayers.length})</h3>
+                    <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                        ${eliminatedPlayers.map(player => `
+                            <div style="background: white; padding: 10px 20px; border-radius: 20px; color: #721c24;">
+                                ${player}
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            ` : ''}
+            
+            <!-- Current Word -->
+            <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); padding: 30px; border-radius: 15px; margin: 20px 0; color: white; text-align: center;">
+                <h3 style="margin: 0 0 15px 0; color: white;">📝 Word ${currentLiveStageIndex + 1} of ${liveStageWords.length}</h3>
+                <div id="stage5-word-display" style="font-size: 3rem; font-weight: bold; margin: 20px 0; letter-spacing: 2px;">
+                    ${currentLiveStageIndex < liveStageWords.length ? liveStageWords[currentLiveStageIndex].toUpperCase() : 'COMPLETE'}
+                </div>
+                
+                ${currentLiveStageIndex < liveStageWords.length && liveStageParticipants.length > targetCount ? `
+                    <button class="practice-btn" onclick="speakStage5Word()" style="background: white; color: #0d3b66; font-size: 1.2rem; padding: 15px 40px; margin: 10px;">
+                        🔊 Pronounce Word
+                    </button>
+                    <button class="practice-btn" onclick="speakStage5Sentence()" style="background: rgba(255,255,255,0.9); color: #0d3b66; font-size: 1.1rem; padding: 12px 30px; margin: 10px;">
+                        💬 Use in Sentence
+                    </button>
+                ` : ''}
+            </div>
+            
+            <!-- Caller Controls -->
+            <div id="stage5-caller-controls">
+                ${liveStageParticipants.length > targetCount && currentLiveStageIndex < liveStageWords.length ? `
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 20px 0;">
+                        ${liveStageParticipants.map((player, index) => `
+                            <div style="background: white; padding: 20px; border-radius: 10px; border: 2px solid #0d3b66; text-align: center;">
+                                <h4 style="color: #0d3b66; margin: 0 0 15px 0;">${player}</h4>
+                                <div style="display: flex; gap: 10px; justify-content: center;">
+                                    <button class="practice-btn" onclick="markStage5Correct(${index})" style="background: #28a745; font-size: 0.9rem; padding: 10px 20px;">
+                                        ✅ Correct
+                                    </button>
+                                    <button class="practice-btn" onclick="markStage5Incorrect(${index})" style="background: #dc3545; font-size: 0.9rem; padding: 10px 20px;">
+                                        ❌ Wrong
+                                    </button>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                    
+                    <div style="text-align: center; margin-top: 30px;">
+                        <button class="practice-btn" onclick="nextStage5Word()" style="font-size: 1.2rem; padding: 15px 40px; background: #667eea;">
+                            ➡️ Next Word
+                        </button>
+                    </div>
+                ` : `
+                    <div style="text-align: center; padding: 40px;">
+                        <div style="font-size: 4rem; margin-bottom: 20px;">🏆</div>
+                        <h2 style="color: #0d3b66; margin-bottom: 20px;">Stage 5 Complete!</h2>
+                        <p style="font-size: 1.2rem; color: #666; margin: 20px 0;">
+                            Top ${liveStageParticipants.length} spellers advance to Stage 6
+                        </p>
+                        
+                        <div style="background: #d4edda; padding: 20px; border-radius: 10px; margin: 20px 0;">
+                            <h3 style="color: #155724; margin-bottom: 15px;">✅ Qualified for Stage 6:</h3>
+                            <div style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;">
+                                ${liveStageParticipants.map(player => `
+                                    <div style="background: white; padding: 15px 25px; border-radius: 10px; color: #155724; font-weight: bold; font-size: 1.1rem;">
+                                        🌟 ${player}
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                        
+                        <button class="practice-btn" onclick="proceedToStage6()" style="font-size: 1.2rem; padding: 15px 40px; margin: 10px;">
+                            ➡️ Proceed to Stage 6 (Top 5 → Top 3)
+                        </button>
+                        <button class="practice-btn" onclick="exitTournament()" style="font-size: 1rem; padding: 12px 30px; background: #6c757d; margin: 10px;">
+                            🏠 Exit Tournament
+                        </button>
+                    </div>
+                `}
+            </div>
+        </div>
+    `;
+}
+
+function speakStage5Word() {
+    const word = liveStageWords[currentLiveStageIndex];
+    const utterance = new SpeechSynthesisUtterance(word);
+    utterance.rate = 0.7;
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utterance);
+}
+
+async function speakStage5Sentence() {
+    const word = liveStageWords[currentLiveStageIndex];
+    
+    try {
+        const wordRef = db.collection('dictionary').doc(word.toLowerCase());
+        const wordDoc = await wordRef.get();
+        
+        let sentence = `The word is ${word}.`;
+        
+        if (wordDoc.exists) {
+            const data = wordDoc.data();
+            if (data.meanings && data.meanings.length > 0) {
+                for (let meaning of data.meanings) {
+                    if (meaning.example) {
+                        sentence = meaning.example;
+                        break;
+                    }
+                }
+            }
+        }
+        
+        const utterance = new SpeechSynthesisUtterance(sentence);
+        utterance.rate = 0.8;
+        window.speechSynthesis.cancel();
+        window.speechSynthesis.speak(utterance);
+        
+    } catch (error) {
+        console.error('Error getting sentence:', error);
+        speakStage5Word();
+    }
+}
+
+function markStage5Correct(playerIndex) {
+    // Player stays in the game
+    console.log(`✅ ${liveStageParticipants[playerIndex]} spelled correctly`);
+}
+
+function markStage5Incorrect(playerIndex) {
+    const player = liveStageParticipants[playerIndex];
+    
+    if (confirm(`❌ Are you sure ${player} spelled incorrectly? This will eliminate them.`)) {
+        eliminatedPlayers.push(player);
+        liveStageParticipants.splice(playerIndex, 1);
+        
+        // Rebuild UI
+        buildStage5CallerUI();
+    }
+}
+
+function nextStage5Word() {
+    currentLiveStageIndex++;
+    
+    if (liveStageParticipants.length <= 5) {
+        // Reached target - complete stage
+        buildStage5CallerUI();
+    } else if (currentLiveStageIndex >= liveStageWords.length) {
+        // Ran out of words but still too many players - generate more
+        alert('⚠️ Need more words! Generating additional words...');
+        generateLiveStageWords(10).then(() => {
+            currentLiveStageIndex = 0;
+            buildStage5CallerUI();
+        });
+    } else {
+        // Continue to next word
+        buildStage5CallerUI();
+    }
+}
+
+// ===== TOURNAMENT STAGE 6 FUNCTIONS (Top 5 → Top 3) =====
+
+async function proceedToStage6() {
+    try {
+        console.log('🎯 Starting Stage 6: Live Spell Master (Top 5 → Top 3)');
+        
+        tournamentStage = 6;
+        currentLiveStageIndex = 0;
+        
+        // Keep top 5 from Stage 5
+        if (liveStageParticipants.length > 5) {
+            liveStageParticipants = liveStageParticipants.slice(0, 5);
+        }
+        
+        eliminatedPlayers = [];
+        
+        // Generate words for Stage 6
+        await generateLiveStageWords(12); // 12 words for Stage 6
+        
+        // Hide Stage 5
+        const stage5 = document.getElementById('tournament-stage5');
+        if (stage5) stage5.style.display = 'none';
+        
+        // Create Stage 6 container
+        const tournamentsSection = document.querySelector('#tournaments-section .word-database');
+        let stage6Container = document.getElementById('tournament-stage6');
+        
+        if (!stage6Container) {
+            stage6Container = document.createElement('div');
+            stage6Container.id = 'tournament-stage6';
+            tournamentsSection.appendChild(stage6Container);
+        }
+        
+        stage6Container.style.display = 'block';
+        
+        // Show caller interface for Stage 6
+        buildStage6CallerUI();
+        
+    } catch (error) {
+        console.error('Error starting Stage 6:', error);
+        alert('Failed to start Stage 6: ' + error.message);
+    }
+}
+
+function buildStage6CallerUI() {
+    const container = document.getElementById('tournament-stage6');
+    const targetCount = 3; // Advance top 3
+    
+    container.innerHTML = `
+        <div class="quiz-question-card">
+            <div style="background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%); padding: 20px; border-radius: 10px; margin-bottom: 20px; color: #0d3b66;">
+                <h2 style="margin: 0 0 10px 0;">🎤 Stage 6: Live Spell Master (Top 5 → Top 3)</h2>
+                <p style="margin: 0; opacity: 0.9;">Spell until ${targetCount} finalists remain</p>
+            </div>
+            
+            <!-- Progress Bar -->
+            <div style="background: #f9f9f9; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                    <span style="color: #666; font-weight: bold;">Active: ${liveStageParticipants.length}</span>
+                    <span style="color: #FFD700; font-weight: bold;">Target: ${targetCount}</span>
+                    <span style="color: #dc3545; font-weight: bold;">Eliminated: ${eliminatedPlayers.length}</span>
+                </div>
+                <div style="background: #e0e0e0; height: 20px; border-radius: 10px; overflow: hidden;">
+                    <div style="background: linear-gradient(90deg, #FFD700, #FFA500); height: 100%; width: ${((liveStageParticipants.length / 5) * 100)}%; transition: width 0.3s;"></div>
+                </div>
+            </div>
+            
+            <!-- Active Players -->
+            <div style="background: #f9f9f9; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                <h3 style="color: #0d3b66; margin: 0 0 15px 0;">👥 Active Spellers (${liveStageParticipants.length})</h3>
+                <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                    ${liveStageParticipants.map(player => `
+                        <div style="background: #fff3cd; padding: 10px 20px; border-radius: 20px; color: #856404; font-weight: bold; border: 2px solid #FFD700;">
+                            ⭐ ${player}
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+            
+            ${eliminatedPlayers.length > 0 ? `
+                <div style="background: #f8d7da; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                    <h3 style="color: #721c24; margin: 0 0 15px 0;">❌ Eliminated (${eliminatedPlayers.length})</h3>
+                    <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                        ${eliminatedPlayers.map(player => `
+                            <div style="background: white; padding: 10px 20px; border-radius: 20px; color: #721c24;">
+                                ${player}
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            ` : ''}
+            
+            <!-- Current Word -->
+            <div style="background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%); padding: 30px; border-radius: 15px; margin: 20px 0; color: #0d3b66; text-align: center;">
+                <h3 style="margin: 0 0 15px 0;">📝 Word ${currentLiveStageIndex + 1} of ${liveStageWords.length}</h3>
+                <div id="stage6-word-display" style="font-size: 3rem; font-weight: bold; margin: 20px 0; letter-spacing: 2px;">
+                    ${currentLiveStageIndex < liveStageWords.length ? liveStageWords[currentLiveStageIndex].toUpperCase() : 'COMPLETE'}
+                </div>
+                
+                ${currentLiveStageIndex < liveStageWords.length && liveStageParticipants.length > targetCount ? `
+                    <button class="practice-btn" onclick="speakStage6Word()" style="background: white; color: #0d3b66; font-size: 1.2rem; padding: 15px 40px; margin: 10px;">
+                        🔊 Pronounce Word
+                    </button>
+                    <button class="practice-btn" onclick="speakStage6Sentence()" style="background: rgba(255,255,255,0.9); color: #0d3b66; font-size: 1.1rem; padding: 12px 30px; margin: 10px;">
+                        💬 Use in Sentence
+                    </button>
+                ` : ''}
+            </div>
+            
+            <!-- Caller Controls -->
+            <div id="stage6-caller-controls">
+                ${liveStageParticipants.length > targetCount && currentLiveStageIndex < liveStageWords.length ? `
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 20px 0;">
+                        ${liveStageParticipants.map((player, index) => `
+                            <div style="background: white; padding: 20px; border-radius: 10px; border: 2px solid #FFD700; text-align: center;">
+                                <h4 style="color: #0d3b66; margin: 0 0 15px 0;">⭐ ${player}</h4>
+                                <div style="display: flex; gap: 10px; justify-content: center;">
+                                    <button class="practice-btn" onclick="markStage6Correct(${index})" style="background: #28a745; font-size: 0.9rem; padding: 10px 20px;">
+                                        ✅ Correct
+                                    </button>
+                                    <button class="practice-btn" onclick="markStage6Incorrect(${index})" style="background: #dc3545; font-size: 0.9rem; padding: 10px 20px;">
+                                        ❌ Wrong
+                                    </button>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                    
+                    <div style="text-align: center; margin-top: 30px;">
+                        <button class="practice-btn" onclick="nextStage6Word()" style="font-size: 1.2rem; padding: 15px 40px; background: linear-gradient(135deg, #FFD700, #FFA500); color: #0d3b66;">
+                            ➡️ Next Word
+                        </button>
+                    </div>
+                ` : `
+                    <div style="text-align: center; padding: 40px;">
+                        <div style="font-size: 4rem; margin-bottom: 20px;">🏆</div>
+                        <h2 style="color: #0d3b66; margin-bottom: 20px;">Stage 6 Complete!</h2>
+                        <p style="font-size: 1.2rem; color: #666; margin: 20px 0;">
+                            Top ${liveStageParticipants.length} finalists advance to the <strong>FINAL SPELL-OFF</strong>
+                        </p>
+                        
+                        <div style="background: linear-gradient(135deg, #FFD700, #FFA500); padding: 30px; border-radius: 15px; margin: 20px 0;">
+                            <h3 style="margin-bottom: 15px; color: #0d3b66;">🌟 FINALISTS:</h3>
+                            <div style="display: flex; flex-wrap: wrap; gap: 15px; justify-content: center;">
+                                ${liveStageParticipants.map((player, idx) => `
+                                    <div style="background: white; padding: 20px 30px; border-radius: 15px; color: #0d3b66; font-weight: bold; font-size: 1.2rem; box-shadow: 0 5px 15px rgba(0,0,0,0.2);">
+                                        ${idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉'} ${player}
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                        
+                        <button class="practice-btn" onclick="proceedToStage7()" style="font-size: 1.3rem; padding: 20px 50px; margin: 10px; background: linear-gradient(135deg, #FFD700, #FFA500); color: #0d3b66; font-weight: bold;">
+                            🏆 START FINAL SPELL-OFF
+                        </button>
+                        <button class="practice-btn" onclick="exitTournament()" style="font-size: 1rem; padding: 12px 30px; background: #6c757d; margin: 10px;">
+                            🏠 Exit Tournament
+                        </button>
+                    </div>
+                `}
+            </div>
+        </div>
+    `;
+}
+
+function speakStage6Word() {
+    const word = liveStageWords[currentLiveStageIndex];
+    const utterance = new SpeechSynthesisUtterance(word);
+    utterance.rate = 0.7;
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utterance);
+}
+
+async function speakStage6Sentence() {
+    const word = liveStageWords[currentLiveStageIndex];
+    
+    try {
+        const wordRef = db.collection('dictionary').doc(word.toLowerCase());
+        const wordDoc = await wordRef.get();
+        
+        let sentence = `The word is ${word}.`;
+        
+        if (wordDoc.exists) {
+            const data = wordDoc.data();
+            if (data.meanings && data.meanings.length > 0) {
+                for (let meaning of data.meanings) {
+                    if (meaning.example) {
+                        sentence = meaning.example;
+                        break;
+                    }
+                }
+            }
+        }
+        
+        const utterance = new SpeechSynthesisUtterance(sentence);
+        utterance.rate = 0.8;
+        window.speechSynthesis.cancel();
+        window.speechSynthesis.speak(utterance);
+        
+    } catch (error) {
+        console.error('Error getting sentence:', error);
+        speakStage6Word();
+    }
+}
+
+function markStage6Correct(playerIndex) {
+    console.log(`✅ ${liveStageParticipants[playerIndex]} spelled correctly`);
+}
+
+function markStage6Incorrect(playerIndex) {
+    const player = liveStageParticipants[playerIndex];
+    
+    if (confirm(`❌ Are you sure ${player} spelled incorrectly? This will eliminate them from the finals.`)) {
+        eliminatedPlayers.push(player);
+        liveStageParticipants.splice(playerIndex, 1);
+        
+        buildStage6CallerUI();
+    }
+}
+
+function nextStage6Word() {
+    currentLiveStageIndex++;
+    
+    if (liveStageParticipants.length <= 3) {
+        buildStage6CallerUI();
+    } else if (currentLiveStageIndex >= liveStageWords.length) {
+        alert('⚠️ Need more words! Generating additional words...');
+        generateLiveStageWords(10).then(() => {
+            currentLiveStageIndex = 0;
+            buildStage6CallerUI();
+        });
+    } else {
+        buildStage6CallerUI();
+    }
+}
+
+// ===== TOURNAMENT STAGE 7 FUNCTIONS (Final Spell-Off: Top 3 → Champion) =====
+
+async function proceedToStage7() {
+    try {
+        console.log('🏆 Starting Stage 7: FINAL SPELL-OFF');
+        
+        tournamentStage = 7;
+        currentLiveStageIndex = 0;
+        currentSpellerIndex = 0;
+        
+        // Keep top 3 from Stage 6
+        if (liveStageParticipants.length > 3) {
+            liveStageParticipants = liveStageParticipants.slice(0, 3);
+        }
+        
+        eliminatedPlayers = [];
+        finalRoundSpelling = null;
+        
+        // Generate words for Final Round (championship level)
+        selectedGameLevel = 'championship';
+        await generateLiveStageWords(20); // 20 championship words
+        
+        // Hide Stage 6
+        const stage6 = document.getElementById('tournament-stage6');
+        if (stage6) stage6.style.display = 'none';
+        
+        // Create Stage 7 container
+        const tournamentsSection = document.querySelector('#tournaments-section .word-database');
+        let stage7Container = document.getElementById('tournament-stage7');
+        
+        if (!stage7Container) {
+            stage7Container = document.createElement('div');
+            stage7Container.id = 'tournament-stage7';
+            tournamentsSection.appendChild(stage7Container);
+        }
+        
+        stage7Container.style.display = 'block';
+        
+        // Show final spell-off interface
+        buildStage7UI();
+        
+    } catch (error) {
+        console.error('Error starting Stage 7:', error);
+        alert('Failed to start Final Spell-Off: ' + error.message);
+    }
+}
+
+function buildStage7UI() {
+    const container = document.getElementById('tournament-stage7');
+    
+    // Check if we have a winner
+    if (liveStageParticipants.length === 1) {
+        showTournamentWinner();
+        return;
+    }
+    
+    const currentSpeller = liveStageParticipants[currentSpellerIndex];
+    const currentWord = liveStageWords[currentLiveStageIndex];
+    
+    container.innerHTML = `
+        <div class="quiz-question-card">
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 15px; margin-bottom: 20px; color: white; text-align: center;">
+                <h1 style="margin: 0 0 10px 0; color: white; font-size: 2.5rem;">🏆 FINAL SPELL-OFF 🏆</h1>
+                <p style="margin: 0; opacity: 0.9; font-size: 1.2rem;">Classic Turn-Based Spelling • One Wrong Disqualifies</p>
+            </div>
+            
+            <!-- Remaining Finalists -->
+            <div style="background: #f9f9f9; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                <h3 style="color: #0d3b66; margin: 0 0 15px 0; text-align: center;">🌟 Remaining Finalists (${liveStageParticipants.length})</h3>
+                <div style="display: flex; flex-wrap: wrap; gap: 15px; justify-content: center;">
+                    ${liveStageParticipants.map((player, idx) => `
+                        <div style="background: ${player === currentSpeller ? 'linear-gradient(135deg, #FFD700, #FFA500)' : 'white'}; padding: 20px 30px; border-radius: 15px; color: #0d3b66; font-weight: bold; font-size: 1.2rem; border: 3px solid ${player === currentSpeller ? '#FFD700' : '#e0e0e0'}; box-shadow: ${player === currentSpeller ? '0 5px 20px rgba(255,215,0,0.5)' : '0 2px 8px rgba(0,0,0,0.1)'}; transition: all 0.3s;">
+                            ${player === currentSpeller ? '        
     </script>
 </body>
 </html>
