@@ -4849,7 +4849,7 @@ auth.onAuthStateChanged(async user => {
         console.log('📄 Firestore photoURL:', userData.photoURL);
         
         if (user.photoURL && !userData.photoURL) {
-            console.log('🔄 Syncing photoURL to Firestore...');
+            console.log('📄 Syncing photoURL to Firestore...');
             await userRef.update({
                 photoURL: user.photoURL
             });
@@ -4858,7 +4858,7 @@ auth.onAuthStateChanged(async user => {
         
         // ✅ INITIALIZE SPELLING STATS IF NOT EXISTS
         if (!userData.spellingStats) {
-            console.log('🔄 Initializing spelling stats...');
+            console.log('📄 Initializing spelling stats...');
             await userRef.update({
                 spellingStats: {
                     totalChallenges: 0,
@@ -4872,7 +4872,7 @@ auth.onAuthStateChanged(async user => {
             console.log('✅ Spelling stats initialized!');
         }
         
-        // ✅ CHECK ADMIN STATUS HERE (when user is signed in)
+        // ✅ CHECK ADMIN STATUS HERE (CRITICAL - RIGHT AFTER USER DATA IS LOADED)
         await checkAdminStatus();
         
         // ✅ CHECK USER TYPE AND HANDLE ACCORDINGLY
@@ -5056,14 +5056,20 @@ async function navigateTo(section, skipSidebarClose = false) {
         await loadParentDashboard();
     }
     
+    // ✅ LOAD ADMIN PANEL WHEN NAVIGATING TO IT
+    if (section === 'admin' && currentUser) {
+        console.log('🎯 Navigating to admin panel. isAdmin:', isAdmin);
+        if (!isAdmin) {
+            alert('❌ Admin access required. Please sign in with an admin account.');
+            navigateTo('home');
+            return;
+        }
+        await loadAdminPanel();
+    }
+    
     if (!skipSidebarClose) {
         toggleSidebar(true);
     }
-
-    // Inside navigateTo function, add:
-if (section === 'admin' && currentUser) {
-    await loadAdminPanel();
-}
 }
         
        function toggleSidebar(forceClose = false) {
@@ -16201,39 +16207,45 @@ function showTournamentWinner() {
 
 
 // ===== ADMIN CONFIGURATION =====
-const ADMIN_EMAIL = 'carlanviroberts@gmail.com'; // 🔴 CHANGE THIS TO YOUR ADMIN EMAIL
+// ===== ADMIN CONFIGURATION =====
+const ADMIN_EMAIL = 'carlanviroberts@gmail.com'; // ⚠️ CHANGE THIS TO YOUR ADMIN EMAIL
 let isAdmin = false;
 
 // Check if current user is admin
 async function checkAdminStatus() {
     if (!currentUser) {
         isAdmin = false;
-        updateAdminUI(); // Update UI when no user
+        updateAdminUI();
+        console.log('❌ No current user - admin status: false');
         return false;
     }
     
     try {
-        const userDoc = await db.collection('users').doc(currentUser.uid).get();
+        console.log('🔍 Checking admin status for:', currentUser.email);
+        console.log('🔍 Admin email configured as:', ADMIN_EMAIL);
         
-        if (!userDoc.exists) {
-            console.log('❌ User document not found');
-            isAdmin = false;
+        // Check email directly first
+        if (currentUser.email === ADMIN_EMAIL) {
+            isAdmin = true;
+            console.log('✅ ADMIN DETECTED via email match!');
             updateAdminUI();
-            return false;
+            return true;
         }
         
-        const userData = userDoc.data();
+        // Also check Firestore user document
+        const userDoc = await db.collection('users').doc(currentUser.uid).get();
         
-        // Check if user email matches admin email
-        isAdmin = (userData?.email === ADMIN_EMAIL || currentUser.email === ADMIN_EMAIL);
+        if (userDoc.exists) {
+            const userData = userDoc.data();
+            isAdmin = (userData?.email === ADMIN_EMAIL);
+            console.log('📄 Firestore check - Admin status:', isAdmin);
+        } else {
+            console.log('⚠️ User document not found in Firestore');
+        }
         
-        console.log('👤 Checking admin status for:', currentUser.email);
-        console.log('👤 Admin status:', isAdmin);
-        
-        // Show/hide admin controls
         updateAdminUI();
-        
         return isAdmin;
+        
     } catch (error) {
         console.error('❌ Error checking admin status:', error);
         isAdmin = false;
@@ -16245,7 +16257,7 @@ async function checkAdminStatus() {
 function updateAdminUI() {
     console.log('🔄 Updating admin UI. isAdmin:', isAdmin);
     
-    // Show/hide admin section in sidebar
+    // Show/hide admin link in sidebar
     const adminLink = document.getElementById('admin-nav-link');
     if (adminLink) {
         adminLink.style.display = isAdmin ? 'block' : 'none';
@@ -16253,22 +16265,16 @@ function updateAdminUI() {
     } else {
         console.log('⚠️ Admin link element not found in DOM');
     }
-    
-    // Show/hide create tournament button (if on admin page)
-    const createBtn = document.getElementById('create-tournament-section');
-    if (createBtn) {
-        createBtn.style.display = isAdmin ? 'block' : 'none';
-    }
 }
-
-
 // ===== ADMIN TOURNAMENT MANAGEMENT =====
 
 async function loadAdminPanel() {
     if (!isAdmin) {
         document.getElementById('admin-container').innerHTML = `
-            <div class="feedback error">
-                ❌ Access Denied. Admin privileges required.
+            <div class="feedback error" style="text-align: center; padding: 40px;">
+                ❌ <strong>Access Denied</strong><br><br>
+                Admin privileges required.<br>
+                Current user: ${currentUser ? currentUser.email : 'Not signed in'}
             </div>
         `;
         return;
@@ -16367,6 +16373,7 @@ async function loadAdminPanel() {
     }
 }
 
+        
 function showCreateTournamentModal() {
     const modal = document.createElement('div');
     modal.className = 'auth-modal';
