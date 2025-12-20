@@ -5070,6 +5070,10 @@ async function navigateTo(section, skipSidebarClose = false) {
     if (!skipSidebarClose) {
         toggleSidebar(true);
     }
+
+    if (section === 'tournaments') {
+    await loadTournamentList();
+}
 }
         
        function toggleSidebar(forceClose = false) {
@@ -16474,6 +16478,8 @@ async function handleCreateTournament(event) {
     const errorDiv = document.getElementById('create-tournament-error');
     
     try {
+        console.log('📝 Creating tournament:', name);
+        
         // Create tournament in Firestore
         const tournamentRef = await db.collection('tournaments').add({
             name: name,
@@ -16495,11 +16501,17 @@ async function handleCreateTournament(event) {
         
         alert('✅ Tournament created successfully!');
         
-        // Reload admin panel
-        loadAdminPanel();
+        // ✅ Reload admin panel
+        await loadAdminPanel();
+        
+        // ✅ ALSO reload tournament list if we're on tournaments page
+        const tournamentsSection = document.getElementById('tournaments-section');
+        if (tournamentsSection && tournamentsSection.classList.contains('active')) {
+            await loadTournamentList();
+        }
         
     } catch (error) {
-        console.error('Error creating tournament:', error);
+        console.error('❌ Error creating tournament:', error);
         errorDiv.textContent = 'Failed to create tournament: ' + error.message;
         errorDiv.style.display = 'block';
     }
