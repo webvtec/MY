@@ -16198,6 +16198,8 @@ function showTournamentWinner() {
 }
 
 
+
+
 // ===== ADMIN CONFIGURATION =====
 const ADMIN_EMAIL = 'carlanviroberts@gmail.com'; // 🔴 CHANGE THIS TO YOUR ADMIN EMAIL
 let isAdmin = false;
@@ -16206,16 +16208,26 @@ let isAdmin = false;
 async function checkAdminStatus() {
     if (!currentUser) {
         isAdmin = false;
+        updateAdminUI(); // Update UI when no user
         return false;
     }
     
     try {
         const userDoc = await db.collection('users').doc(currentUser.uid).get();
+        
+        if (!userDoc.exists) {
+            console.log('❌ User document not found');
+            isAdmin = false;
+            updateAdminUI();
+            return false;
+        }
+        
         const userData = userDoc.data();
         
         // Check if user email matches admin email
         isAdmin = (userData?.email === ADMIN_EMAIL || currentUser.email === ADMIN_EMAIL);
         
+        console.log('👤 Checking admin status for:', currentUser.email);
         console.log('👤 Admin status:', isAdmin);
         
         // Show/hide admin controls
@@ -16223,20 +16235,26 @@ async function checkAdminStatus() {
         
         return isAdmin;
     } catch (error) {
-        console.error('Error checking admin status:', error);
+        console.error('❌ Error checking admin status:', error);
         isAdmin = false;
+        updateAdminUI();
         return false;
     }
 }
 
 function updateAdminUI() {
+    console.log('🔄 Updating admin UI. isAdmin:', isAdmin);
+    
     // Show/hide admin section in sidebar
     const adminLink = document.getElementById('admin-nav-link');
     if (adminLink) {
         adminLink.style.display = isAdmin ? 'block' : 'none';
+        console.log('✅ Admin link display set to:', isAdmin ? 'block' : 'none');
+    } else {
+        console.log('⚠️ Admin link element not found in DOM');
     }
     
-    // Show/hide create tournament button
+    // Show/hide create tournament button (if on admin page)
     const createBtn = document.getElementById('create-tournament-section');
     if (createBtn) {
         createBtn.style.display = isAdmin ? 'block' : 'none';
