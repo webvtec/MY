@@ -4872,6 +4872,9 @@ auth.onAuthStateChanged(async user => {
             console.log('✅ Spelling stats initialized!');
         }
         
+        // ✅ CHECK ADMIN STATUS HERE (when user is signed in)
+        await checkAdminStatus();
+        
         // ✅ CHECK USER TYPE AND HANDLE ACCORDINGLY
         if (userData.userType === 'parent') {
             // Parent user - no profile completion needed
@@ -4921,8 +4924,10 @@ auth.onAuthStateChanged(async user => {
         }
     } else {
         currentUser = null;
+        isAdmin = false; // ✅ Reset admin status when signed out
         updateUIForGuestUser();
-         await checkAdminStatus();
+        // ✅ Update UI to hide admin link
+        updateAdminUI();
     }
 });
     });
