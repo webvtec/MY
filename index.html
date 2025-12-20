@@ -14202,9 +14202,8 @@ async function loadTournamentList() {
     container.innerHTML = '<div class="loading">Loading tournaments...</div>';
     
     try {
-        // Load tournaments from Firestore
+        // ✅ MODIFIED: Fetch all tournaments, then filter in JavaScript
         const tournamentsSnapshot = await db.collection('tournaments')
-            .where('status', 'in', ['upcoming', 'active'])
             .orderBy('startDate', 'asc')
             .get();
         
@@ -14224,10 +14223,32 @@ async function loadTournamentList() {
             return;
         }
         
+        // ✅ Filter in JavaScript instead of Firestore query
         const tournaments = [];
         tournamentsSnapshot.forEach(doc => {
-            tournaments.push({ id: doc.id, ...doc.data() });
+            const data = doc.data();
+            // Only show upcoming or active tournaments
+            if (data.status === 'upcoming' || data.status === 'active') {
+                tournaments.push({ id: doc.id, ...data });
+            }
         });
+        
+        // ✅ Handle case where no tournaments match filter
+        if (tournaments.length === 0) {
+            container.innerHTML = `
+                <div style="text-align: center; padding: 40px;">
+                    <div style="font-size: 3rem; margin-bottom: 20px;">🏆</div>
+                    <h3 style="color: #0d3b66; margin-bottom: 15px;">No Active Tournaments</h3>
+                    <p style="color: #666;">Check back later for upcoming spelling tournaments!</p>
+                    ${isAdmin ? `
+                        <button class="practice-btn" onclick="navigateTo('admin')" style="margin-top: 20px; background: linear-gradient(135deg, #667eea, #764ba2);">
+                            ⚙️ Go to Admin Panel
+                        </button>
+                    ` : ''}
+                </div>
+            `;
+            return;
+        }
         
         container.innerHTML = tournaments.map(tournament => {
             const isFull = tournament.participants >= tournament.maxParticipants;
@@ -14295,7 +14316,7 @@ async function loadTournamentList() {
                                 `
                             ) : `
                                 <button class="practice-btn" onclick="showAuthModal()" style="font-size: 1.1rem; padding: 12px 30px;">
-                                    🔐 Sign In to Join
+                                    📝 Sign In to Join
                                 </button>
                             `}
                         </div>
