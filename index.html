@@ -2652,6 +2652,29 @@
     font-weight: bold;
     color: #0d3b66;
 }
+
+
+ @keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7);
+    }
+    50% {
+        transform: scale(1.05);
+        box-shadow: 0 0 0 10px rgba(40, 167, 69, 0);
+    }
+}       
     </style>
 </head>
     </style>
@@ -4922,13 +4945,19 @@ auth.onAuthStateChanged(async user => {
                 loadUserDashboard();
             }
         }
-    } else {
-        currentUser = null;
-        isAdmin = false; // ✅ Reset admin status when signed out
-        updateUIForGuestUser();
-        // ✅ Update UI to hide admin link
-        updateAdminUI();
+   } else {
+    currentUser = null;
+    isAdmin = false;
+    
+    // ✅ Clean up tournament listeners
+    if (tournamentListeners) {
+        tournamentListeners.forEach(unsubscribe => unsubscribe());
+        tournamentListeners = [];
     }
+    
+    updateUIForGuestUser();
+    updateAdminUI();
+}
 });
     });
         
@@ -14202,7 +14231,6 @@ async function loadTournamentList() {
     container.innerHTML = '<div class="loading">Loading tournaments...</div>';
     
     try {
-        // ✅ MODIFIED: Fetch all tournaments, then filter in JavaScript
         const tournamentsSnapshot = await db.collection('tournaments')
             .orderBy('startDate', 'asc')
             .get();
@@ -14213,38 +14241,25 @@ async function loadTournamentList() {
                     <div style="font-size: 3rem; margin-bottom: 20px;">🏆</div>
                     <h3 style="color: #0d3b66; margin-bottom: 15px;">No Active Tournaments</h3>
                     <p style="color: #666;">Check back later for upcoming spelling tournaments!</p>
-                    ${isAdmin ? `
-                        <button class="practice-btn" onclick="navigateTo('admin')" style="margin-top: 20px; background: linear-gradient(135deg, #667eea, #764ba2);">
-                            ⚙️ Go to Admin Panel
-                        </button>
-                    ` : ''}
                 </div>
             `;
             return;
         }
         
-        // ✅ Filter in JavaScript instead of Firestore query
         const tournaments = [];
         tournamentsSnapshot.forEach(doc => {
             const data = doc.data();
-            // Only show upcoming or active tournaments
             if (data.status === 'upcoming' || data.status === 'active') {
                 tournaments.push({ id: doc.id, ...data });
             }
         });
         
-        // ✅ Handle case where no tournaments match filter
         if (tournaments.length === 0) {
             container.innerHTML = `
                 <div style="text-align: center; padding: 40px;">
                     <div style="font-size: 3rem; margin-bottom: 20px;">🏆</div>
                     <h3 style="color: #0d3b66; margin-bottom: 15px;">No Active Tournaments</h3>
                     <p style="color: #666;">Check back later for upcoming spelling tournaments!</p>
-                    ${isAdmin ? `
-                        <button class="practice-btn" onclick="navigateTo('admin')" style="margin-top: 20px; background: linear-gradient(135deg, #667eea, #764ba2);">
-                            ⚙️ Go to Admin Panel
-                        </button>
-                    ` : ''}
                 </div>
             `;
             return;
@@ -14293,30 +14308,36 @@ async function loadTournamentList() {
                         
                         <div style="text-align: center;">
                             <div style="background: ${statusColor[tournament.status]}; color: white; padding: 8px 20px; border-radius: 20px; font-weight: bold; margin-bottom: 15px;">
-                                ${tournament.status === 'upcoming' ? '📅 Upcoming' : tournament.status === 'active' ? '▶️ Active' : '✅ Completed'}
+                                ${tournament.status === 'upcoming' ? '📅 Upcoming' : tournament.status === 'active' ? '▶️ Live Now' : '✅ Completed'}
                             </div>
                             
                             ${currentUser ? (
-                                isRegistered ? `
-                                    <button class="practice-btn" disabled style="background: #28a745; opacity: 0.7; cursor: not-allowed;">
-                                        ✅ Registered
-                                    </button>
-                                ` : isFull ? `
+                                isRegistered ? (
+                                    tournament.status === 'active' && tournament.sessionActive ? `
+                                        <button class="practice-btn" onclick="joinLiveTournament('${tournament.id}')" style="background: #28a745; animation: pulse 2s infinite;">
+                                            ⚡ JOIN NOW - LIVE!
+                                        </button>
+                                    ` : `
+                                        <button class="practice-btn" disabled style="background: #28a745; opacity: 0.7; cursor: not-allowed;">
+                                            ✅ Registered
+                                        </button>
+                                    `
+                                ) : isFull ? `
                                     <button class="practice-btn" disabled style="opacity: 0.5; cursor: not-allowed;">
                                         🔒 Full
                                     </button>
-                                ` : tournament.status === 'active' ? `
-                                    <button class="practice-btn" onclick="startTournamentStage1('${tournament.id}')" style="font-size: 1.1rem; padding: 12px 30px;">
-                                        🎯 Join Now
-                                    </button>
-                                ` : `
+                                ` : tournament.status === 'upcoming' ? `
                                     <button class="practice-btn" onclick="registerForTournament('${tournament.id}')" style="font-size: 1.1rem; padding: 12px 30px;">
                                         📝 Register
+                                    </button>
+                                ` : `
+                                    <button class="practice-btn" disabled style="opacity: 0.5;">
+                                        Tournament Started
                                     </button>
                                 `
                             ) : `
                                 <button class="practice-btn" onclick="showAuthModal()" style="font-size: 1.1rem; padding: 12px 30px;">
-                                    📝 Sign In to Join
+                                    🔐 Sign In to Join
                                 </button>
                             `}
                         </div>
@@ -14324,6 +14345,11 @@ async function loadTournamentList() {
                 </div>
             `;
         }).join('');
+        
+        // ✅ SET UP REAL-TIME LISTENERS FOR REGISTERED TOURNAMENTS
+        if (currentUser) {
+            setupTournamentListeners(tournaments);
+        }
         
     } catch (error) {
         console.error('Error loading tournaments:', error);
@@ -16549,21 +16575,131 @@ async function viewTournament(tournamentId) {
         
         const tournament = { id: tournamentDoc.id, ...tournamentDoc.data() };
         
-        alert(`
-🏆 ${tournament.name}
-
-📝 Description: ${tournament.description}
-📊 Level: ${tournament.level}
-📅 Date: ${tournament.startDate} at ${tournament.startTime}
-👥 Participants: ${tournament.participants} / ${tournament.maxParticipants}
-⚡ Status: ${tournament.status}
-
-Created: ${tournament.createdAt ? new Date(tournament.createdAt.toDate()).toLocaleString() : 'Unknown'}
-        `);
+        // Create detailed view modal
+        const modal = document.createElement('div');
+        modal.className = 'auth-modal';
+        modal.id = 'viewTournamentModal';
+        modal.style.display = 'block';
+        modal.classList.add('active');
+        
+        modal.innerHTML = `
+            <div class="auth-content" style="max-width: 700px;">
+                <div class="auth-header" style="background: linear-gradient(135deg, #17a2b8, #138496);">
+                    <h2 style="color: white;">👁️ ${tournament.name}</h2>
+                    <button class="modal-close" onclick="closeViewTournamentModal()" style="color: white;">×</button>
+                </div>
+                <div class="auth-body">
+                    <div style="margin-bottom: 20px;">
+                        <h4 style="color: #0d3b66; margin-bottom: 10px;">📋 Description</h4>
+                        <p style="color: #666;">${tournament.description}</p>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+                        <div>
+                            <strong>📊 Level:</strong> ${tournament.level}
+                        </div>
+                        <div>
+                            <strong>📅 Date:</strong> ${tournament.startDate}
+                        </div>
+                        <div>
+                            <strong>🕐 Time:</strong> ${tournament.startTime}
+                        </div>
+                        <div>
+                            <strong>⚡ Status:</strong> ${tournament.status}
+                        </div>
+                        <div>
+                            <strong>👥 Registered:</strong> ${tournament.participants} / ${tournament.maxParticipants}
+                        </div>
+                        <div>
+                            <strong>🎮 Session:</strong> ${tournament.sessionActive ? 'LIVE ✅' : 'Not Started'}
+                        </div>
+                    </div>
+                    
+                    ${tournament.registeredUsers && tournament.registeredUsers.length > 0 ? `
+                        <div style="background: #f9f9f9; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
+                            <h4 style="color: #0d3b66; margin-bottom: 10px;">👥 Registered Users (${tournament.registeredUsers.length})</h4>
+                            <div style="max-height: 200px; overflow-y: auto;">
+                                ${await getRegisteredUserNames(tournament.registeredUsers)}
+                            </div>
+                        </div>
+                    ` : '<p style="color: #999;">No users registered yet</p>'}
+                    
+                    <div style="display: flex; gap: 10px; margin-top: 20px;">
+                        ${!tournament.sessionActive && tournament.status === 'active' && tournament.participants > 0 ? `
+                            <button class="practice-btn" onclick="startTournamentSession('${tournamentId}')" style="flex: 1; background: #28a745; font-size: 1.1rem;">
+                                🚀 START TOURNAMENT
+                            </button>
+                        ` : tournament.sessionActive ? `
+                            <button class="practice-btn" disabled style="flex: 1; background: #28a745; opacity: 0.7;">
+                                ✅ Tournament Running
+                            </button>
+                        ` : ''}
+                        
+                        <button class="practice-btn" onclick="closeViewTournamentModal()" style="flex: 1; background: #6c757d;">
+                            Close
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
         
     } catch (error) {
         console.error('Error viewing tournament:', error);
         alert('Failed to load tournament details');
+    }
+}
+
+async function getRegisteredUserNames(userIds) {
+    const names = [];
+    for (const uid of userIds) {
+        try {
+            const userDoc = await db.collection('users').doc(uid).get();
+            if (userDoc.exists) {
+                const userData = userDoc.data();
+                names.push(`<div style="padding: 5px; border-bottom: 1px solid #e0e0e0;">• ${userData.firstName} ${userData.lastName} (${userData.email})</div>`);
+            }
+        } catch (error) {
+            console.error('Error fetching user:', error);
+        }
+    }
+    return names.join('');
+}
+
+function closeViewTournamentModal() {
+    const modal = document.getElementById('viewTournamentModal');
+    if (modal) {
+        modal.remove();
+    }
+}
+
+// ✅ NEW: Start tournament session (Admin only)
+async function startTournamentSession(tournamentId) {
+    if (!isAdmin) {
+        alert('❌ Admin access required');
+        return;
+    }
+    
+    if (!confirm('🚀 Start this tournament now? All registered users will be notified.')) {
+        return;
+    }
+    
+    try {
+        await db.collection('tournaments').doc(tournamentId).update({
+            sessionActive: true,
+            sessionStartedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            sessionJoined: []
+        });
+        
+        alert('✅ Tournament started! Registered users will be notified.');
+        
+        closeViewTournamentModal();
+        loadAdminPanel();
+        
+    } catch (error) {
+        console.error('Error starting tournament:', error);
+        alert('Failed to start tournament: ' + error.message);
     }
 }
 
@@ -16730,6 +16866,106 @@ async function deleteTournament(tournamentId) {
             console.error('Error deleting tournament:', error);
             alert('Failed to delete tournament: ' + error.message);
         }
+    }
+}        
+
+// ✅ NEW: Setup real-time listeners for tournaments user is registered for
+let tournamentListeners = [];
+
+function setupTournamentListeners(tournaments) {
+    // Clean up old listeners
+    tournamentListeners.forEach(unsubscribe => unsubscribe());
+    tournamentListeners = [];
+    
+    tournaments.forEach(tournament => {
+        if (tournament.registeredUsers?.includes(currentUser.uid)) {
+            console.log('👀 Watching tournament:', tournament.name);
+            
+            const unsubscribe = db.collection('tournaments').doc(tournament.id)
+                .onSnapshot(doc => {
+                    const data = doc.data();
+                    
+                    // Check if tournament just went live
+                    if (data.status === 'active' && data.sessionActive && !data.sessionJoined?.includes(currentUser.uid)) {
+                        showTournamentStartNotification(tournament.id, data);
+                    }
+                });
+            
+            tournamentListeners.push(unsubscribe);
+        }
+    });
+}
+
+// ✅ NEW: Show notification when tournament starts
+function showTournamentStartNotification(tournamentId, tournamentData) {
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: linear-gradient(135deg, #28a745, #20c997);
+        color: white;
+        padding: 25px;
+        border-radius: 15px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        z-index: 10000;
+        max-width: 400px;
+        animation: slideIn 0.5s ease-out;
+    `;
+    
+    notification.innerHTML = `
+        <div style="font-size: 2rem; margin-bottom: 10px;">🏆</div>
+        <h3 style="margin: 0 0 10px 0; color: white;">Tournament Starting!</h3>
+        <p style="margin: 0 0 15px 0; opacity: 0.9;">${tournamentData.name} is now LIVE!</p>
+        <button onclick="joinLiveTournament('${tournamentId}')" class="practice-btn" style="background: white; color: #28a745; width: 100%; font-weight: bold;">
+            ⚡ JOIN NOW
+        </button>
+        <button onclick="this.parentElement.remove()" style="position: absolute; top: 10px; right: 10px; background: transparent; border: none; color: white; font-size: 1.5rem; cursor: pointer;">×</button>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Auto-remove after 30 seconds
+    setTimeout(() => {
+        if (notification.parentElement) {
+            notification.remove();
+        }
+    }, 30000);
+}
+
+// ✅ NEW: Join live tournament
+async function joinLiveTournament(tournamentId) {
+    try {
+        const tournamentDoc = await db.collection('tournaments').doc(tournamentId).get();
+        
+        if (!tournamentDoc.exists) {
+            alert('Tournament not found');
+            return;
+        }
+        
+        const tournament = tournamentDoc.data();
+        
+        // Check if user is registered
+        if (!tournament.registeredUsers?.includes(currentUser.uid)) {
+            alert('You must be registered to join this tournament');
+            return;
+        }
+        
+        // Mark user as joined
+        await db.collection('tournaments').doc(tournamentId).update({
+            sessionJoined: firebase.firestore.FieldValue.arrayUnion(currentUser.uid)
+        });
+        
+        // Set current tournament
+        currentTournament = tournamentId;
+        selectedGameLevel = tournament.level;
+        
+        // Start Stage 1
+        await startTournamentStage1(tournamentId);
+        
+    } catch (error) {
+        console.error('Error joining tournament:', error);
+        alert('Failed to join tournament: ' + error.message);
     }
 }        
     </script>
