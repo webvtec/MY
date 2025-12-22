@@ -13940,7 +13940,17 @@ function closeSponsorModal() {
 
 async function startTournamentStage1(tournamentId) {
     try {
-        console.log('🏆 Starting Tournament Stage 1:', tournamentId);
+        console.log('🏆 Joining Tournament Stage 1:', tournamentId);
+        
+        const tournamentRef = db.collection('tournaments').doc(tournamentId);
+        const tournamentDoc = await tournamentRef.get();
+        
+        if (!tournamentDoc.exists) {
+            throw new Error('Tournament not found');
+        }
+        
+        const tournamentData = tournamentDoc.data();
+        selectedGameLevel = tournamentData.level || 'challenge';
         
         currentTournament = tournamentId;
         tournamentStage = 1;
@@ -13948,14 +13958,64 @@ async function startTournamentStage1(tournamentId) {
         stage1Score = 0;
         stage1Errors = 0;
         stage1Handicaps = 2;
-        stage1TimeLeft = 600; // 10 minutes
+        stage1TimeLeft = 600;
+        
+        // ✅ Check if questions already exist (first player generates, others use same)
+        const questionsSnapshot = await tournamentRef.collection('stage1Questions').get();
+        
+        if (questionsSnapshot.empty) {
+            console.log('📝 Generating questions for all players...');
+            
+            // First player to join generates questions
+            await generateStage1Questions();
+            
+            // Save questions to Firestore so all players use the same questions
+            const batch = db.batch();
+            stage1Questions.forEach((question, index) => {
+                const questionRef = tournamentRef.collection('stage1Questions').doc(`q${index}`);
+                batch.set(questionRef, question);
+            });
+            await batch.commit();
+            
+            console.log('✅ Questions saved to Firestore');
+        } else {
+            console.log('📥 Loading existing questions...');
+            
+            // Load questions from Firestore
+            stage1Questions = [];
+            questionsSnapshot.forEach(doc => {
+                stage1Questions.push(doc.data());
+            });
+            
+            // Sort by document ID to maintain order
+            stage1Questions.sort((a, b) => {
+                const aNum = parseInt(a.word) || 0;
+                const bNum = parseInt(b.word) || 0;
+                return aNum - bNum;
+            });
+            
+            console.log('✅ Loaded', stage1Questions.length, 'questions');
+        }
+        
+        // ✅ Create participant document for real-time tracking
+        await tournamentRef.collection('participants').doc(currentUser.uid).set({
+            userId: currentUser.uid,
+            name: currentUser.displayName || currentUser.email,
+            stage: 1,
+            score: 0,
+            errors: 0,
+            handicaps: 2,
+            currentQuestion: 0,
+            status: 'active',
+            joinedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
         
         // Hide lobby, show stage 1
         document.getElementById('tournament-lobby').style.display = 'none';
         document.getElementById('tournament-stage1').style.display = 'block';
         
-        // Generate 25 antonym/synonym questions
-        await generateStage1Questions();
+        // ✅ Setup real-time leaderboard
+        setupStage1Leaderboard(tournamentId);
         
         // Start timer
         startStage1Timer();
@@ -13968,49 +14028,124 @@ async function startTournamentStage1(tournamentId) {
         alert('Failed to start tournament: ' + error.message);
     }
 }
-
 async function generateStage1Questions() {
     try {
-        // Load words from current level
-        if (!selectedGameLevel) {
-            selectedGameLevel = 'challenge'; // Default to challenge level
+        console.log('🎯 Fetching words from database for level:', selectedGameLevel);
+        
+        // ✅ Fetch words from Firestore dictionary that match the tournament level
+        const wordsSnapshot = await db.collection('dictionary')
+            .where('level', '==', selectedGameLevel)
+            .limit(100)
+            .get();
+        
+        if (wordsSnapshot.empty) {
+            // Try without level filter
+            console.log('⚠️ No words found with level filter, fetching random words...');
+            const randomWordsSnapshot = await db.collection('dictionary').limit(100).get();
+            
+            if (randomWordsSnapshot.empty) {
+                throw new Error('No words found in database. Please add words first.');
+            }
+            
+            const allWords = [];
+            randomWordsSnapshot.forEach(doc => {
+                allWords.push({ id: doc.id, ...doc.data() });
+            });
+            
+            return await buildQuestionsFromWords(allWords.slice(0, 25));
         }
         
-        if (levelWords[selectedGameLevel].length === 0) {
-            await loadLevelWords(selectedGameLevel);
-        }
-        
-        // Select 25 random words
-        const shuffled = [...levelWords[selectedGameLevel]].sort(() => 0.5 - Math.random());
-        const selectedWords = shuffled.slice(0, 25);
-        
-        console.log('📝 Generating questions for:', selectedWords);
-        
-        // Generate questions using AI
-        const response = await fetch(CLOUD_FUNCTION_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                data: { 
-                    action: 'generateAntonymSynonymQuestions',
-                    words: selectedWords 
-                } 
-            })
+        const words = [];
+        wordsSnapshot.forEach(doc => {
+            words.push({ id: doc.id, ...doc.data() });
         });
         
-        if (!response.ok) {
-            throw new Error('Failed to generate questions');
-        }
+        console.log(`✅ Found ${words.length} words in database`);
         
-        const data = await response.json();
-        stage1Questions = data.result.questions;
+        // Randomly select 25 words
+        const shuffled = words.sort(() => 0.5 - Math.random());
+        const selected = shuffled.slice(0, 25);
         
-        console.log('✅ Generated', stage1Questions.length, 'questions');
+        return await buildQuestionsFromWords(selected);
         
     } catch (error) {
-        console.error('Error generating Stage 1 questions:', error);
-        throw error;
+        console.error('Error fetching words from database:', error);
+        throw new Error('Failed to load words from database: ' + error.message);
     }
+}
+
+async function buildQuestionsFromWords(words) {
+    stage1Questions = [];
+    
+    for (const wordData of words) {
+        const word = wordData.word || wordData.id;
+        
+        // Get synonyms and antonyms from meanings
+        let synonyms = [];
+        let antonyms = [];
+        let definition = '';
+        let example = '';
+        
+        if (wordData.meanings && wordData.meanings.length > 0) {
+            wordData.meanings.forEach(meaning => {
+                definition = definition || meaning.definition;
+                example = example || meaning.example;
+                
+                if (meaning.synonyms && meaning.synonyms.length > 0) {
+                    synonyms = synonyms.concat(meaning.synonyms);
+                }
+                if (meaning.antonyms && meaning.antonyms.length > 0) {
+                    antonyms = antonyms.concat(meaning.antonyms);
+                }
+            });
+        }
+        
+        // Decide question type
+        const hasEnoughSynonyms = synonyms.length >= 1;
+        const hasEnoughAntonyms = antonyms.length >= 1;
+        
+        let questionType;
+        if (hasEnoughSynonyms && hasEnoughAntonyms) {
+            questionType = Math.random() > 0.5 ? 'synonym' : 'antonym';
+        } else if (hasEnoughSynonyms) {
+            questionType = 'synonym';
+        } else if (hasEnoughAntonyms) {
+            questionType = 'antonym';
+        } else {
+            questionType = 'definition';
+        }
+        
+        const availableWords = questionType === 'synonym' ? synonyms : antonyms;
+        const correctAnswer = availableWords.length > 0 ? availableWords[0] : word;
+        
+        // Get wrong options from other words
+        const wrongOptions = words
+            .filter(w => (w.word || w.id) !== word && (w.word || w.id) !== correctAnswer)
+            .map(w => w.word || w.id)
+            .sort(() => 0.5 - Math.random())
+            .slice(0, 3);
+        
+        // Build options
+        const options = [correctAnswer, ...wrongOptions].sort(() => 0.5 - Math.random());
+        const correctIndex = options.indexOf(correctAnswer);
+        
+        // Build sentence
+        const sentence = example || 
+            `Find the ${questionType} of "${word}"` + 
+            (definition ? `: ${definition}` : '');
+        
+        stage1Questions.push({
+            word: word,
+            targetWord: word,
+            type: questionType,
+            sentence: sentence,
+            options: options,
+            correctAnswer: correctIndex
+        });
+    }
+    
+    console.log('✅ Built', stage1Questions.length, 'questions from database');
+    return stage1Questions;
 }
 
 function loadStage1Question() {
@@ -14048,7 +14183,7 @@ function loadStage1Question() {
     `;
 }
 
-function checkStage1Answer(selectedIndex) {
+async function checkStage1Answer(selectedIndex) {
     const question = stage1Questions[stage1CurrentIndex];
     const options = document.querySelectorAll('.quiz-option');
     const feedbackDiv = document.getElementById('stage1-feedback');
@@ -14063,10 +14198,15 @@ function checkStage1Answer(selectedIndex) {
         options[selectedIndex].classList.add('correct');
         feedbackDiv.innerHTML = '<div class="feedback success">✅ Correct!</div>';
         
-        // Update score display
         document.getElementById('stage1-score').textContent = stage1Score;
         
-        // Move to next question after 1 second
+        // ✅ Update Firestore
+        await db.collection('tournaments').doc(currentTournament)
+            .collection('participants').doc(currentUser.uid).update({
+                score: stage1Score,
+                currentQuestion: stage1CurrentIndex + 1
+            });
+        
         setTimeout(() => {
             stage1CurrentIndex++;
             loadStage1Question();
@@ -14077,24 +14217,44 @@ function checkStage1Answer(selectedIndex) {
         options[selectedIndex].classList.add('wrong');
         options[question.correctAnswer].classList.add('correct');
         
-        // Update errors display
         document.getElementById('stage1-errors').textContent = stage1Errors;
         
-        // Check if eliminated
+        // ✅ Update Firestore
+        await db.collection('tournaments').doc(currentTournament)
+            .collection('participants').doc(currentUser.uid).update({
+                errors: stage1Errors,
+                handicaps: stage1Handicaps,
+                currentQuestion: stage1CurrentIndex + 1
+            });
+        
         if (stage1Errors >= 2 && stage1Handicaps === 0) {
-            feedbackDiv.innerHTML = '<div class="feedback error">❌ Eliminated! You made 2 errors with no handicaps remaining.</div>';
+            // Eliminated
+            await db.collection('tournaments').doc(currentTournament)
+                .collection('participants').doc(currentUser.uid).update({
+                    status: 'eliminated',
+                    eliminatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            
+            feedbackDiv.innerHTML = '<div class="feedback error">❌ Eliminated! You made 2 errors with no handicaps.</div>';
             setTimeout(() => eliminateFromStage1(), 2000);
+            
         } else if (stage1Errors >= 2 && stage1Handicaps > 0) {
-            // Use handicap
             stage1Handicaps--;
-            stage1Errors = 0; // Reset errors
+            stage1Errors = 0;
+            
             document.getElementById('stage1-handicaps').textContent = stage1Handicaps;
             document.getElementById('stage1-errors').textContent = stage1Errors;
             
+            await db.collection('tournaments').doc(currentTournament)
+                .collection('participants').doc(currentUser.uid).update({
+                    errors: 0,
+                    handicaps: stage1Handicaps
+                });
+            
             feedbackDiv.innerHTML = `
                 <div class="feedback error">
-                    ❌ Wrong answer!<br>
-                    🛡️ Handicap used! Errors reset. Handicaps remaining: ${stage1Handicaps}
+                    ❌ Wrong! Correct: ${question.options[question.correctAnswer]}<br>
+                    🛡️ Handicap used! Errors reset. Handicaps: ${stage1Handicaps}
                 </div>
             `;
             
@@ -14103,7 +14263,7 @@ function checkStage1Answer(selectedIndex) {
                 loadStage1Question();
             }, 2000);
         } else {
-            feedbackDiv.innerHTML = `<div class="feedback error">❌ Wrong! Correct answer: ${question.options[question.correctAnswer]}</div>`;
+            feedbackDiv.innerHTML = `<div class="feedback error">❌ Wrong! Correct: ${question.options[question.correctAnswer]}</div>`;
             setTimeout(() => {
                 stage1CurrentIndex++;
                 loadStage1Question();
@@ -14111,7 +14271,6 @@ function checkStage1Answer(selectedIndex) {
         }
     }
 }
-
 function startStage1Timer() {
     if (stage1Timer) clearInterval(stage1Timer);
     
@@ -14135,13 +14294,65 @@ function startStage1Timer() {
     }, 1000);
 }
 
-function completeStage1() {
+
+function exitTournament() {
+    if (stage1Timer) clearInterval(stage1Timer);
+    if (stage2Timer) clearInterval(stage2Timer);
+    if (stage3Timer) clearInterval(stage3Timer);
+    
+    // ✅ Clean up leaderboard listener
+    if (stage1LeaderboardListener) {
+        stage1LeaderboardListener();
+        stage1LeaderboardListener = null;
+    }
+    
+    // ✅ Remove leaderboard UI
+    const leaderboard = document.getElementById('stage1-leaderboard');
+    if (leaderboard) {
+        leaderboard.remove();
+    }
+    
+    currentTournament = null;
+    tournamentStage = 0;
+    
+    document.getElementById('tournament-lobby').style.display = 'block';
+    document.getElementById('tournament-stage1').style.display = 'none';
+    
+    const stage2 = document.getElementById('tournament-stage2');
+    if (stage2) stage2.style.display = 'none';
+    
+    const stage3 = document.getElementById('tournament-stage3');
+    if (stage3) stage3.style.display = 'none';
+    
+    loadTournamentList();
+}
+        
+async function completeStage1() {
     clearInterval(stage1Timer);
     
-    const container = document.getElementById('stage1-question-container');
-    const feedbackDiv = document.getElementById('stage1-feedback');
+    // ✅ Mark as completed in Firestore
+    await db.collection('tournaments').doc(currentTournament)
+        .collection('participants').doc(currentUser.uid).update({
+            status: 'completed',
+            completedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
     
+    const container = document.getElementById('stage1-question-container');
     const percentage = Math.round((stage1Score / stage1Questions.length) * 100);
+    
+    // ✅ Get final rankings
+    const participantsSnapshot = await db.collection('tournaments').doc(currentTournament)
+        .collection('participants')
+        .where('stage', '==', 1)
+        .orderBy('score', 'desc')
+        .get();
+    
+    const allPlayers = [];
+    participantsSnapshot.forEach(doc => {
+        allPlayers.push({ id: doc.id, ...doc.data() });
+    });
+    
+    const myRank = allPlayers.findIndex(p => p.id === currentUser.uid) + 1;
     
     container.innerHTML = `
         <div style="text-align: center; padding: 40px;">
@@ -14149,15 +14360,37 @@ function completeStage1() {
                 ${percentage >= 80 ? '🏆' : percentage >= 60 ? '⭐' : '📚'}
             </div>
             <h2 style="color: #0d3b66; margin-bottom: 20px;">Stage 1 Complete!</h2>
-            <div style="font-size: 2rem; font-weight: bold; color: #0d3b66; margin: 20px 0;">
-                ${stage1Score} / ${stage1Questions.length} Correct
+            
+            <div style="background: #f9f9f9; padding: 20px; border-radius: 10px; margin: 20px 0;">
+                <div style="font-size: 2rem; font-weight: bold; color: #0d3b66; margin: 10px 0;">
+                    ${stage1Score} / ${stage1Questions.length} Correct
+                </div>
+                <p style="font-size: 1.2rem; color: #666;">
+                    Accuracy: ${percentage}%
+                </p>
+                <p style="font-size: 1.3rem; color: #667eea; font-weight: bold; margin: 10px 0;">
+                    🏅 Your Rank: #${myRank} of ${allPlayers.length}
+                </p>
+                <p style="font-size: 1.1rem; color: #667eea;">
+                    🛡️ Handicaps Remaining: ${stage1Handicaps}
+                </p>
             </div>
-            <p style="font-size: 1.2rem; color: #666; margin: 20px 0;">
-                Accuracy: ${percentage}%
-            </p>
-            <p style="font-size: 1.1rem; color: #667eea; margin: 20px 0;">
-                🛡️ Handicaps Remaining: ${stage1Handicaps}
-            </p>
+            
+            <div style="background: #f9f9f9; padding: 20px; border-radius: 10px; margin: 20px 0; max-height: 300px; overflow-y: auto;">
+                <h3 style="color: #0d3b66; margin-bottom: 15px;">🏆 Final Rankings</h3>
+                ${allPlayers.slice(0, 10).map((player, index) => `
+                    <div style="display: flex; justify-content: space-between; padding: 10px; margin-bottom: 5px; background: ${player.id === currentUser.uid ? '#e3f2fd' : 'white'}; border-radius: 5px;">
+                        <span style="font-weight: ${index < 3 ? 'bold' : 'normal'};">
+                            ${index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`} 
+                            ${player.name || 'Player'}
+                            ${player.id === currentUser.uid ? ' (You)' : ''}
+                        </span>
+                        <span style="font-weight: bold; color: #28a745;">
+                            ${player.score} pts
+                        </span>
+                    </div>
+                `).join('')}
+            </div>
             
             ${percentage >= 60 ? `
                 <div style="background: #d4edda; padding: 20px; border-radius: 10px; margin: 20px 0;">
@@ -14173,7 +14406,7 @@ function completeStage1() {
                 <div style="background: #f8d7da; padding: 20px; border-radius: 10px; margin: 20px 0;">
                     <h3 style="color: #721c24; margin-bottom: 10px;">❌ Did Not Qualify</h3>
                     <p style="color: #721c24;">
-                        You need at least 60% accuracy to advance to Stage 2.
+                        You need at least 60% accuracy to advance.
                     </p>
                 </div>
                 <button class="practice-btn" onclick="exitTournament()" style="font-size: 1.2rem; padding: 15px 40px;">
@@ -14182,9 +14415,74 @@ function completeStage1() {
             `}
         </div>
     `;
-    
-    feedbackDiv.innerHTML = '';
 }
+
+        
+let stage1LeaderboardListener = null;
+
+function setupStage1Leaderboard(tournamentId) {
+    const leaderboardContainer = document.createElement('div');
+    leaderboardContainer.id = 'stage1-leaderboard';
+    leaderboardContainer.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: white;
+        padding: 20px;
+        border-radius: 15px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+        max-width: 300px;
+        max-height: 400px;
+        overflow-y: auto;
+        z-index: 100;
+    `;
+    
+    document.body.appendChild(leaderboardContainer);
+    
+    // ✅ Listen to all participants in real-time
+    stage1LeaderboardListener = db.collection('tournaments').doc(tournamentId)
+        .collection('participants')
+        .where('stage', '==', 1)
+        .onSnapshot(snapshot => {
+            const players = [];
+            snapshot.forEach(doc => {
+                players.push({ id: doc.id, ...doc.data() });
+            });
+            
+            // Sort by score (descending), then by current question (descending)
+            players.sort((a, b) => {
+                if (b.score !== a.score) return b.score - a.score;
+                return b.currentQuestion - a.currentQuestion;
+            });
+            
+            leaderboardContainer.innerHTML = `
+                <h3 style="margin: 0 0 15px 0; color: #0d3b66; font-size: 1.1rem;">
+                    🏆 Live Leaderboard (${players.length})
+                </h3>
+                ${players.map((player, index) => `
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; margin-bottom: 8px; background: ${player.id === currentUser.uid ? '#e3f2fd' : '#f9f9f9'}; border-radius: 8px; border-left: 4px solid ${index === 0 ? '#FFD700' : index === 1 ? '#C0C0C0' : index === 2 ? '#CD7F32' : '#0d3b66'};">
+                        <div style="flex: 1;">
+                            <div style="font-weight: bold; color: #0d3b66; font-size: 0.9rem;">
+                                ${index + 1}. ${player.name || 'Player'}
+                                ${player.id === currentUser.uid ? ' (You)' : ''}
+                            </div>
+                            <div style="font-size: 0.8rem; color: #666; margin-top: 2px;">
+                                Q${player.currentQuestion + 1}/25 • ${player.errors} errors
+                            </div>
+                        </div>
+                        <div style="text-align: right;">
+                            <div style="font-size: 1.2rem; font-weight: bold; color: #28a745;">
+                                ${player.score}
+                            </div>
+                            <div style="font-size: 0.75rem; color: #666;">
+                                ${player.status === 'active' ? '🟢' : '🔴'}
+                            </div>
+                        </div>
+                    </div>
+                `).join('')}
+            `;
+        });
+}        
 
 function eliminateFromStage1() {
     clearInterval(stage1Timer);
