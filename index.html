@@ -20159,36 +20159,7 @@ async function leaveLiveRoom(tournamentId, stage) {
 }   
 
 
-// Store recently used words (in memory or your database)
-let recentlyUsedWords = new Set();
-
-function selectUniqueWords(level, count = 10) {
-  const allWords = getWordsForLevel(level);
-  
-  // Filter out recently used words
-  const availableWords = allWords.filter(word => !recentlyUsedWords.has(word.id));
-  
-  // If we've used too many words, clear some old ones
-  if (availableWords.length < count) {
-    recentlyUsedWords.clear();
-    availableWords.push(...allWords);
-  }
-  
-  // Shuffle and select
-  const shuffled = availableWords.sort(() => Math.random() - 0.5);
-  const selected = shuffled.slice(0, count);
-  
-  // Mark these words as used
-  selected.forEach(word => recentlyUsedWords.add(word.id));
-  
-  // Optional: Clear old words after many tournaments (keep last 100)
-  if (recentlyUsedWords.size > 100) {
-    const wordsArray = Array.from(recentlyUsedWords);
-    recentlyUsedWords = new Set(wordsArray.slice(-50));
-  }
-  
-  return selected;
-}        
+    
     </script>
 </body>
 </html>
