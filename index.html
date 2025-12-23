@@ -14054,39 +14054,66 @@ async function generateStage1Questions() {
             return seedValue / 233280;
         };
         
-        // Fetch words from Firestore dictionary
-        const wordsSnapshot = await db.collection('dictionary')
+        // ✅ FIRST: Try to fetch words WITH level
+        let wordsSnapshot = await db.collection('dictionary')
             .where('level', '==', selectedGameLevel)
-            .limit(200) // ✅ Fetch MORE words to increase variety
+            .limit(200)
             .get();
         
+        // ✅ FALLBACK: If no words with level, fetch from levelWords array
         if (wordsSnapshot.empty) {
-            console.log('⚠️ No words found with level filter, fetching random words...');
-            const randomWordsSnapshot = await db.collection('dictionary').limit(200).get();
+            console.log('⚠️ No words with level field in Firestore, using levelWords array...');
             
-            if (randomWordsSnapshot.empty) {
-                throw new Error('No words found in database. Please add words first.');
+            // Load from Google Docs if not already loaded
+            if (levelWords[selectedGameLevel].length === 0) {
+                await loadLevelWords(selectedGameLevel);
             }
             
-            const allWords = [];
-            randomWordsSnapshot.forEach(doc => {
-                allWords.push({ id: doc.id, ...doc.data() });
-            });
+            if (levelWords[selectedGameLevel].length === 0) {
+                throw new Error(`No words found for level: ${selectedGameLevel}`);
+            }
             
-            // ✅ Use seeded random for shuffling
-            const shuffled = allWords.sort(() => seededRandom() - 0.5);
-            return await buildQuestionsFromWords(shuffled.slice(0, 25));
+            // Convert levelWords to same format as Firestore docs
+            const words = levelWords[selectedGameLevel].map(word => ({
+                id: word.toLowerCase(),
+                word: word,
+                level: selectedGameLevel
+            }));
+            
+            console.log(`✅ Loaded ${words.length} words from levelWords array`);
+            
+            // ✅ Apply multiple rounds of shuffling
+            for (let i = 0; i < 5; i++) {
+                words.sort(() => seededRandom() - 0.5);
+            }
+            
+            const selected = words.slice(0, 25);
+            
+            // ✅ Fetch full data from Firestore for selected words
+            const fullWords = [];
+            for (const wordData of selected) {
+                const wordDoc = await db.collection('dictionary').doc(wordData.word.toLowerCase()).get();
+                if (wordDoc.exists) {
+                    fullWords.push({ id: wordDoc.id, ...wordDoc.data() });
+                } else {
+                    // If not in Firestore, use basic structure
+                    fullWords.push(wordData);
+                }
+            }
+            
+            return await buildQuestionsFromWords(fullWords);
         }
         
+        // ✅ Words found WITH level field
         const words = [];
         wordsSnapshot.forEach(doc => {
             words.push({ id: doc.id, ...doc.data() });
         });
         
-        console.log(`✅ Found ${words.length} words in database`);
+        console.log(`✅ Found ${words.length} words in database with level field`);
         
-        // ✅ Apply multiple rounds of shuffling with different seeds
-        for (let i = 0; i < 3; i++) {
+        // ✅ Apply multiple rounds of shuffling
+        for (let i = 0; i < 5; i++) {
             words.sort(() => seededRandom() - 0.5);
         }
         
