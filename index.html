@@ -14347,14 +14347,17 @@ async function completeStage1() {
     // ✅ Mark as completed in Firestore
     await db.collection('tournaments').doc(currentTournament)
         .collection('participants').doc(currentUser.uid).update({
-            status: 'completed',
-            completedAt: firebase.firestore.FieldValue.serverTimestamp()
+            status: 'stage1-completed',
+            stage1Score: stage1Score,
+            stage1Total: stage1Questions.length,
+            stage1Percentage: Math.round((stage1Score / stage1Questions.length) * 100),
+            stage1CompletedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
     
     const container = document.getElementById('stage1-question-container');
     const percentage = Math.round((stage1Score / stage1Questions.length) * 100);
     
-    // ✅ Get final rankings
+    // ✅ Get final rankings (for display only, doesn't block progression)
     const participantsSnapshot = await db.collection('tournaments').doc(currentTournament)
         .collection('participants')
         .where('stage', '==', 1)
@@ -14383,7 +14386,7 @@ async function completeStage1() {
                     Accuracy: ${percentage}%
                 </p>
                 <p style="font-size: 1.3rem; color: #667eea; font-weight: bold; margin: 10px 0;">
-                    🏅 Your Rank: #${myRank} of ${allPlayers.length}
+                    🏅 Current Rank: #${myRank} of ${allPlayers.length}
                 </p>
                 <p style="font-size: 1.1rem; color: #667eea;">
                     🛡️ Handicaps Remaining: ${stage1Handicaps}
@@ -14391,7 +14394,7 @@ async function completeStage1() {
             </div>
             
             <div style="background: #f9f9f9; padding: 20px; border-radius: 10px; margin: 20px 0; max-height: 300px; overflow-y: auto;">
-                <h3 style="color: #0d3b66; margin-bottom: 15px;">🏆 Final Rankings</h3>
+                <h3 style="color: #0d3b66; margin-bottom: 15px;">🏆 Live Rankings</h3>
                 ${allPlayers.slice(0, 10).map((player, index) => `
                     <div style="display: flex; justify-content: space-between; padding: 10px; margin-bottom: 5px; background: ${player.id === currentUser.uid ? '#e3f2fd' : 'white'}; border-radius: 5px;">
                         <span style="font-weight: ${index < 3 ? 'bold' : 'normal'};">
@@ -14406,27 +14409,19 @@ async function completeStage1() {
                 `).join('')}
             </div>
             
-            ${percentage >= 60 ? `
-                <div style="background: #d4edda; padding: 20px; border-radius: 10px; margin: 20px 0;">
-                    <h3 style="color: #155724; margin-bottom: 10px;">✅ Qualified for Stage 2!</h3>
-                    <p style="color: #155724;">
-                        You'll carry ${stage1Handicaps} handicap(s) into the next round.
-                    </p>
-                </div>
-                <button class="practice-btn" onclick="proceedToStage2()" style="font-size: 1.2rem; padding: 15px 40px;">
-                    ➡️ Proceed to Stage 2
-                </button>
-            ` : `
-                <div style="background: #f8d7da; padding: 20px; border-radius: 10px; margin: 20px 0;">
-                    <h3 style="color: #721c24; margin-bottom: 10px;">❌ Did Not Qualify</h3>
-                    <p style="color: #721c24;">
-                        You need at least 60% accuracy to advance.
-                    </p>
-                </div>
-                <button class="practice-btn" onclick="exitTournament()" style="font-size: 1.2rem; padding: 15px 40px;">
-                    🏠 Return to Lobby
-                </button>
-            `}
+            <!-- ✅ ALWAYS SHOW PROCEED BUTTON (NO QUALIFICATION CHECK) -->
+            <div style="background: #e3f2fd; padding: 20px; border-radius: 10px; margin: 20px 0;">
+                <h3 style="color: #0d3b66; margin-bottom: 10px;">✅ Ready for Stage 2!</h3>
+                <p style="color: #0d3b66;">
+                    You'll carry ${stage1Handicaps} handicap(s) into the next round.
+                </p>
+                <p style="color: #666; font-size: 0.9rem; margin-top: 10px;">
+                    Note: Rankings are live and may change as other players complete Stage 1
+                </p>
+            </div>
+            <button class="practice-btn" onclick="proceedToStage2()" style="font-size: 1.2rem; padding: 15px 40px;">
+                ➡️ Proceed to Stage 2
+            </button>
         </div>
     `;
 }
@@ -15041,8 +15036,18 @@ function submitStage2Answer() {
     }
 }
 
-function completeStage2() {
+async function completeStage2() {
     clearInterval(stage2Timer);
+    
+    // ✅ Mark as completed in Firestore
+    await db.collection('tournaments').doc(currentTournament)
+        .collection('participants').doc(currentUser.uid).update({
+            status: 'stage2-completed',
+            stage2Score: stage2Score,
+            stage2Total: stage2Words.length,
+            stage2Percentage: Math.round((stage2Score / stage2Words.length) * 100),
+            stage2CompletedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
     
     const container = document.getElementById('tournament-stage2');
     const percentage = Math.round((stage2Score / stage2Words.length) * 100);
@@ -15063,27 +15068,16 @@ function completeStage2() {
                 🛡️ Handicaps Remaining: ${stage2HandicapsRemaining}
             </p>
             
-            ${percentage >= 60 ? `
-                <div style="background: #d4edda; padding: 20px; border-radius: 10px; margin: 20px 0;">
-                    <h3 style="color: #155724; margin-bottom: 10px;">✅ Qualified for Stage 3!</h3>
-                    <p style="color: #155724;">
-                        You'll carry ${stage2HandicapsRemaining} handicap(s) into Stage 3.
-                    </p>
-                </div>
-                <button class="practice-btn" onclick="proceedToStage3()" style="font-size: 1.2rem; padding: 15px 40px;">
-                    ➡️ Proceed to Stage 3
-                </button>
-            ` : `
-                <div style="background: #f8d7da; padding: 20px; border-radius: 10px; margin: 20px 0;">
-                    <h3 style="color: #721c24; margin-bottom: 10px;">❌ Did Not Qualify</h3>
-                    <p style="color: #721c24;">
-                        You need at least 60% accuracy to advance to Stage 3.
-                    </p>
-                </div>
-                <button class="practice-btn" onclick="exitTournament()" style="font-size: 1.2rem; padding: 15px 40px;">
-                    🏠 Return to Lobby
-                </button>
-            `}
+            <!-- ✅ ALWAYS SHOW PROCEED BUTTON -->
+            <div style="background: #d4edda; padding: 20px; border-radius: 10px; margin: 20px 0;">
+                <h3 style="color: #155724; margin-bottom: 10px;">✅ Ready for Stage 3!</h3>
+                <p style="color: #155724;">
+                    You'll carry ${stage2HandicapsRemaining} handicap(s) into Stage 3.
+                </p>
+            </div>
+            <button class="practice-btn" onclick="proceedToStage3()" style="font-size: 1.2rem; padding: 15px 40px;">
+                ➡️ Proceed to Stage 3
+            </button>
         </div>
     `;
 }
@@ -15520,7 +15514,7 @@ async function completeStage3() {
                 stage3Total: stage3Words.length,
                 stage3Percentage: percentage,
                 stage3CompletedAt: firebase.firestore.FieldValue.serverTimestamp(),
-                status: percentage >= 60 ? 'qualified-stage4' : 'eliminated',
+                status: 'qualified-stage4', // Everyone qualifies, admin picks top 10 later
                 handicaps: stage3HandicapsRemaining
             }, { merge: true });
         
@@ -15535,10 +15529,28 @@ async function completeStage3() {
     
     const container = document.getElementById('tournament-stage3');
     
+    // ✅ Get all Stage 3 completions for rankings
+    const participantsSnapshot = await db.collection('tournaments').doc(currentTournament)
+        .collection('participants')
+        .where('status', '==', 'qualified-stage4')
+        .get();
+    
+    const allCompletions = [];
+    participantsSnapshot.forEach(doc => {
+        allCompletions.push({ id: doc.id, ...doc.data() });
+    });
+    
+    // Sort by percentage
+    allCompletions.sort((a, b) => b.stage3Percentage - a.stage3Percentage);
+    
+    const myRank = allCompletions.findIndex(p => p.id === currentUser.uid) + 1;
+    const totalParticipants = allCompletions.length;
+    const willMakeTop10 = myRank <= 10;
+    
     container.innerHTML = `
         <div class="quiz-question-card" style="text-align: center; padding: 40px;">
             <div style="font-size: 4rem; margin-bottom: 20px;">
-                ${percentage >= 80 ? '🏆' : percentage >= 60 ? '⭐' : '📚'}
+                ${willMakeTop10 ? '🏆' : '⭐'}
             </div>
             <h2 style="color: #0d3b66; margin-bottom: 20px;">Stage 3 Complete!</h2>
             <div style="font-size: 2rem; font-weight: bold; color: #0d3b66; margin: 20px 0;">
@@ -15551,44 +15563,64 @@ async function completeStage3() {
                 🛡️ Handicaps Remaining: ${stage3HandicapsRemaining}
             </p>
             
-            ${percentage >= 60 ? `
-                <div style="background: #d4edda; padding: 20px; border-radius: 10px; margin: 20px 0;">
-                    <h3 style="color: #155724; margin-bottom: 10px;">✅ Qualified for Stage 4!</h3>
-                    <p style="color: #155724;">
-                        Congratulations! You've reached the Live Spell Master rounds.
-                    </p>
-                    <p style="color: #155724; font-weight: bold; margin-top: 15px;">
-                        🎥 The admin has been notified. You will receive a notification when Stage 4 room is ready.
-                    </p>
+            <!-- ✅ SHOW CURRENT RANKINGS -->
+            <div style="background: #f9f9f9; padding: 20px; border-radius: 10px; margin: 20px 0;">
+                <h3 style="color: #0d3b66; margin-bottom: 15px;">📊 Current Stage 3 Rankings</h3>
+                <p style="color: #666; margin-bottom: 15px;">
+                    Your Rank: <strong style="color: ${willMakeTop10 ? '#28a745' : '#dc3545'};">#${myRank}</strong> of ${totalParticipants} participants
+                </p>
+                <div style="max-height: 300px; overflow-y: auto; margin-top: 15px;">
+                    ${allCompletions.slice(0, 15).map((p, index) => `
+                        <div style="display: flex; justify-content: space-between; padding: 10px; margin-bottom: 5px; background: ${p.id === currentUser.uid ? '#e3f2fd' : index < 10 ? '#e8f5e9' : 'white'}; border-radius: 5px; border-left: 4px solid ${index < 10 ? '#28a745' : '#dc3545'};">
+                            <span style="font-weight: ${index < 3 ? 'bold' : 'normal'};">
+                                ${index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`}
+                                ${p.name || 'Player'}
+                                ${p.id === currentUser.uid ? ' (You)' : ''}
+                                ${index < 10 ? ' ✅' : ' ⏸️'}
+                            </span>
+                            <span style="font-weight: bold; color: #28a745;">
+                                ${p.stage3Percentage}%
+                            </span>
+                        </div>
+                    `).join('')}
                 </div>
-                
-                <div id="stage4-join-section" style="margin: 20px 0;">
-                    <div class="loading">⏳ Waiting for admin to create Stage 4 room...</div>
-                </div>
-                
-                <button class="practice-btn" onclick="exitTournament()" style="font-size: 1rem; padding: 12px 30px; background: #6c757d; margin-top: 20px;">
-                    🏠 Return to Lobby
-                </button>
-            ` : `
-                <div style="background: #f8d7da; padding: 20px; border-radius: 10px; margin: 20px 0;">
-                    <h3 style="color: #721c24; margin-bottom: 10px;">❌ Did Not Qualify</h3>
-                    <p style="color: #721c24;">
-                        You need at least 60% accuracy to advance to the Live Rounds.
-                    </p>
-                </div>
-                <button class="practice-btn" onclick="exitTournament()" style="font-size: 1.2rem; padding: 15px 40px;">
-                    🏠 Return to Lobby
-                </button>
-            `}
+                <p style="color: #666; font-size: 0.9rem; margin-top: 15px;">
+                    ${willMakeTop10 ? 
+                        '✅ You\'re currently in TOP 10 position!' : 
+                        '⏸️ You need to be in TOP 10 to advance to Stage 4'
+                    }
+                </p>
+            </div>
+            
+            <!-- ✅ WAITING FOR ADMIN TO CREATE STAGE 4 -->
+            <div style="background: ${willMakeTop10 ? '#d4edda' : '#fff3cd'}; padding: 20px; border-radius: 10px; margin: 20px 0;">
+                <h3 style="color: ${willMakeTop10 ? '#155724' : '#856404'}; margin-bottom: 10px;">
+                    ${willMakeTop10 ? '✅ Eligible for Stage 4!' : '⚠️ Standby Status'}
+                </h3>
+                <p style="color: ${willMakeTop10 ? '#155724' : '#856404'};">
+                    ${willMakeTop10 ? 
+                        'Great job! Once all participants complete Stage 3, the admin will create Stage 4 room for the TOP 10 players.' :
+                        'Your ranking may improve as more players complete Stage 3. Admin will select TOP 10 for Stage 4.'
+                    }
+                </p>
+                <p style="color: ${willMakeTop10 ? '#155724' : '#856404'}; font-weight: bold; margin-top: 15px;">
+                    🎥 The admin has been notified. You will receive a notification when Stage 4 room is ready.
+                </p>
+            </div>
+            
+            <div id="stage4-join-section" style="margin: 20px 0;">
+                <div class="loading">⏳ Waiting for admin to create Stage 4 room...</div>
+            </div>
+            
+            <button class="practice-btn" onclick="exitTournament()" style="font-size: 1rem; padding: 12px 30px; background: #6c757d; margin-top: 20px;">
+                🏠 Return to Lobby
+            </button>
         </div>
     `;
     
     // ✅ LISTEN FOR STAGE 4 ROOM CREATION
-    if (percentage >= 60) {
-        listenForStage4Room();
-    }
+    listenForStage4Room();
 }
-
 
 // ===== NOTIFY ADMIN OF STAGE 3 COMPLETIONS =====
 async function notifyAdminStage3Complete() {
