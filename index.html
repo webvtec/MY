@@ -4803,6 +4803,13 @@ let liveRoomListener = null;
 let myAudioEnabled = true;
 let myVideoEnabled = true;
 
+
+// ===== AUTO-ELIMINATION VARIABLES =====
+let stage3CompletionChecker = null;
+const STAGE3_CUTOFF_TIME = 15 * 60 * 1000; // 15 minutes to complete Stage 3
+const STAGE3_ELIMINATION_DELAY = 2 * 60 * 1000; // Wait 2 minutes after first completion before eliminating
+let stage3FirstCompletionTime = null;
+
         
      // ===== INITIALIZE =====
 document.addEventListener('DOMContentLoaded', function() {
