@@ -14425,7 +14425,6 @@ async function completeStage1() {
         </div>
     `;
 }
-
         
 let stage1LeaderboardListener = null;
 
@@ -15501,6 +15500,7 @@ async function completeStage3() {
     clearInterval(stage3Timer);
     
     const percentage = Math.round((stage3Score / stage3Words.length) * 100);
+    const completionTime = Date.now();
     
     // ✅ UPDATE USER'S STAGE 3 COMPLETION IN FIRESTORE
     try {
@@ -15514,38 +15514,31 @@ async function completeStage3() {
                 stage3Total: stage3Words.length,
                 stage3Percentage: percentage,
                 stage3CompletedAt: firebase.firestore.FieldValue.serverTimestamp(),
-                status: 'qualified-stage4', // Everyone qualifies, admin picks top 10 later
+                stage3CompletionTimestamp: completionTime, // For sorting by time
+                status: 'stage3-completed',
                 handicaps: stage3HandicapsRemaining
             }, { merge: true });
         
-        console.log('✅ Stage 3 completion recorded in Firestore');
+        console.log('✅ Stage 3 completion recorded');
         
         // ✅ NOTIFY ADMIN
         await notifyAdminStage3Complete();
+        
+        // ✅ START AUTO-ELIMINATION CHECKER (only first person triggers this)
+        await initializeStage3AutoElimination();
         
     } catch (error) {
         console.error('Error recording Stage 3 completion:', error);
     }
     
-    const container = document.getElementById('tournament-stage3');
-    
-    // ✅ Get all Stage 3 completions for rankings
-    const participantsSnapshot = await db.collection('tournaments').doc(currentTournament)
-        .collection('participants')
-        .where('status', '==', 'qualified-stage4')
-        .get();
-    
-    const allCompletions = [];
-    participantsSnapshot.forEach(doc => {
-        allCompletions.push({ id: doc.id, ...doc.data() });
-    });
-    
-    // Sort by percentage
-    allCompletions.sort((a, b) => b.stage3Percentage - a.stage3Percentage);
+    // ✅ Get current rankings
+    const allCompletions = await getStage3Rankings();
     
     const myRank = allCompletions.findIndex(p => p.id === currentUser.uid) + 1;
     const totalParticipants = allCompletions.length;
     const willMakeTop10 = myRank <= 10;
+    
+    const container = document.getElementById('tournament-stage3');
     
     container.innerHTML = `
         <div class="quiz-question-card" style="text-align: center; padding: 40px;">
@@ -15592,24 +15585,24 @@ async function completeStage3() {
                 </p>
             </div>
             
-            <!-- ✅ WAITING FOR ADMIN TO CREATE STAGE 4 -->
+            <!-- ✅ AUTO-ELIMINATION WARNING -->
             <div style="background: ${willMakeTop10 ? '#d4edda' : '#fff3cd'}; padding: 20px; border-radius: 10px; margin: 20px 0;">
                 <h3 style="color: ${willMakeTop10 ? '#155724' : '#856404'}; margin-bottom: 10px;">
-                    ${willMakeTop10 ? '✅ Eligible for Stage 4!' : '⚠️ Standby Status'}
+                    ${willMakeTop10 ? '✅ Currently Qualified!' : '⚠️ At Risk of Elimination'}
                 </h3>
                 <p style="color: ${willMakeTop10 ? '#155724' : '#856404'};">
                     ${willMakeTop10 ? 
-                        'Great job! Once all participants complete Stage 3, the admin will create Stage 4 room for the TOP 10 players.' :
-                        'Your ranking may improve as more players complete Stage 3. Admin will select TOP 10 for Stage 4.'
+                        'Great job! You\'re in the Top 10. Rankings may still change as others complete.' :
+                        'You\'re currently outside Top 10. Rankings will be finalized 2 minutes after the first player completes Stage 3.'
                     }
                 </p>
                 <p style="color: ${willMakeTop10 ? '#155724' : '#856404'}; font-weight: bold; margin-top: 15px;">
-                    🎥 The admin has been notified. You will receive a notification when Stage 4 room is ready.
+                    🎥 Auto-elimination will occur, then admin will create Stage 4 room for Top 10.
                 </p>
             </div>
             
             <div id="stage4-join-section" style="margin: 20px 0;">
-                <div class="loading">⏳ Waiting for admin to create Stage 4 room...</div>
+                <div class="loading">⏳ Waiting for final rankings and Stage 4 room creation...</div>
             </div>
             
             <button class="practice-btn" onclick="exitTournament()" style="font-size: 1rem; padding: 12px 30px; background: #6c757d; margin-top: 20px;">
@@ -15621,6 +15614,162 @@ async function completeStage3() {
     // ✅ LISTEN FOR STAGE 4 ROOM CREATION
     listenForStage4Room();
 }
+
+
+  // ===== GET STAGE 3 RANKINGS =====
+async function getStage3Rankings() {
+    const participantsSnapshot = await db.collection('tournaments').doc(currentTournament)
+        .collection('participants')
+        .where('status', 'in', ['stage3-completed', 'qualified-stage4', 'eliminated-after-stage3'])
+        .get();
+    
+    const allCompletions = [];
+    participantsSnapshot.forEach(doc => {
+        const data = doc.data();
+        // Only include completed participants
+        if (data.stage3Percentage !== undefined) {
+            allCompletions.push({ id: doc.id, ...data });
+        }
+    });
+    
+    // ✅ SORT BY: 1) Percentage DESC, 2) Completion Time ASC (faster wins ties)
+    allCompletions.sort((a, b) => {
+        if (b.stage3Percentage !== a.stage3Percentage) {
+            return b.stage3Percentage - a.stage3Percentage;
+        }
+        // If same percentage, earlier completion wins
+        return (a.stage3CompletionTimestamp || 0) - (b.stage3CompletionTimestamp || 0);
+    });
+    
+    return allCompletions;
+}
+
+// ===== INITIALIZE AUTO-ELIMINATION =====
+async function initializeStage3AutoElimination() {
+    try {
+        // Check if elimination timer already started
+        const tournamentDoc = await db.collection('tournaments').doc(currentTournament).get();
+        const tournamentData = tournamentDoc.data();
+        
+        if (!tournamentData.stage3FirstCompletion) {
+            // This is the FIRST person to complete Stage 3
+            console.log('🎯 First Stage 3 completion - starting elimination timer');
+            
+            await db.collection('tournaments').doc(currentTournament).update({
+                stage3FirstCompletion: firebase.firestore.FieldValue.serverTimestamp(),
+                stage3EliminationScheduled: Date.now() + STAGE3_ELIMINATION_DELAY
+            });
+            
+            // Start listening for auto-elimination
+            startStage3EliminationListener();
+        } else {
+            console.log('⏰ Elimination timer already running');
+        }
+        
+    } catch (error) {
+        console.error('Error initializing auto-elimination:', error);
+    }
+}
+
+// ===== LISTEN FOR AUTO-ELIMINATION TRIGGER =====
+function startStage3EliminationListener() {
+    console.log('👂 Starting elimination listener...');
+    
+    const eliminationListener = db.collection('tournaments').doc(currentTournament)
+        .onSnapshot(async (doc) => {
+            if (!doc.exists) return;
+            
+            const data = doc.data();
+            const eliminationTime = data.stage3EliminationScheduled;
+            
+            if (eliminationTime && Date.now() >= eliminationTime && !data.stage3EliminationComplete) {
+                console.log('⚡ TRIGGERING AUTO-ELIMINATION');
+                
+                // Mark as triggered to prevent duplicate runs
+                await db.collection('tournaments').doc(currentTournament).update({
+                    stage3EliminationComplete: true
+                });
+                
+                // Run elimination
+                await performStage3AutoElimination();
+                
+                // Stop listening
+                eliminationListener();
+            }
+        });
+    
+    if (!window.tournamentListeners) {
+        window.tournamentListeners = [];
+    }
+    window.tournamentListeners.push(eliminationListener);
+}
+
+// ===== PERFORM AUTO-ELIMINATION =====
+async function performStage3AutoElimination() {
+    console.log('🔥 PERFORMING AUTO-ELIMINATION');
+    
+    try {
+        // Get final rankings
+        const allCompletions = await getStage3Rankings();
+        
+        console.log(`📊 Total completions: ${allCompletions.length}`);
+        
+        if (allCompletions.length === 0) {
+            console.log('⚠️ No completions found');
+            return;
+        }
+        
+        // Top 10 qualify
+        const top10 = allCompletions.slice(0, 10);
+        const eliminated = allCompletions.slice(10);
+        
+        console.log(`✅ Qualifying: ${top10.length} users`);
+        console.log(`❌ Eliminating: ${eliminated.length} users`);
+        
+        const batch = db.batch();
+        
+        // ✅ QUALIFY TOP 10
+        top10.forEach((user, index) => {
+            const userRef = db.collection('tournaments').doc(currentTournament)
+                .collection('participants').doc(user.id);
+            batch.update(userRef, {
+                status: 'qualified-stage4',
+                finalRank: index + 1,
+                qualifiedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            console.log(`✅ #${index + 1}: ${user.name} - ${user.stage3Percentage}%`);
+        });
+        
+        // ❌ ELIMINATE EVERYONE ELSE
+        eliminated.forEach((user, index) => {
+            const userRef = db.collection('tournaments').doc(currentTournament)
+                .collection('participants').doc(user.id);
+            batch.update(userRef, {
+                status: 'eliminated-after-stage3',
+                eliminatedReason: `Ranked #${10 + index + 1} - Did not make Top 10`,
+                eliminatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            console.log(`❌ #${10 + index + 1}: ${user.name} - ${user.stage3Percentage}%`);
+        });
+        
+        await batch.commit();
+        
+        console.log('✅ AUTO-ELIMINATION COMPLETE');
+        
+        // Notify all users
+        await notifyUsersOfElimination(eliminated);
+        
+    } catch (error) {
+        console.error('Error performing auto-elimination:', error);
+    }
+}
+
+// ===== NOTIFY ELIMINATED USERS =====
+async function notifyUsersOfElimination(eliminatedUsers) {
+    // This will be picked up by the listenForStage4Room function
+    // which checks the user's status
+    console.log(`📢 ${eliminatedUsers.length} users eliminated`);
+}  
 
 // ===== NOTIFY ADMIN OF STAGE 3 COMPLETIONS =====
 async function notifyAdminStage3Complete() {
@@ -15641,30 +15790,69 @@ async function notifyAdminStage3Complete() {
     }
 }
 
-// ===== LISTEN FOR STAGE 4 ROOM CREATION =====
+// ===== LISTEN FOR STAGE 4 ROOM CREATION OR ELIMINATION =====
 function listenForStage4Room() {
-    console.log('👂 Listening for Stage 4 room creation...');
+    console.log('👂 Listening for Stage 4 room creation or elimination...');
     
     const roomListener = db.collection('tournaments').doc(currentTournament)
-        .collection('liveRooms').doc('stage4')
+        .collection('participants').doc(currentUser.uid)
         .onSnapshot(doc => {
-            if (doc.exists) {
-                const roomData = doc.data();
-                
-                if (roomData.isActive && roomData.top10Participants?.includes(currentUser.uid)) {
-                    console.log('🎥 Stage 4 room is ready!');
-                    showStage4JoinButton(roomData);
-                }
+            if (!doc.exists) return;
+            
+            const userData = doc.data();
+            
+            // ❌ CHECK IF ELIMINATED
+            if (userData.status === 'eliminated-after-stage3') {
+                showEliminationScreen(userData);
+                return;
+            }
+            
+            // ✅ CHECK IF QUALIFIED AND STAGE 4 ROOM EXISTS
+            if (userData.status === 'qualified-stage4') {
+                db.collection('tournaments').doc(currentTournament)
+                    .collection('liveRooms').doc('stage4').get()
+                    .then(stage4Doc => {
+                        if (stage4Doc.exists) {
+                            const roomData = stage4Doc.data();
+                            
+                            if (roomData.isActive && roomData.top10Participants?.includes(currentUser.uid)) {
+                                console.log('🎥 Stage 4 room is ready!');
+                                showStage4JoinButton(roomData);
+                            }
+                        }
+                    });
             }
         });
     
-    // Store listener for cleanup
     if (!window.tournamentListeners) {
         window.tournamentListeners = [];
     }
     window.tournamentListeners.push(roomListener);
 }
 
+// ===== SHOW ELIMINATION SCREEN =====
+function showEliminationScreen(userData) {
+    const joinSection = document.getElementById('stage4-join-section');
+    if (!joinSection) return;
+    
+    joinSection.innerHTML = `
+        <div style="background: linear-gradient(135deg, #dc3545, #c0392b); padding: 40px; border-radius: 15px; margin: 20px 0; animation: fadeIn 0.5s;">
+            <div style="font-size: 4rem; margin-bottom: 20px;">😢</div>
+            <h2 style="color: white; margin-bottom: 15px;">Eliminated from Tournament</h2>
+            <p style="color: white; opacity: 0.9; font-size: 1.1rem; margin-bottom: 15px;">
+                ${userData.eliminatedReason || 'You did not make the Top 10 cutoff'}
+            </p>
+            <p style="color: white; opacity: 0.8; margin-bottom: 20px;">
+                Thank you for participating! Better luck next time.
+            </p>
+            <button class="practice-btn" onclick="exitTournament()" 
+                    style="background: white; color: #dc3545; font-size: 1.2rem; padding: 15px 40px; font-weight: bold;">
+                🏠 Return to Lobby
+            </button>
+        </div>
+    `;
+}
+        
 // ===== SHOW JOIN BUTTON FOR STAGE 4 =====
 function showStage4JoinButton(roomData) {
     const joinSection = document.getElementById('stage4-join-section');
