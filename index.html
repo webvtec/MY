@@ -14045,12 +14045,9 @@ async function generateStage1Questions() {
     try {
         console.log('🎯 Fetching words from database for level:', selectedGameLevel);
         
-       // ✅ Use tournament ID + timestamp as seed for unique randomization
-let tournamentSeed = currentTournament + Date.now();  // Changed const to let
-const seededRandom = () => {
-    const x = Math.sin(tournamentSeed++) * 10000;  // ✅ Now it works
-    return x - Math.floor(x);
-};
+        // ✅ Create unique seed from tournament ID
+        const tournamentSeed = hashString(currentTournament + 'stage1');
+        const seededRandom = createSeededRandom(tournamentSeed);
         
         // Fetch words from Firestore dictionary
         const wordsSnapshot = await db.collection('dictionary')
@@ -14770,17 +14767,9 @@ async function proceedToStage2() {
 
 async function generateStage2Words() {
     try {
-        // ✅ Use tournament ID + stage as seed for unique randomization
-        const tournamentSeed = (currentTournament + 'stage2').split('').reduce((a, b) => {
-            a = ((a << 5) - a) + b.charCodeAt(0);
-            return a & a;
-        }, 0);
-        
-        let seedValue = Math.abs(tournamentSeed);
-        const seededRandom = () => {
-            seedValue = (seedValue * 9301 + 49297) % 233280;
-            return seedValue / 233280;
-        };
+        // ✅ Create unique seed from tournament ID
+        const tournamentSeed = hashString(currentTournament + 'stage2');
+        const seededRandom = createSeededRandom(tournamentSeed);
         
         if (levelWords[selectedGameLevel].length === 0) {
             await loadLevelWords(selectedGameLevel);
@@ -14797,6 +14786,7 @@ async function generateStage2Words() {
         throw error;
     }
 }
+
 
 function buildStage2UI() {
     const container = document.getElementById('tournament-stage2');
@@ -15160,17 +15150,9 @@ async function proceedToStage3() {
 
 async function generateStage3Words() {
     try {
-        // ✅ Use tournament ID + stage as seed for unique randomization
-        const tournamentSeed = (currentTournament + 'stage3').split('').reduce((a, b) => {
-            a = ((a << 5) - a) + b.charCodeAt(0);
-            return a & a;
-        }, 0);
-        
-        let seedValue = Math.abs(tournamentSeed);
-        const seededRandom = () => {
-            seedValue = (seedValue * 9301 + 49297) % 233280;
-            return seedValue / 233280;
-        };
+        // ✅ Create unique seed from tournament ID
+        const tournamentSeed = hashString(currentTournament + 'stage3');
+        const seededRandom = createSeededRandom(tournamentSeed);
         
         if (levelWords[selectedGameLevel].length === 0) {
             await loadLevelWords(selectedGameLevel);
@@ -20156,6 +20138,26 @@ async function leaveLiveRoom(tournamentId, stage) {
         console.error('Error leaving live room:', error);
         alert('Failed to leave live room');
     }
+} 
+
+
+// ===== SEEDED RANDOM HELPER FUNCTIONS =====
+function hashString(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        const char = str.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32bit integer
+    }
+    return Math.abs(hash);
+}
+
+function createSeededRandom(seed) {
+    let currentSeed = seed;
+    return function() {
+        currentSeed = (currentSeed * 9301 + 49297) % 233280;
+        return currentSeed / 233280;
+    };
 }        
     </script>
 </body>
