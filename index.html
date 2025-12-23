@@ -16860,11 +16860,21 @@ try {
 }
 }
 function keepParticipantStage5(userId) {
-const msg = document.createElement('div');
-msg.style.cssText =         position: fixed; top: 20px; right: 20px;         background: #28a745; color: white;         padding: 15px 25px; border-radius: 8px;         font-weight: bold; z-index: 10001;    ;
-msg.textContent = '✅ Participant kept in Stage 5';
-document.body.appendChild(msg);
-setTimeout(() => msg.remove(), 2000);
+    const msg = document.createElement('div');
+    msg.style.cssText = `
+        position: fixed; 
+        top: 20px; 
+        right: 20px;         
+        background: #28a745; 
+        color: white;         
+        padding: 15px 25px; 
+        border-radius: 8px;         
+        font-weight: bold; 
+        z-index: 10001;
+    `;
+    msg.textContent = '✅ Participant kept in Stage 5';
+    document.body.appendChild(msg);
+    setTimeout(() => msg.remove(), 2000);
 }
 // ===== PARTICIPANT: JOIN STAGE 5 =====
 async function joinStage5Room() {
