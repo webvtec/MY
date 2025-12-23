@@ -14045,22 +14045,24 @@ async function generateStage1Questions() {
     try {
         console.log('🎯 Fetching words from database for level:', selectedGameLevel);
         
-       // ✅ Use tournament ID + timestamp as seed for unique randomization
-let tournamentSeed = currentTournament + Date.now();  // Changed const to let
-const seededRandom = () => {
-    const x = Math.sin(tournamentSeed++) * 10000;  // ✅ Now it works
-    return x - Math.floor(x);
-};
+        // ✅ Create unique seed using tournament ID + timestamp + random component
+        const uniqueSeed = currentTournament + Date.now() + Math.random() * 10000;
+        let seedValue = uniqueSeed;
+        
+        const seededRandom = () => {
+            seedValue = (seedValue * 9301 + 49297) % 233280;
+            return seedValue / 233280;
+        };
         
         // Fetch words from Firestore dictionary
         const wordsSnapshot = await db.collection('dictionary')
             .where('level', '==', selectedGameLevel)
-            .limit(100)
+            .limit(200) // ✅ Fetch MORE words to increase variety
             .get();
         
         if (wordsSnapshot.empty) {
             console.log('⚠️ No words found with level filter, fetching random words...');
-            const randomWordsSnapshot = await db.collection('dictionary').limit(100).get();
+            const randomWordsSnapshot = await db.collection('dictionary').limit(200).get();
             
             if (randomWordsSnapshot.empty) {
                 throw new Error('No words found in database. Please add words first.');
@@ -14083,9 +14085,12 @@ const seededRandom = () => {
         
         console.log(`✅ Found ${words.length} words in database`);
         
-        // ✅ Use seeded random for unique shuffling per tournament
-        const shuffled = words.sort(() => seededRandom() - 0.5);
-        const selected = shuffled.slice(0, 25);
+        // ✅ Apply multiple rounds of shuffling with different seeds
+        for (let i = 0; i < 3; i++) {
+            words.sort(() => seededRandom() - 0.5);
+        }
+        
+        const selected = words.slice(0, 25);
         
         return await buildQuestionsFromWords(selected);
         
@@ -14770,13 +14775,10 @@ async function proceedToStage2() {
 
 async function generateStage2Words() {
     try {
-        // ✅ Use tournament ID + stage as seed for unique randomization
-        const tournamentSeed = (currentTournament + 'stage2').split('').reduce((a, b) => {
-            a = ((a << 5) - a) + b.charCodeAt(0);
-            return a & a;
-        }, 0);
+        // ✅ Create unique seed for Stage 2
+        const uniqueSeed = currentTournament + 'stage2' + Date.now() + Math.random() * 10000;
+        let seedValue = Math.abs(uniqueSeed);
         
-        let seedValue = Math.abs(tournamentSeed);
         const seededRandom = () => {
             seedValue = (seedValue * 9301 + 49297) % 233280;
             return seedValue / 233280;
@@ -14786,11 +14788,15 @@ async function generateStage2Words() {
             await loadLevelWords(selectedGameLevel);
         }
         
-        // ✅ Use seeded random for unique shuffling
-        const shuffled = [...levelWords[selectedGameLevel]].sort(() => seededRandom() - 0.5);
-        stage2Words = shuffled.slice(0, 25);
+        // ✅ Multiple shuffle passes for better randomization
+        const wordsCopy = [...levelWords[selectedGameLevel]];
+        for (let i = 0; i < 5; i++) {
+            wordsCopy.sort(() => seededRandom() - 0.5);
+        }
         
-        console.log('✅ Generated 25 words for Stage 2:', stage2Words);
+        stage2Words = wordsCopy.slice(0, 25);
+        
+        console.log('✅ Generated 25 unique words for Stage 2:', stage2Words);
         
     } catch (error) {
         console.error('Error generating Stage 2 words:', error);
@@ -15160,13 +15166,10 @@ async function proceedToStage3() {
 
 async function generateStage3Words() {
     try {
-        // ✅ Use tournament ID + stage as seed for unique randomization
-        const tournamentSeed = (currentTournament + 'stage3').split('').reduce((a, b) => {
-            a = ((a << 5) - a) + b.charCodeAt(0);
-            return a & a;
-        }, 0);
+        // ✅ Create unique seed for Stage 3
+        const uniqueSeed = currentTournament + 'stage3' + Date.now() + Math.random() * 10000;
+        let seedValue = Math.abs(uniqueSeed);
         
-        let seedValue = Math.abs(tournamentSeed);
         const seededRandom = () => {
             seedValue = (seedValue * 9301 + 49297) % 233280;
             return seedValue / 233280;
@@ -15176,11 +15179,15 @@ async function generateStage3Words() {
             await loadLevelWords(selectedGameLevel);
         }
         
-        // ✅ Use seeded random for unique shuffling
-        const shuffled = [...levelWords[selectedGameLevel]].sort(() => seededRandom() - 0.5);
-        stage3Words = shuffled.slice(0, 25);
+        // ✅ Multiple shuffle passes
+        const wordsCopy = [...levelWords[selectedGameLevel]];
+        for (let i = 0; i < 5; i++) {
+            wordsCopy.sort(() => seededRandom() - 0.5);
+        }
         
-        console.log('✅ Generated 25 words for Stage 3:', stage3Words);
+        stage3Words = wordsCopy.slice(0, 25);
+        
+        console.log('✅ Generated 25 unique words for Stage 3:', stage3Words);
         
     } catch (error) {
         console.error('Error generating Stage 3 words:', error);
@@ -16060,21 +16067,34 @@ async function joinAsCaller() {
     }
 }
 
-  async function generateLiveStageWords(count) {
+ async function generateLiveStageWords(count) {
     try {
         if (!selectedGameLevel) {
-            selectedGameLevel = 'championship'; // Use hardest level for finals
+            selectedGameLevel = 'championship';
         }
         
         if (levelWords[selectedGameLevel].length === 0) {
             await loadLevelWords(selectedGameLevel);
         }
         
-        // Select random words
-        const shuffled = [...levelWords[selectedGameLevel]].sort(() => 0.5 - Math.random());
-        liveStageWords = shuffled.slice(0, count);
+        // ✅ Create unique seed for live stages
+        const uniqueSeed = currentTournament + 'live' + Date.now() + Math.random() * 10000;
+        let seedValue = Math.abs(uniqueSeed);
         
-        console.log(`✅ Generated ${count} words for live stage:`, liveStageWords);
+        const seededRandom = () => {
+            seedValue = (seedValue * 9301 + 49297) % 233280;
+            return seedValue / 233280;
+        };
+        
+        // ✅ Multiple shuffle passes
+        const wordsCopy = [...levelWords[selectedGameLevel]];
+        for (let i = 0; i < 5; i++) {
+            wordsCopy.sort(() => seededRandom() - 0.5);
+        }
+        
+        liveStageWords = wordsCopy.slice(0, count);
+        
+        console.log(`✅ Generated ${count} unique words for live stage:`, liveStageWords);
         
     } catch (error) {
         console.error('Error generating live stage words:', error);
@@ -16082,7 +16102,7 @@ async function joinAsCaller() {
     }
 }
 
-
+    
  // ===== CREATE STAGE 4 ROOM (TOP 10 ONLY) =====
 async function createStage4Room(tournamentId) {
     if (!isAdmin) {
