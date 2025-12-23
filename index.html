@@ -14153,6 +14153,10 @@ async function buildQuestionsFromWords(words) {
             });
         }
         
+        // ✅ Remove duplicates and filter out the target word itself
+        synonyms = [...new Set(synonyms)].filter(s => s.toLowerCase() !== word.toLowerCase());
+        antonyms = [...new Set(antonyms)].filter(a => a.toLowerCase() !== word.toLowerCase());
+        
         // Decide question type
         const hasEnoughSynonyms = synonyms.length >= 1;
         const hasEnoughAntonyms = antonyms.length >= 1;
@@ -14171,16 +14175,49 @@ async function buildQuestionsFromWords(words) {
         const availableWords = questionType === 'synonym' ? synonyms : antonyms;
         const correctAnswer = availableWords.length > 0 ? availableWords[0] : word;
         
-        // Get wrong options from other words
+        // ✅ Get wrong options - EXCLUDE the target word AND correct answer
         const wrongOptions = words
-            .filter(w => (w.word || w.id) !== word && (w.word || w.id) !== correctAnswer)
+            .filter(w => {
+                const wWord = (w.word || w.id).toLowerCase();
+                const targetWord = word.toLowerCase();
+                const correctWord = correctAnswer.toLowerCase();
+                
+                return wWord !== targetWord && wWord !== correctWord;
+            })
             .map(w => w.word || w.id)
             .sort(() => 0.5 - Math.random())
             .slice(0, 3);
         
-        // Build options
-        const options = [correctAnswer, ...wrongOptions].sort(() => 0.5 - Math.random());
-        const correctIndex = options.indexOf(correctAnswer);
+        // ✅ Build options - ensure correct answer is included and target word is NOT
+        const options = [correctAnswer, ...wrongOptions]
+            .filter((opt, index, self) => {
+                // Remove duplicates and the target word
+                const optLower = opt.toLowerCase();
+                const targetLower = word.toLowerCase();
+                return optLower !== targetLower && self.findIndex(o => o.toLowerCase() === optLower) === index;
+            })
+            .slice(0, 4); // Ensure exactly 4 options
+        
+        // ✅ If we don't have 4 options, pad with more wrong answers
+        while (options.length < 4) {
+            const additionalWrong = words
+                .map(w => w.word || w.id)
+                .filter(w => {
+                    const wLower = w.toLowerCase();
+                    return !options.some(o => o.toLowerCase() === wLower) && wLower !== word.toLowerCase();
+                })
+                .sort(() => 0.5 - Math.random())[0];
+            
+            if (additionalWrong) {
+                options.push(additionalWrong);
+            } else {
+                break;
+            }
+        }
+        
+        // ✅ Shuffle options
+        const shuffledOptions = options.sort(() => 0.5 - Math.random());
+        const correctIndex = shuffledOptions.findIndex(opt => opt.toLowerCase() === correctAnswer.toLowerCase());
         
         // Build sentence
         const sentence = example || 
@@ -14192,7 +14229,7 @@ async function buildQuestionsFromWords(words) {
             targetWord: word,
             type: questionType,
             sentence: sentence,
-            options: options,
+            options: shuffledOptions,
             correctAnswer: correctIndex
         });
     }
@@ -14200,6 +14237,7 @@ async function buildQuestionsFromWords(words) {
     console.log('✅ Built', stage1Questions.length, 'questions from database');
     return stage1Questions;
 }
+
 
 function loadStage1Question() {
     if (stage1CurrentIndex >= stage1Questions.length) {
