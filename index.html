@@ -13942,7 +13942,7 @@ function closeSponsorModal() {
     
 
 
-     // ===== TOURNAMENT STAGE 1 FUNCTIONS =====
+    // ===== TOURNAMENT STAGE 1 FUNCTIONS =====
 
 async function startTournamentStage1(tournamentId) {
     try {
@@ -15503,11 +15503,37 @@ function submitStage3Answer() {
     }
 }
 
-function completeStage3() {
+async function completeStage3() {
     clearInterval(stage3Timer);
     
-    const container = document.getElementById('tournament-stage3');
     const percentage = Math.round((stage3Score / stage3Words.length) * 100);
+    
+    // ✅ UPDATE USER'S STAGE 3 COMPLETION IN FIRESTORE
+    try {
+        await db.collection('tournaments').doc(currentTournament)
+            .collection('participants').doc(currentUser.uid).set({
+                userId: currentUser.uid,
+                name: currentUser.displayName || currentUser.email,
+                email: currentUser.email,
+                stage: 3,
+                stage3Score: stage3Score,
+                stage3Total: stage3Words.length,
+                stage3Percentage: percentage,
+                stage3CompletedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                status: percentage >= 60 ? 'qualified-stage4' : 'eliminated',
+                handicaps: stage3HandicapsRemaining
+            }, { merge: true });
+        
+        console.log('✅ Stage 3 completion recorded in Firestore');
+        
+        // ✅ NOTIFY ADMIN
+        await notifyAdminStage3Complete();
+        
+    } catch (error) {
+        console.error('Error recording Stage 3 completion:', error);
+    }
+    
+    const container = document.getElementById('tournament-stage3');
     
     container.innerHTML = `
         <div class="quiz-question-card" style="text-align: center; padding: 40px;">
@@ -15529,28 +15555,18 @@ function completeStage3() {
                 <div style="background: #d4edda; padding: 20px; border-radius: 10px; margin: 20px 0;">
                     <h3 style="color: #155724; margin-bottom: 10px;">✅ Qualified for Stage 4!</h3>
                     <p style="color: #155724;">
-                        Congratulations! You've reached the Live Spell Master rounds.<br>
-                        <strong>Next:</strong> Top 10 compete with live human caller
+                        Congratulations! You've reached the Live Spell Master rounds.
+                    </p>
+                    <p style="color: #155724; font-weight: bold; margin-top: 15px;">
+                        🎥 The admin has been notified. You will receive a notification when Stage 4 room is ready.
                     </p>
                 </div>
                 
-                <div style="background: #fff3cd; padding: 20px; border-radius: 10px; margin: 20px 0; border-left: 4px solid #ffc107;">
-                    <h4 style="color: #856404; margin: 0 0 15px 0;">🎭 Choose Your Role:</h4>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px;">
-                        <button class="practice-btn" onclick="joinAsSpeller()" style="background: #667eea; font-size: 1rem; padding: 15px;">
-                            🎯 Join as Speller
-                        </button>
-                        <button class="practice-btn" onclick="joinAsCaller()" style="background: #764ba2; font-size: 1rem; padding: 15px;">
-                            🎤 Join as Caller
-                        </button>
-                    </div>
-                    <p style="color: #856404; margin: 15px 0 0 0; font-size: 0.9rem;">
-                        ℹ️ <strong>Speller:</strong> Compete to spell words correctly<br>
-                        ℹ️ <strong>Caller:</strong> Read words aloud for spellers
-                    </p>
+                <div id="stage4-join-section" style="margin: 20px 0;">
+                    <div class="loading">⏳ Waiting for admin to create Stage 4 room...</div>
                 </div>
                 
-                <button class="practice-btn" onclick="exitTournament()" style="font-size: 1rem; padding: 12px 30px; background: #6c757d;">
+                <button class="practice-btn" onclick="exitTournament()" style="font-size: 1rem; padding: 12px 30px; background: #6c757d; margin-top: 20px;">
                     🏠 Return to Lobby
                 </button>
             ` : `
@@ -15566,8 +15582,91 @@ function completeStage3() {
             `}
         </div>
     `;
+    
+    // ✅ LISTEN FOR STAGE 4 ROOM CREATION
+    if (percentage >= 60) {
+        listenForStage4Room();
+    }
 }
 
+
+// ===== NOTIFY ADMIN OF STAGE 3 COMPLETIONS =====
+async function notifyAdminStage3Complete() {
+    try {
+        // Create notification document for admin
+        await db.collection('tournaments').doc(currentTournament)
+            .collection('adminNotifications').add({
+                type: 'stage3_completion',
+                userId: currentUser.uid,
+                userName: currentUser.displayName || currentUser.email,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                read: false
+            });
+        
+        console.log('✅ Admin notified of Stage 3 completion');
+    } catch (error) {
+        console.error('Error notifying admin:', error);
+    }
+}
+
+// ===== LISTEN FOR STAGE 4 ROOM CREATION =====
+function listenForStage4Room() {
+    console.log('👂 Listening for Stage 4 room creation...');
+    
+    const roomListener = db.collection('tournaments').doc(currentTournament)
+        .collection('liveRooms').doc('stage4')
+        .onSnapshot(doc => {
+            if (doc.exists) {
+                const roomData = doc.data();
+                
+                if (roomData.isActive && roomData.top10Participants?.includes(currentUser.uid)) {
+                    console.log('🎥 Stage 4 room is ready!');
+                    showStage4JoinButton(roomData);
+                }
+            }
+        });
+    
+    // Store listener for cleanup
+    if (!window.tournamentListeners) {
+        window.tournamentListeners = [];
+    }
+    window.tournamentListeners.push(roomListener);
+}
+
+// ===== SHOW JOIN BUTTON FOR STAGE 4 =====
+function showStage4JoinButton(roomData) {
+    const joinSection = document.getElementById('stage4-join-section');
+    if (!joinSection) return;
+    
+    joinSection.innerHTML = `
+        <div style="background: linear-gradient(135deg, #28a745, #20c997); padding: 30px; border-radius: 15px; margin: 20px 0; animation: pulse 2s infinite;">
+            <div style="font-size: 3rem; margin-bottom: 15px;">🎥</div>
+            <h3 style="color: white; margin-bottom: 15px;">Stage 4 Room is Ready!</h3>
+            <p style="color: white; opacity: 0.9; margin-bottom: 20px;">
+                You are one of the TOP 10 qualifiers!
+            </p>
+            <button class="practice-btn" onclick="joinStage4Room()" 
+                    style="background: white; color: #28a745; font-size: 1.3rem; padding: 20px 50px; font-weight: bold;">
+                ⚡ JOIN STAGE 4 NOW
+            </button>
+        </div>
+    `;
+    
+    // Add pulse animation
+    if (!document.getElementById('pulse-animation-style')) {
+        const style = document.createElement('style');
+        style.id = 'pulse-animation-style';
+        style.textContent = `
+            @keyframes pulse {
+                0%, 100% { transform: scale(1); box-shadow: 0 5px 20px rgba(40, 167, 69, 0.3); }
+                50% { transform: scale(1.05); box-shadow: 0 10px 40px rgba(40, 167, 69, 0.6); }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+}
+
+        
 function eliminateFromStage3() {
     clearInterval(stage3Timer);
     
@@ -15589,6 +15688,74 @@ function eliminateFromStage3() {
         </div>
     `;
 }
+
+
+   // ===== ADMIN: LISTEN FOR STAGE 3 COMPLETIONS =====
+function listenForStage3Completions(tournamentId) {
+    const notificationsListener = db.collection('tournaments').doc(tournamentId)
+        .collection('adminNotifications')
+        .where('type', '==', 'stage3_completion')
+        .where('read', '==', false)
+        .onSnapshot(snapshot => {
+            snapshot.docChanges().forEach(change => {
+                if (change.type === 'added') {
+                    const notification = change.doc.data();
+                    showAdminNotification(`✅ ${notification.userName} completed Stage 3!`);
+                    
+                    // Mark as read
+                    change.doc.ref.update({ read: true });
+                    
+                    // Refresh the view
+                    setTimeout(() => {
+                        closeViewTournamentModal();
+                        viewTournament(tournamentId);
+                    }, 2000);
+                }
+            });
+        });
+    
+    if (!window.tournamentListeners) {
+        window.tournamentListeners = [];
+    }
+    window.tournamentListeners.push(notificationsListener);
+}
+
+// ===== SHOW ADMIN NOTIFICATION =====
+function showAdminNotification(message) {
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: linear-gradient(135deg, #28a745, #20c997);
+        color: white;
+        padding: 20px 30px;
+        border-radius: 10px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+        z-index: 10001;
+        font-size: 1.1rem;
+        font-weight: bold;
+        animation: slideInRight 0.5s ease-out;
+    `;
+    notification.textContent = message;
+    
+    document.body.appendChild(notification);
+    
+    // Add animation
+    if (!document.getElementById('slideInRight-style')) {
+        const style = document.createElement('style');
+        style.id = 'slideInRight-style';
+        style.textContent = `
+            @keyframes slideInRight {
+                from { transform: translateX(400px); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+    
+    setTimeout(() => notification.remove(), 5000);
+}     
 
 // Update exitTournament to handle all stages
 function exitTournament() {
@@ -15689,6 +15856,1165 @@ async function joinAsCaller() {
     }
 }
 
+
+ // ===== CREATE STAGE 4 ROOM (TOP 10 ONLY) =====
+async function createStage4Room(tournamentId) {
+    if (!isAdmin) {
+        alert('❌ Admin access required');
+        return;
+    }
+    
+    if (!confirm('🚀 Create Stage 4 room and select TOP 10 participants?')) {
+        return;
+    }
+    
+    try {
+        console.log('🎥 Creating Stage 4 room...');
+        
+        // Get top 10 qualified participants
+        const participantsSnapshot = await db.collection('tournaments').doc(tournamentId)
+            .collection('participants')
+            .where('status', '==', 'qualified-stage4')
+            .orderBy('stage3Percentage', 'desc')
+            .limit(10)
+            .get();
+        
+        const top10 = [];
+        const top10Ids = [];
+        participantsSnapshot.forEach(doc => {
+            top10.push({ id: doc.id, ...doc.data() });
+            top10Ids.push(doc.id);
+        });
+        
+        if (top10.length < 10) {
+            alert(`⚠️ Only ${top10.length} qualified participants. Need at least 10.`);
+            return;
+        }
+        
+        // Create Stage 4 room
+        await db.collection('tournaments').doc(tournamentId)
+            .collection('liveRooms').doc('stage4').set({
+                stage: 4,
+                createdBy: currentUser.uid,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                isActive: true,
+                top10Participants: top10Ids,
+                activeParticipants: [],
+                eliminatedParticipants: [],
+                adminInRoom: false
+            });
+        
+        // Update all top 10 to active
+        const batch = db.batch();
+        top10Ids.forEach(userId => {
+            const userRef = db.collection('tournaments').doc(tournamentId)
+                .collection('participants').doc(userId);
+            batch.update(userRef, {
+                status: 'stage4-active',
+                stage: 4
+            });
+        });
+        
+        // Eliminate everyone else
+        const allParticipantsSnapshot = await db.collection('tournaments').doc(tournamentId)
+            .collection('participants')
+            .where('status', '==', 'qualified-stage4')
+            .get();
+        
+        allParticipantsSnapshot.forEach(doc => {
+            if (!top10Ids.includes(doc.id)) {
+                batch.update(doc.ref, {
+                    status: 'eliminated-after-stage3',
+                    eliminatedReason: 'Did not make Top 10'
+                });
+            }
+        });
+        
+        await batch.commit();
+        
+        console.log('✅ Stage 4 room created with top 10 participants');
+        
+        alert(`✅ Stage 4 room created!\n\nTop 10 participants have been notified and can now join.`);
+        
+        // Refresh view
+        closeViewTournamentModal();
+        viewTournament(tournamentId);
+        
+    } catch (error) {
+        console.error('Error creating Stage 4 room:', error);
+        alert('Failed to create Stage 4 room: ' + error.message);
+    }
+}
+
+
+// ===== PARTICIPANT: JOIN STAGE 4 ROOM =====
+async function joinStage4Room() {
+    if (!currentUser) {
+        alert('Please sign in first');
+        return;
+    }
+    
+    try {
+        console.log('🎥 Joining Stage 4 room...');
+        
+        // Request camera/mic permissions
+        try {
+            localStream = await navigator.mediaDevices.getUserMedia({
+                audio: true,
+                video: true
+            });
+        } catch (error) {
+            console.error('Media permission denied:', error);
+            alert('⚠️ Camera and microphone access required for Stage 4.\n\nPlease allow permissions and try again.');
+            return;
+        }
+        
+        // Add to active participants
+        await db.collection('tournaments').doc(currentTournament)
+            .collection('liveRooms').doc('stage4').update({
+                activeParticipants: firebase.firestore.FieldValue.arrayUnion(currentUser.uid)
+            });
+        
+        // Hide Stage 3 container
+        const stage3Container = document.getElementById('tournament-stage3');
+        if (stage3Container) stage3Container.style.display = 'none';
+        
+        // Show Stage 4 participant interface
+        showStage4ParticipantUI();
+        
+        console.log('✅ Joined Stage 4 room');
+        
+    } catch (error) {
+        console.error('Error joining Stage 4 room:', error);
+        alert('Failed to join Stage 4 room: ' + error.message);
+    }
+}
+
+// ===== SHOW STAGE 4 PARTICIPANT INTERFACE =====
+function showStage4ParticipantUI() {
+    const tournamentsSection = document.querySelector('#tournaments-section .word-database');
+    let stage4Container = document.getElementById('tournament-stage4-participant');
+    
+    if (!stage4Container) {
+        stage4Container = document.createElement('div');
+        stage4Container.id = 'tournament-stage4-participant';
+        tournamentsSection.appendChild(stage4Container);
+    }
+    
+    stage4Container.style.display = 'block';
+    
+    stage4Container.innerHTML = `
+        <div class="quiz-question-card">
+            <div style="background: linear-gradient(135deg, #e74c3c, #c0392b); padding: 20px; border-radius: 10px; margin-bottom: 20px; color: white;">
+                <h2 style="margin: 0 0 10px 0; color: white;">🎥 STAGE 4 LIVE ROOM</h2>
+                <p style="margin: 0; opacity: 0.9;">Top 10 Face-to-Face Round</p>
+            </div>
+            
+            <!-- My Video Controls -->
+            <div style="background: #f9f9f9; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <button class="practice-btn" onclick="toggleMyAudio()" id="my-audio-btn" 
+                            style="flex: 1; background: #28a745; font-size: 0.9rem; padding: 12px;">
+                        🎤 Mic: ON
+                    </button>
+                    <button class="practice-btn" onclick="toggleMyVideo()" id="my-video-btn" 
+                            style="flex: 1; background: #28a745; font-size: 0.9rem; padding: 12px;">
+                        🎥 Camera: ON
+                    </button>
+                    <button class="practice-btn" onclick="leaveStage4Room()" 
+                            style="flex: 1; background: #dc3545; font-size: 0.9rem; padding: 12px;">
+                        🚪 Leave Room
+                    </button>
+                </div>
+            </div>
+            
+            <!-- My Video Feed -->
+            <div style="background: #000; border-radius: 10px; overflow: hidden; margin-bottom: 20px; position: relative;">
+                <video id="my-video-stage4" autoplay muted playsinline 
+                       style="width: 100%; max-height: 400px; object-fit: cover;"></video>
+                <div style="position: absolute; bottom: 15px; left: 15px; background: rgba(0,0,0,0.8); padding: 10px 20px; border-radius: 25px; color: white; font-weight: bold; font-size: 1.1rem;">
+                    👤 YOU
+                </div>
+            </div>
+            
+            <!-- Status Display -->
+            <div id="stage4-participant-status" style="text-align: center; padding: 40px; background: linear-gradient(135deg, #667eea, #764ba2); border-radius: 15px; color: white;">
+                <div style="font-size: 3rem; margin-bottom: 15px;">🎤</div>
+                <h3 style="color: white; margin-bottom: 10px;">Connected to Stage 4 Room</h3>
+                <p style="opacity: 0.9; margin: 0;">
+                    Waiting for admin to start the round...<br>
+                    Listen carefully and spell when it's your turn!
+                </p>
+            </div>
+        </div>
+    `;
+    
+    // Setup video
+    const myVideo = document.getElementById('my-video-stage4');
+    if (myVideo && localStream) {
+        myVideo.srcObject = localStream;
+    }
+    
+    // Listen for elimination/advancement
+    listenForStage4Changes();
+}
+
+// ===== LISTEN FOR STAGE 4 STATUS CHANGES =====
+function listenForStage4Changes() {
+    const statusListener = db.collection('tournaments').doc(currentTournament)
+        .collection('liveRooms').doc('stage4')
+        .onSnapshot(doc => {
+            if (!doc.exists) return;
+            
+            const roomData = doc.data();
+            
+            // Check if eliminated
+            if (roomData.eliminatedParticipants?.includes(currentUser.uid)) {
+                showEliminationMessage(4);
+            }
+            
+            // Check if advanced to stage 5
+            const stage5RoomRef = db.collection('tournaments').doc(currentTournament)
+                .collection('liveRooms').doc('stage5');
+            
+            stage5RoomRef.get().then(stage5Doc => {
+                if (stage5Doc.exists && stage5Doc.data().activeParticipants?.includes(currentUser.uid)) {
+                    showAdvancementMessage(5);
+                }
+            });
+        });
+    
+    if (!window.tournamentListeners) {
+        window.tournamentListeners = [];
+    }
+    window.tournamentListeners.push(statusListener);
+}
+
+// ===== SHOW ELIMINATION MESSAGE =====
+function showEliminationMessage(fromStage) {
+    const container = document.getElementById('stage4-participant-status') || 
+                      document.getElementById('stage5-participant-status') ||
+                      document.getElementById('stage6-participant-status') ||
+                      document.getElementById('stage7-participant-status');
+    
+    if (!container) return;
+    
+    container.innerHTML = `
+        <div style="font-size: 4rem; margin-bottom: 20px;">😢</div>
+        <h2 style="color: white; margin-bottom: 15px;">You've Been Eliminated</h2>
+        <p style="opacity: 0.9; font-size: 1.1rem;">
+            Thank you for participating in Stage ${fromStage}!<br>
+            Better luck next time.
+        </p>
+        <button class="practice-btn" onclick="exitTournamentAfterElimination()" 
+                style="background: white; color: #dc3545; font-size: 1.1rem; padding: 15px 40px; margin-top: 20px;">
+            🏠 Exit Tournament
+        </button>
+    `;
+    
+    // Stop media streams
+    if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+        localStream = null;
+    }
+}
+
+// ===== SHOW ADVANCEMENT MESSAGE =====
+function showAdvancementMessage(toStage) {
+    const container = document.getElementById('stage4-participant-status') || 
+                      document.getElementById('stage5-participant-status') ||
+                      document.getElementById('stage6-participant-status');
+    
+    if (!container) return;
+    
+    container.innerHTML = `
+        <div style="font-size: 4rem; margin-bottom: 20px; animation: bounce 1s infinite;">🎉</div>
+        <h2 style="color: white; margin-bottom: 15px;">Congratulations!</h2>
+        <p style="opacity: 0.9; font-size: 1.2rem; margin-bottom: 20px;">
+            You've advanced to Stage ${toStage}!
+        </p>
+        <div class="loading" style="color: white;">Preparing Stage ${toStage} room...</div>
+    `;
+    
+    // Auto-join next stage
+    setTimeout(() => {
+        if (toStage === 5) joinStage5Room();
+        else if (toStage === 6) joinStage6Room();
+        else if (toStage === 7) joinStage7Room();
+    }, 3000);
+}
+
+// ===== LEAVE STAGE 4 ROOM =====
+async function leaveStage4Room() {
+    if (!confirm('🚪 Leave Stage 4 room? You will be eliminated from the tournament.')) {
+        return;
+    }
+    
+    try {
+        // Stop media
+        if (localStream) {
+            localStream.getTracks().forEach(track => track.stop());
+            localStream = null;
+        }
+        
+        // Remove from room
+        await db.collection('tournaments').doc(currentTournament)
+            .collection('liveRooms').doc('stage4').update({
+                activeParticipants: firebase.firestore.FieldValue.arrayRemove(currentUser.uid),
+                eliminatedParticipants: firebase.firestore.FieldValue.arrayUnion(currentUser.uid)
+            });
+        
+        // Update status
+        await db.collection('tournaments').doc(currentTournament)
+            .collection('participants').doc(currentUser.uid).update({
+                status: 'eliminated-stage4',
+                eliminatedReason: 'Left room voluntarily'
+            });
+        
+        exitTournament();
+        
+    } catch (error) {
+        console.error('Error leaving room:', error);
+        alert('Failed to leave room');
+    }
+}
+
+// ===== EXIT AFTER ELIMINATION =====
+function exitTournamentAfterElimination() {
+    if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+        localStream = null;
+    }
+    
+    exitTournament();
+}
+
+// ===== ADMIN: ENTER STAGE 4 ROOM =====
+async function enterStage4RoomAdmin(tournamentId) {
+    if (!isAdmin) {
+        alert('❌ Admin access required');
+        return;
+    }
+    
+    try {
+        console.log('🎥 Admin entering Stage 4 room...');
+        
+        // Request camera/mic permissions
+        localStream = await navigator.mediaDevices.getUserMedia({
+            audio: true,
+            video: true
+        });
+        
+        // Mark admin as in room
+        await db.collection('tournaments').doc(tournamentId)
+            .collection('liveRooms').doc('stage4').update({
+                adminInRoom: true,
+                adminJoinedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        
+        // Close view modal
+        closeViewTournamentModal();
+        
+        // Show admin Stage 4 interface
+        showStage4AdminUI(tournamentId);
+        
+        console.log('✅ Admin entered Stage 4 room');
+        
+    } catch (error) {
+        console.error('Error entering Stage 4 room:', error);
+        alert('Failed to access camera/microphone: ' + error.message);
+    }
+}
+
+// ===== STAGE 4 ADMIN INTERFACE =====
+function showStage4AdminUI(tournamentId) {
+    // Hide all other sections
+    document.querySelectorAll('.content-section').forEach(sec => {
+        sec.classList.remove('active');
+    });
+    
+    const tournamentsSection = document.getElementById('tournaments-section');
+    tournamentsSection.classList.add('active');
+    
+    const wordDatabase = tournamentsSection.querySelector('.word-database');
+    
+    // Create Stage 4 admin container
+    let stage4AdminContainer = document.getElementById('stage4-admin-container');
+    if (!stage4AdminContainer) {
+        stage4AdminContainer = document.createElement('div');
+        stage4AdminContainer.id = 'stage4-admin-container';
+        wordDatabase.appendChild(stage4AdminContainer);
+    }
+    
+    // Hide tournament lobby and other stages
+    document.getElementById('tournament-lobby').style.display = 'none';
+    const stage1 = document.getElementById('tournament-stage1');
+    if (stage1) stage1.style.display = 'none';
+    const stage2 = document.getElementById('tournament-stage2');
+    if (stage2) stage2.style.display = 'none';
+    const stage3 = document.getElementById('tournament-stage3');
+    if (stage3) stage3.style.display = 'none';
+    
+    stage4AdminContainer.style.display = 'block';
+    
+    stage4AdminContainer.innerHTML = `
+        <div class="quiz-question-card">
+            <div style="background: linear-gradient(135deg, #e74c3c, #c0392b); padding: 20px; border-radius: 10px; margin-bottom: 20px; color: white;">
+                <h2 style="margin: 0 0 10px 0; color: white;">🎥 STAGE 4 ADMIN CONTROL</h2>
+                <p style="margin: 0; opacity: 0.9;">Manage Top 10 Participants - Eliminate or Advance</p>
+            </div>
+            
+            <!-- Admin Video Controls -->
+            <div style="background: #f9f9f9; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
+                <h4 style="color: #0d3b66; margin: 0 0 10px 0;">🎛️ Admin Controls</h4>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button class="practice-btn" onclick="toggleAdminAudio()" id="admin-audio-btn" 
+                            style="background: #28a745; font-size: 0.9rem; padding: 10px 20px;">
+                        🎤 Mic: ON
+                    </button>
+                    <button class="practice-btn" onclick="toggleAdminVideo()" id="admin-video-btn" 
+                            style="background: #28a745; font-size: 0.9rem; padding: 10px 20px;">
+                        🎥 Camera: ON
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Admin Video Feed -->
+            <div style="background: #000; border-radius: 10px; overflow: hidden; margin-bottom: 20px; position: relative;">
+                <video id="admin-video-stage4" autoplay muted playsinline 
+                       style="width: 100%; max-height: 300px; object-fit: cover;"></video>
+                <div style="position: absolute; bottom: 10px; left: 10px; background: rgba(255,215,0,0.9); padding: 8px 15px; border-radius: 20px; color: #0d3b66; font-weight: bold;">
+                    👑 ADMIN
+                </div>
+            </div>
+            
+            <!-- Participants Grid -->
+            <div style="background: #f9f9f9; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                <h3 style="color: #0d3b66; margin: 0 0 15px 0;">
+                    👥 Active Participants (<span id="stage4-active-count">0</span>)
+                </h3>
+                <div id="stage4-participants-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px;">
+                    <!-- Participants will be loaded here -->
+                </div>
+            </div>
+            
+            <!-- Eliminated Section -->
+            <div id="stage4-eliminated-section" style="display: none; background: #f8d7da; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                <h3 style="color: #721c24; margin: 0 0 15px 0;">
+                    ❌ Eliminated (<span id="stage4-eliminated-count">0</span>)
+                </h3>
+                <div id="stage4-eliminated-list" style="display: flex; flex-wrap: wrap; gap: 10px;">
+                    <!-- Eliminated participants will be shown here -->
+                </div>
+            </div>
+            
+            <!-- Admin Actions -->
+            <div style="background: #fff3cd; padding: 20px; border-radius: 10px; border-left: 4px solid #ffc107;">
+                <h4 style="color: #856404; margin: 0 0 15px 0;">⚡ Stage Actions</h4>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button class="practice-btn" onclick="createStage5Room('${tournamentId}')" 
+                            style="flex: 1; background: #667eea; font-size: 1.1rem; padding: 15px 30px;">
+                        🚀 Create Stage 5 Room
+                    </button>
+                    <button class="practice-btn" onclick="closeStage4AdminRoom('${tournamentId}')" 
+                            style="background: #dc3545; font-size: 1rem; padding: 15px 30px;">
+                        🚪 Close Room
+                    </button>
+                </div>
+                <p style="color: #856404; margin: 15px 0 0 0; font-size: 0.9rem;">
+                    ℹ️ Eliminate participants until ready, then create Stage 5 room to advance remaining users
+                </p>
+            </div>
+        </div>
+    `;
+    
+    // Setup admin video
+    const adminVideo = document.getElementById('admin-video-stage4');
+    if (adminVideo && localStream) {
+        adminVideo.srcObject = localStream;
+    }
+    
+    // Load participants
+    loadStage4Participants(tournamentId);
+}
+
+// ===== LOAD STAGE 4 PARTICIPANTS =====
+async function loadStage4Participants(tournamentId) {
+    const grid = document.getElementById('stage4-participants-grid');
+    const eliminatedList = document.getElementById('stage4-eliminated-list');
+    
+    if (!grid) return;
+    
+    // Listen for room changes
+    const roomListener = db.collection('tournaments').doc(tournamentId)
+        .collection('liveRooms').doc('stage4')
+        .onSnapshot(async (doc) => {
+            if (!doc.exists) return;
+            
+            const roomData = doc.data();
+            const activeIds = roomData.activeParticipants || [];
+            const eliminatedIds = roomData.eliminatedParticipants || [];
+            
+            // Update counts
+            document.getElementById('stage4-active-count').textContent = activeIds.length;
+            document.getElementById('stage4-eliminated-count').textContent = eliminatedIds.length;
+            
+            // Show/hide eliminated section
+            const eliminatedSection = document.getElementById('stage4-eliminated-section');
+            if (eliminatedSection) {
+                eliminatedSection.style.display = eliminatedIds.length > 0 ? 'block' : 'none';
+            }
+            
+            // Clear grids
+            grid.innerHTML = '';
+            if (eliminatedList) eliminatedList.innerHTML = '';
+            
+            // Load active participants
+            for (const userId of activeIds) {
+                const userDoc = await db.collection('users').doc(userId).get();
+                if (!userDoc.exists) continue;
+                
+                const userData = userDoc.data();
+                
+                const participantCard = document.createElement('div');
+                participantCard.style.cssText = `
+                    background: white;
+                    border-radius: 10px;
+                    padding: 15px;
+                    border: 2px solid #28a745;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                `;
+                
+                participantCard.innerHTML = `
+                    <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                        <img src="${userData.photoURL || 'https://via.placeholder.com/50'}" 
+                             style="width: 50px; height: 50px; border-radius: 50%; margin-right: 12px; object-fit: cover; border: 2px solid #28a745;">
+                        <div style="flex: 1;">
+                            <div style="font-weight: bold; color: #0d3b66; font-size: 1rem;">
+                                ${userData.firstName} ${userData.lastName}
+                            </div>
+                            <div style="color: #666; font-size: 0.85rem;">
+                                📧 ${userData.email}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Video Placeholder -->
+                    <div style="background: #000; border-radius: 8px; height: 120px; display: flex; align-items: center; justify-content: center; color: white; margin-bottom: 10px;">
+                        <div style="text-align: center;">
+                            <div style="font-size: 2rem; margin-bottom: 5px;">👤</div>
+                            <div style="font-size: 0.85rem;">Camera feed</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Action Buttons -->
+                    <div style="display: flex; gap: 8px;">
+                        <button class="practice-btn" onclick="eliminateParticipantStage4('${userId}', '${tournamentId}')"
+                                style="flex: 1; font-size: 0.85rem; padding: 10px; background: #dc3545;">
+                            ❌ Eliminate
+                        </button>
+                        <button class="practice-btn" onclick="keepParticipantStage4('${userId}')"
+                                style="flex: 1; font-size: 0.85rem; padding: 10px; background: #28a745;">
+                            ✅ Keep
+                        </button>
+                    </div>
+                `;
+                
+                grid.appendChild(participantCard);
+            }
+            
+            // Load eliminated participants
+            for (const userId of eliminatedIds) {
+                const userDoc = await db.collection('users').doc(userId).get();
+                if (!userDoc.exists) continue;
+                
+                const userData = userDoc.data();
+                
+                const eliminatedBadge = document.createElement('div');
+                eliminatedBadge.style.cssText = `
+                    background: white;
+                    padding: 10px 15px;
+                    border-radius: 20px;
+                    color: #721c24;
+                    font-weight: bold;
+                    font-size: 0.9rem;
+                    display: inline-block;
+                `;
+                eliminatedBadge.textContent = `${userData.firstName} ${userData.lastName}`;
+                
+                if (eliminatedList) {
+                    eliminatedList.appendChild(eliminatedBadge);
+                }
+            }
+            
+            // Show waiting message if no active participants
+            if (activeIds.length === 0) {
+                grid.innerHTML = `
+                    <div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: #666;">
+                        <div style="font-size: 3rem; margin-bottom: 15px;">⏳</div>
+                        <h3>Waiting for participants to join...</h3>
+                        <p>Top 10 qualified participants will appear here when they join the room</p>
+                    </div>
+                `;
+            }
+        });
+    
+    if (!window.tournamentListeners) {
+        window.tournamentListeners = [];
+    }
+    window.tournamentListeners.push(roomListener);
+}
+
+// ===== ELIMINATE PARTICIPANT FROM STAGE 4 =====
+async function eliminateParticipantStage4(userId, tournamentId) {
+    if (!confirm('❌ Eliminate this participant from Stage 4?')) {
+        return;
+    }
+    
+    try {
+        // Move to eliminated list
+        await db.collection('tournaments').doc(tournamentId)
+            .collection('liveRooms').doc('stage4').update({
+                activeParticipants: firebase.firestore.FieldValue.arrayRemove(userId),
+                eliminatedParticipants: firebase.firestore.FieldValue.arrayUnion(userId)
+            });
+        
+        // Update participant status
+        await db.collection('tournaments').doc(tournamentId)
+            .collection('participants').doc(userId).update({
+                status: 'eliminated-stage4',
+                eliminatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                eliminatedBy: 'admin'
+            });
+        
+        console.log('✅ Participant eliminated from Stage 4');
+        
+    } catch (error) {
+        console.error('Error eliminating participant:', error);
+        alert('Failed to eliminate participant');
+    }
+}
+
+// ===== KEEP PARTICIPANT (CONFIRMATION) =====
+function keepParticipantStage4(userId) {
+    // Just visual feedback
+    const msg = document.createElement('div');
+    msg.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #28a745;
+        color: white;
+        padding: 15px 25px;
+        border-radius: 8px;
+        font-weight: bold;
+        z-index: 10001;
+        animation: slideInRight 0.3s ease-out;
+    `;
+    msg.textContent = '✅ Participant kept in Stage 4';
+    document.body.appendChild(msg);
+    
+    setTimeout(() => msg.remove(), 2000);
+}
+
+// ===== CREATE STAGE 5 ROOM =====
+async function createStage5Room(tournamentId) {
+    if (!isAdmin) {
+        alert('❌ Admin access required');
+        return;
+    }
+    
+    try {
+        // Get current active participants from Stage 4
+        const stage4RoomDoc = await db.collection('tournaments').doc(tournamentId)
+            .collection('liveRooms').doc('stage4').get();
+        
+        if (!stage4RoomDoc.exists) {
+            alert('❌ Stage 4 room not found');
+            return;
+        }
+        
+        const stage4Data = stage4RoomDoc.data();
+        const activeParticipants = stage4Data.activeParticipants || [];
+        
+        if (activeParticipants.length === 0) {
+            alert('⚠️ No active participants to advance to Stage 5');
+            return;
+        }
+        
+        if (activeParticipants.length > 5) {
+            alert(`⚠️ Stage 5 is for Top 5 only.\n\nCurrent active: ${activeParticipants.length}\n\nPlease eliminate ${activeParticipants.length - 5} more participant(s) before creating Stage 5.`);
+            return;
+        }
+        
+        if (!confirm(`🚀 Create Stage 5 room with ${activeParticipants.length} participant(s)?`)) {
+            return;
+        }
+        
+        console.log('🎥 Creating Stage 5 room...');
+        
+        // Create Stage 5 room
+        await db.collection('tournaments').doc(tournamentId)
+            .collection('liveRooms').doc('stage5').set({
+                stage: 5,
+                createdBy: currentUser.uid,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                isActive: true,
+                activeParticipants: activeParticipants,
+                eliminatedParticipants: [],
+                adminInRoom: true
+            });
+        
+        // Update all participants to Stage 5
+        const batch = db.batch();
+        activeParticipants.forEach(userId => {
+            const userRef = db.collection('tournaments').doc(tournamentId)
+                .collection('participants').doc(userId);
+            batch.update(userRef, {
+                status: 'stage5-active',
+                stage: 5,
+                advancedToStage5At: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        });
+        await batch.commit();
+        
+        // Close Stage 4 room
+        await db.collection('tournaments').doc(tournamentId)
+            .collection('liveRooms').doc('stage4').update({
+                isActive: false,
+                closedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        
+        console.log('✅ Stage 5 room created');
+        
+        alert(`✅ Stage 5 room created with ${activeParticipants.length} participant(s)!\n\nParticipants are being automatically moved to Stage 5.`);
+        
+        // Show Stage 5 admin interface
+        showStage5AdminUI(tournamentId);
+        
+    } catch (error) {
+        console.error('Error creating Stage 5 room:', error);
+        alert('Failed to create Stage 5 room: ' + error.message);
+    }
+}
+
+// ===== CLOSE STAGE 4 ADMIN ROOM =====
+async function closeStage4AdminRoom(tournamentId) {
+    if (!confirm('🚪 Close Stage 4 room and return to admin panel?')) {
+        return;
+    }
+    
+    try {
+        // Stop media streams
+        if (localStream) {
+            localStream.getTracks().forEach(track => track.stop());
+            localStream = null;
+        }
+        
+        // Mark admin as left
+        await db.collection('tournaments').doc(tournamentId)
+            .collection('liveRooms').doc('stage4').update({
+                adminInRoom: false
+            });
+        
+        // Hide Stage 4 container
+        const stage4Container = document.getElementById('stage4-admin-container');
+        if (stage4Container) {
+            stage4Container.style.display = 'none';
+        }
+        
+        // Return to admin panel
+        navigateTo('admin');
+        
+    } catch (error) {
+        console.error('Error closing Stage 4 room:', error);
+        alert('Failed to close room');
+    }
+}
+
+// ===== STAGE 5 ADMIN INTERFACE =====
+function showStage5AdminUI(tournamentId) {
+    const stage4Container = document.getElementById('stage4-admin-container');
+    if (stage4Container) stage4Container.style.display = 'none';
+    
+    const wordDatabase = document.querySelector('#tournaments-section .word-database');
+    
+    let stage5AdminContainer = document.getElementById('stage5-admin-container');
+    if (!stage5AdminContainer) {
+        stage5AdminContainer = document.createElement('div');
+        stage5AdminContainer.id = 'stage5-admin-container';
+        wordDatabase.appendChild(stage5AdminContainer);
+    }
+    
+    stage5AdminContainer.style.display = 'block';
+    
+    stage5AdminContainer.innerHTML = `
+        <div class="quiz-question-card">
+            <div style="background: linear-gradient(135deg, #f093fb, #f5576c); padding: 20px; border-radius: 10px; margin-bottom: 20px; color: white;">
+                <h2 style="margin: 0 0 10px 0; color: white;">🎥 STAGE 5 ADMIN CONTROL (TOP 5)</h2>
+                <p style="margin: 0; opacity: 0.9;">Manage Top 5 → Top 3</p>
+            </div>
+            
+            <!-- Admin Video Controls -->
+            <div style="background: #f9f9f9; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
+                <h4 style="color: #0d3b66; margin: 0 0 10px 0;">🎛️ Admin Controls</h4>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button class="practice-btn" onclick="toggleAdminAudio()" id="admin-audio-btn-stage5" 
+                            style="background: #28a745; font-size: 0.9rem; padding: 10px 20px;">
+                        🎤 Mic: ON
+                    </button>
+                    <button class="practice-btn" onclick="toggleAdminVideo()" id="admin-video-btn-stage5" 
+                            style="background: #28a745; font-size: 0.9rem; padding: 10px 20px;">
+                        🎥 Camera: ON
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Admin Video Feed -->
+            <div style="background: #000; border-radius: 10px; overflow: hidden; margin-bottom: 20px; position: relative;">
+                <video id="admin-video-stage5" autoplay muted playsinline 
+                       style="width: 100%; max-height: 300px; object-fit: cover;"></video>
+                <div style="position: absolute; bottom: 10px; left: 10px; background: rgba(255,215,0,0.9); padding: 8px 15px; border-radius: 20px; color: #0d3b66; font-weight: bold;">
+                    👑 ADMIN
+                </div>
+            </div>
+            
+            <!-- Participants Grid -->
+            <div style="background: #f9f9f9; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                <h3 style="color: #0d3b66; margin: 0 0 15px 0;">
+                    ⭐ Active Participants (<span id="stage5-active-count">0</span>)
+                </h3>
+                <div id="stage5-participants-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px;">
+                    <!-- Participants will be loaded here -->
+                </div>
+            </div>
+            
+            <!-- Eliminated Section -->
+            <div id="stage5-eliminated-section" style="display: none; background: #f8d7da; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                <h3 style="color: #721c24; margin: 0 0 15px 0;">
+                    ❌ Eliminated (<span id="stage5-eliminated-count">0</span>)
+                </h3>
+                <div id="stage5-eliminated-list" style="display: flex; flex-wrap: wrap; gap: 10px;">
+                    <!-- Eliminated participants -->
+                </div>
+            </div>
+            
+            <!-- Admin Actions -->
+            <div style="background: #fff3cd; padding: 20px; border-radius: 10px; border-left: 4px solid #ffc107;">
+                <h4 style="color: #856404; margin: 0 0 15px 0;">⚡ Stage Actions</h4>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button class="practice-btn" onclick="createStage6Room('${tournamentId}')" 
+                            style="flex: 1; background: #667eea; font-size: 1.1rem; padding: 15px 30px;">
+                        🚀 Create Stage 6 Room (Top 3)
+                    </button>
+                    <button class="practice-btn" onclick="closeStage5AdminRoom('${tournamentId}')" 
+                            style="background: #dc3545; font-size: 1rem; padding: 15px 30px;">
+                        🚪 Close Room
+                    </button>
+                </div>
+                <p style="color: #856404; margin: 15px 0 0 0; font-size: 0.9rem;">
+                    ℹ️ Eliminate until 3 participants remain, then create Stage 6
+                </p>
+            </div>
+        </div>
+    `;
+    
+    // Setup admin video
+    const adminVideo = document.getElementById('admin-video-stage5');
+    if (adminVideo && localStream) {
+        adminVideo.srcObject = localStream;
+    }
+    
+    // Load participants
+    loadStage5Participants(tournamentId);
+}
+
+// ===== LOAD STAGE 5 PARTICIPANTS =====
+async function loadStage5Participants(tournamentId) {
+    const grid = document.getElementById('stage5-participants-grid');
+    const eliminatedList = document.getElementById('stage5-eliminated-list');
+    
+    if (!grid) return;
+    
+    const roomListener = db.collection('tournaments').doc(tournamentId)
+        .collection('liveRooms').doc('stage5')
+        .onSnapshot(async (doc) => {
+            if (!doc.exists) return;
+            
+            const roomData = doc.data();
+            const activeIds = roomData.activeParticipants || [];
+            const eliminatedIds= roomData.eliminatedParticipants || [];
+        document.getElementById('stage5-active-count').textContent = activeIds.length;
+        document.getElementById('stage5-eliminated-count').textContent = eliminatedIds.length;
+        
+        const eliminatedSection = document.getElementById('stage5-eliminated-section');
+        if (eliminatedSection) {
+            eliminatedSection.style.display = eliminatedIds.length > 0 ? 'block' : 'none';
+        }
+        
+        grid.innerHTML = '';
+        if (eliminatedList) eliminatedList.innerHTML = '';
+        
+        // Load active participants
+        for (const userId of activeIds) {
+            const userDoc = await db.collection('users').doc(userId).get();
+            if (!userDoc.exists) continue;
+            
+            const userData = userDoc.data();
+            
+            const participantCard = document.createElement('div');
+            participantCard.style.cssText = `
+                background: white;
+                border-radius: 10px;
+                padding: 15px;
+                border: 2px solid #f093fb;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            `;
+            
+            participantCard.innerHTML = `
+                <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                    <img src="${userData.photoURL || 'https://via.placeholder.com/50'}" 
+                         style="width: 50px; height: 50px; border-radius: 50%; margin-right: 12px; object-fit: cover; border: 2px solid #f093fb;">
+                    <div style="flex: 1;">
+                        <div style="font-weight: bold; color: #0d3b66; font-size: 1rem;">
+                            ⭐ ${userData.firstName} ${userData.lastName}
+                        </div>
+                        <div style="color: #666; font-size: 0.85rem;">
+                            📧 ${userData.email}
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="background: #000; border-radius: 8px; height: 120px; display: flex; align-items: center; justify-content: center; color: white; margin-bottom: 10px;">
+                    <div style="text-align: center;">
+                        <div style="font-size: 2rem; margin-bottom: 5px;">👤</div>
+                        <div style="font-size: 0.85rem;">Camera feed</div>
+                    </div>
+                </div>
+                
+                <div style="display: flex; gap: 8px;">
+                    <button class="practice-btn" onclick="eliminateParticipantStage5('${userId}', '${tournamentId}')"
+                            style="flex: 1; font-size: 0.85rem; padding: 10px; background: #dc3545;">
+                        ❌ Eliminate
+                    </button>
+                    <button class="practice-btn" onclick="keepParticipantStage5('${userId}')"
+                            style="flex: 1; font-size: 0.85rem; padding: 10px; background: #28a745;">
+                        ✅ Keep
+                    </button>
+                </div>
+            `;
+            
+            grid.appendChild(participantCard);
+        }
+        
+        // Load eliminated
+        for (const userId of eliminatedIds) {
+            const userDoc = await db.collection('users').doc(userId).get();
+            if (!userDoc.exists) continue;
+            
+            const userData = userDoc.data();
+            
+            const eliminatedBadge = document.createElement('div');
+            eliminatedBadge.style.cssText = `
+                background: white;
+                padding: 10px 15px;
+                border-radius: 20px;
+                color: #721c24;
+                font-weight: bold;
+                font-size: 0.9rem;
+            `;
+            eliminatedBadge.textContent = `${userData.firstName} ${userData.lastName}`;
+            
+            if (eliminatedList) eliminatedList.appendChild(eliminatedBadge);
+        }
+    });
+
+if (!window.tournamentListeners) {
+    window.tournamentListeners = [];
+}
+window.tournamentListeners.push(roomListener);
+}
+// ===== ELIMINATE FROM STAGE 5 =====
+async function eliminateParticipantStage5(userId, tournamentId) {
+if (!confirm('❌ Eliminate this participant from Stage 5?')) {
+return;
+}
+try {
+    await db.collection('tournaments').doc(tournamentId)
+        .collection('liveRooms').doc('stage5').update({
+            activeParticipants: firebase.firestore.FieldValue.arrayRemove(userId),
+            eliminatedParticipants: firebase.firestore.FieldValue.arrayUnion(userId)
+        });
+    
+    await db.collection('tournaments').doc(tournamentId)
+        .collection('participants').doc(userId).update({
+            status: 'eliminated-stage5',
+            eliminatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+    
+    console.log('✅ Participant eliminated from Stage 5');
+    
+} catch (error) {
+    console.error('Error:', error);
+    alert('Failed to eliminate participant');
+}
+}
+function keepParticipantStage5(userId) {
+const msg = document.createElement('div');
+msg.style.cssText =         position: fixed; top: 20px; right: 20px;         background: #28a745; color: white;         padding: 15px 25px; border-radius: 8px;         font-weight: bold; z-index: 10001;    ;
+msg.textContent = '✅ Participant kept in Stage 5';
+document.body.appendChild(msg);
+setTimeout(() => msg.remove(), 2000);
+}
+// ===== PARTICIPANT: JOIN STAGE 5 =====
+async function joinStage5Room() {
+try {
+console.log('🎥 Joining Stage 5...');
+    // Ensure media is still active
+    if (!localStream) {
+        localStream = await navigator.mediaDevices.getUserMedia({
+            audio: true,
+            video: true
+        });
+    }
+    
+    // Hide Stage 4 UI
+    const stage4UI = document.getElementById('tournament-stage4-participant');
+    if (stage4UI) stage4UI.style.display = 'none';
+    
+    // Show Stage 5 UI
+    showStage5ParticipantUI();
+    
+} catch (error) {
+    console.error('Error joining Stage 5:', error);
+    alert('Failed to join Stage 5');
+}
+}
+function showStage5ParticipantUI() {
+const tournamentsSection = document.querySelector('#tournaments-section .word-database');
+let stage5Container = document.getElementById('tournament-stage5-participant');
+if (!stage5Container) {
+    stage5Container = document.createElement('div');
+    stage5Container.id = 'tournament-stage5-participant';
+    tournamentsSection.appendChild(stage5Container);
+}
+
+stage5Container.style.display = 'block';
+
+stage5Container.innerHTML = `
+    <div class="quiz-question-card">
+        <div style="background: linear-gradient(135deg, #f093fb, #f5576c); padding: 20px; border-radius: 10px; margin-bottom: 20px; color: white;">
+            <h2 style="margin: 0 0 10px 0; color: white;">🎥 STAGE 5 LIVE ROOM</h2>
+            <p style="margin: 0; opacity: 0.9;">Top 5 Face-to-Face Round</p>
+        </div>
+        
+        <div style="background: #f9f9f9; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
+            <div style="display: flex; gap: 10px;">
+                <button class="practice-btn" onclick="toggleMyAudio()" id="my-audio-btn-stage5" 
+                        style="flex: 1; background: #28a745;">
+                    🎤 Mic: ON
+                </button>
+                <button class="practice-btn" onclick="toggleMyVideo()" id="my-video-btn-stage5" 
+                        style="flex: 1; background: #28a745;">
+                    🎥 Camera: ON
+                </button>
+                <button class="practice-btn" onclick="leaveStage5Room()" 
+                        style="flex: 1; background: #dc3545;">
+                    🚪 Leave
+                </button>
+            </div>
+        </div>
+        
+        <div style="background: #000; border-radius: 10px; overflow: hidden; margin-bottom: 20px; position: relative;">
+            <video id="my-video-stage5" autoplay muted playsinline 
+                   style="width: 100%; max-height: 400px; object-fit: cover;"></video>
+            <div style="position: absolute; bottom: 15px; left: 15px; background: rgba(0,0,0,0.8); padding: 10px 20px; border-radius: 25px; color: white; font-weight: bold;">
+                👤 YOU - TOP 5!
+            </div>
+        </div>
+        
+        <div id="stage5-participant-status" style="text-align: center; padding: 40px; background: linear-gradient(135deg, #f093fb, #f5576c); border-radius: 15px; color: white;">
+            <div style="font-size: 3rem; margin-bottom: 15px;">⭐</div>
+            <h3 style="color: white; margin-bottom: 10px;">Stage 5 - Top 5!</h3>
+            <p style="opacity: 0.9;">
+                Congratulations on making it this far!<br>
+                Wait for admin instructions...
+            </p>
+        </div>
+    </div>
+`;
+
+const myVideo = document.getElementById('my-video-stage5');
+if (myVideo && localStream) {
+    myVideo.srcObject = localStream;
+}
+
+listenForStage5Changes();
+}
+function listenForStage5Changes() {
+const listener = db.collection('tournaments').doc(currentTournament)
+.collection('liveRooms').doc('stage5')
+.onSnapshot(doc => {
+if (!doc.exists) return;
+        const roomData = doc.data();
+        
+        if (roomData.eliminatedParticipants?.includes(currentUser.uid)) {
+            showEliminationMessage(5);
+        }
+        
+        // Check Stage 6
+        db.collection('tournaments').doc(currentTournament)
+            .collection('liveRooms').doc('stage6').get()
+            .then(stage6Doc => {
+                if (stage6Doc.exists && stage6Doc.data().activeParticipants?.includes(currentUser.uid)) {
+                    showAdvancementMessage(6);
+                }
+            });
+    });
+
+if (!window.tournamentListeners) window.tournamentListeners = [];
+window.tournamentListeners.push(listener);
+}
+async function leaveStage5Room() {
+if (!confirm('🚪 Leave Stage 5?')) return;
+try {
+    if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+        localStream = null;
+    }
+    
+    await db.collection('tournaments').doc(currentTournament)
+        .collection('liveRooms').doc('stage5').update({
+            activeParticipants: firebase.firestore.FieldValue.arrayRemove(currentUser.uid),
+            eliminatedParticipants: firebase.firestore.FieldValue.arrayUnion(currentUser.uid)
+        });
+    
+    exitTournament();
+} catch (error) {
+    console.error('Error:', error);
+}
+}
+async function closeStage5AdminRoom(tournamentId) {
+if (!confirm('🚪 Close Stage 5 room?')) return;
+try {
+    if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+        localStream = null;
+    }
+    
+    await db.collection('tournaments').doc(tournamentId)
+        .collection('liveRooms').doc('stage5').update({
+            adminInRoom: false
+        });
+    
+    const stage5Container = document.getElementById('stage5-admin-container');
+    if (stage5Container) stage5Container.style.display = 'none';
+    
+    navigateTo('admin');
+} catch (error) {
+    console.error('Error:', error);
+}
+}
  function startStage4AsCaller() {
     tournamentStage = 4;
     currentLiveStageIndex = 0;
@@ -16068,527 +17394,1146 @@ function nextStage5Word() {
     }
 }
 
-// ===== TOURNAMENT STAGE 6 FUNCTIONS (Top 5 → Top 3) =====
-
-async function proceedToStage6() {
-    try {
-        console.log('🎯 Starting Stage 6: Live Spell Master (Top 5 → Top 3)');
-        
-        tournamentStage = 6;
-        currentLiveStageIndex = 0;
-        
-        // Keep top 5 from Stage 5
-        if (liveStageParticipants.length > 5) {
-            liveStageParticipants = liveStageParticipants.slice(0, 5);
-        }
-        
-        eliminatedPlayers = [];
-        
-        // Generate words for Stage 6
-        await generateLiveStageWords(12); // 12 words for Stage 6
-        
-        // Hide Stage 5
-        const stage5 = document.getElementById('tournament-stage5');
-        if (stage5) stage5.style.display = 'none';
-        
-        // Create Stage 6 container
-        const tournamentsSection = document.querySelector('#tournaments-section .word-database');
-        let stage6Container = document.getElementById('tournament-stage6');
-        
-        if (!stage6Container) {
-            stage6Container = document.createElement('div');
-            stage6Container.id = 'tournament-stage6';
-            tournamentsSection.appendChild(stage6Container);
-        }
-        
-        stage6Container.style.display = 'block';
-        
-        // Show caller interface for Stage 6
-        buildStage6CallerUI();
-        
-    } catch (error) {
-        console.error('Error starting Stage 6:', error);
-        alert('Failed to start Stage 6: ' + error.message);
-    }
-}
-
-function buildStage6CallerUI() {
-    const container = document.getElementById('tournament-stage6');
-    const targetCount = 3; // Advance top 3
-    
-    container.innerHTML = `
-        <div class="quiz-question-card">
-            <div style="background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%); padding: 20px; border-radius: 10px; margin-bottom: 20px; color: #0d3b66;">
-                <h2 style="margin: 0 0 10px 0;">🎤 Stage 6: Live Spell Master (Top 5 → Top 3)</h2>
-                <p style="margin: 0; opacity: 0.9;">Spell until ${targetCount} finalists remain</p>
-            </div>
-            
-            <!-- Progress Bar -->
-            <div style="background: #f9f9f9; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
-                <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-                    <span style="color: #666; font-weight: bold;">Active: ${liveStageParticipants.length}</span>
-                    <span style="color: #FFD700; font-weight: bold;">Target: ${targetCount}</span>
-                    <span style="color: #dc3545; font-weight: bold;">Eliminated: ${eliminatedPlayers.length}</span>
-                </div>
-                <div style="background: #e0e0e0; height: 20px; border-radius: 10px; overflow: hidden;">
-                    <div style="background: linear-gradient(90deg, #FFD700, #FFA500); height: 100%; width: ${((liveStageParticipants.length / 5) * 100)}%; transition: width 0.3s;"></div>
-                </div>
-            </div>
-            
-            <!-- Active Players -->
-            <div style="background: #f9f9f9; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
-                <h3 style="color: #0d3b66; margin: 0 0 15px 0;">👥 Active Spellers (${liveStageParticipants.length})</h3>
-                <div style="display: flex; flex-wrap: wrap; gap: 10px;">
-                    ${liveStageParticipants.map(player => `
-                        <div style="background: #fff3cd; padding: 10px 20px; border-radius: 20px; color: #856404; font-weight: bold; border: 2px solid #FFD700;">
-                            ⭐ ${player}
-                        </div>
-                    `).join('')}
-                </div>
-            </div>
-            
-            ${eliminatedPlayers.length > 0 ? `
-                <div style="background: #f8d7da; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
-                    <h3 style="color: #721c24; margin: 0 0 15px 0;">❌ Eliminated (${eliminatedPlayers.length})</h3>
-                    <div style="display: flex; flex-wrap: wrap; gap: 10px;">
-                        ${eliminatedPlayers.map(player => `
-                            <div style="background: white; padding: 10px 20px; border-radius: 20px; color: #721c24;">
-                                ${player}
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>
-            ` : ''}
-            
-            <!-- Current Word -->
-            <div style="background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%); padding: 30px; border-radius: 15px; margin: 20px 0; color: #0d3b66; text-align: center;">
-                <h3 style="margin: 0 0 15px 0;">📝 Word ${currentLiveStageIndex + 1} of ${liveStageWords.length}</h3>
-                <div id="stage6-word-display" style="font-size: 3rem; font-weight: bold; margin: 20px 0; letter-spacing: 2px;">
-                    ${currentLiveStageIndex < liveStageWords.length ? liveStageWords[currentLiveStageIndex].toUpperCase() : 'COMPLETE'}
-                </div>
-                
-                ${currentLiveStageIndex < liveStageWords.length && liveStageParticipants.length > targetCount ? `
-                    <button class="practice-btn" onclick="speakStage6Word()" style="background: white; color: #0d3b66; font-size: 1.2rem; padding: 15px 40px; margin: 10px;">
-                        🔊 Pronounce Word
-                    </button>
-                    <button class="practice-btn" onclick="speakStage6Sentence()" style="background: rgba(255,255,255,0.9); color: #0d3b66; font-size: 1.1rem; padding: 12px 30px; margin: 10px;">
-                        💬 Use in Sentence
-                    </button>
-                ` : ''}
-            </div>
-            
-            <!-- Caller Controls -->
-            <div id="stage6-caller-controls">
-                ${liveStageParticipants.length > targetCount && currentLiveStageIndex < liveStageWords.length ? `
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 20px 0;">
-                        ${liveStageParticipants.map((player, index) => `
-                            <div style="background: white; padding: 20px; border-radius: 10px; border: 2px solid #FFD700; text-align: center;">
-                                <h4 style="color: #0d3b66; margin: 0 0 15px 0;">⭐ ${player}</h4>
-                                <div style="display: flex; gap: 10px; justify-content: center;">
-                                    <button class="practice-btn" onclick="markStage6Correct(${index})" style="background: #28a745; font-size: 0.9rem; padding: 10px 20px;">
-                                        ✅ Correct
-                                    </button>
-                                    <button class="practice-btn" onclick="markStage6Incorrect(${index})" style="background: #dc3545; font-size: 0.9rem; padding: 10px 20px;">
-                                        ❌ Wrong
-                                    </button>
-                                </div>
-                            </div>
-                        `).join('')}
-                    </div>
-                    
-                    <div style="text-align: center; margin-top: 30px;">
-                        <button class="practice-btn" onclick="nextStage6Word()" style="font-size: 1.2rem; padding: 15px 40px; background: linear-gradient(135deg, #FFD700, #FFA500); color: #0d3b66;">
-                            ➡️ Next Word
-                        </button>
-                    </div>
-                ` : `
-                    <div style="text-align: center; padding: 40px;">
-                        <div style="font-size: 4rem; margin-bottom: 20px;">🏆</div>
-                        <h2 style="color: #0d3b66; margin-bottom: 20px;">Stage 6 Complete!</h2>
-                        <p style="font-size: 1.2rem; color: #666; margin: 20px 0;">
-                            Top ${liveStageParticipants.length} finalists advance to the <strong>FINAL SPELL-OFF</strong>
-                        </p>
-                        
-                        <div style="background: linear-gradient(135deg, #FFD700, #FFA500); padding: 30px; border-radius: 15px; margin: 20px 0;">
-                            <h3 style="margin-bottom: 15px; color: #0d3b66;">🌟 FINALISTS:</h3>
-                            <div style="display: flex; flex-wrap: wrap; gap: 15px; justify-content: center;">
-                                ${liveStageParticipants.map((player, idx) => `
-                                    <div style="background: white; padding: 20px 30px; border-radius: 15px; color: #0d3b66; font-weight: bold; font-size: 1.2rem; box-shadow: 0 5px 15px rgba(0,0,0,0.2);">
-                                        ${idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉'} ${player}
-                                    </div>
-                                `).join('')}
-                            </div>
-                        </div>
-                        
-                        <button class="practice-btn" onclick="proceedToStage7()" style="font-size: 1.3rem; padding: 20px 50px; margin: 10px; background: linear-gradient(135deg, #FFD700, #FFA500); color: #0d3b66; font-weight: bold;">
-                            🏆 START FINAL SPELL-OFF
-                        </button>
-                        <button class="practice-btn" onclick="exitTournament()" style="font-size: 1rem; padding: 12px 30px; background: #6c757d; margin: 10px;">
-                            🏠 Exit Tournament
-                        </button>
-                    </div>
-                `}
-            </div>
-        </div>
-    `;
-}
-
-function speakStage6Word() {
-    const word = liveStageWords[currentLiveStageIndex];
-    const utterance = new SpeechSynthesisUtterance(word);
-    utterance.rate = 0.7;
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(utterance);
-}
-
-async function speakStage6Sentence() {
-    const word = liveStageWords[currentLiveStageIndex];
-    
-    try {
-        const wordRef = db.collection('dictionary').doc(word.toLowerCase());
-        const wordDoc = await wordRef.get();
-        
-        let sentence = `The word is ${word}.`;
-        
-        if (wordDoc.exists) {
-            const data = wordDoc.data();
-            if (data.meanings && data.meanings.length > 0) {
-                for (let meaning of data.meanings) {
-                    if (meaning.example) {
-                        sentence = meaning.example;
-                        break;
-                    }
-                }
-            }
-        }
-        
-        const utterance = new SpeechSynthesisUtterance(sentence);
-        utterance.rate = 0.8;
-        window.speechSynthesis.cancel();
-        window.speechSynthesis.speak(utterance);
-        
-    } catch (error) {
-        console.error('Error getting sentence:', error);
-        speakStage6Word();
-    }
-}
-
-function markStage6Correct(playerIndex) {
-    console.log(`✅ ${liveStageParticipants[playerIndex]} spelled correctly`);
-}
-
-function markStage6Incorrect(playerIndex) {
-    const player = liveStageParticipants[playerIndex];
-    
-    if (confirm(`❌ Are you sure ${player} spelled incorrectly? This will eliminate them from the finals.`)) {
-        eliminatedPlayers.push(player);
-        liveStageParticipants.splice(playerIndex, 1);
-        
-        buildStage6CallerUI();
-    }
-}
-
-function nextStage6Word() {
-    currentLiveStageIndex++;
-    
-    if (liveStageParticipants.length <= 3) {
-        buildStage6CallerUI();
-    } else if (currentLiveStageIndex >= liveStageWords.length) {
-        alert('⚠️ Need more words! Generating additional words...');
-        generateLiveStageWords(10).then(() => {
-            currentLiveStageIndex = 0;
-            buildStage6CallerUI();
-        });
-    } else {
-        buildStage6CallerUI();
-    }
-}
-
-// ===== TOURNAMENT STAGE 7 FUNCTIONS (Final Spell-Off: Top 3 → Champion) =====
-
-async function proceedToStage7() {
-    try {
-        console.log('🏆 Starting Stage 7: FINAL SPELL-OFF');
-        
-        tournamentStage = 7;
-        currentLiveStageIndex = 0;
-        currentSpellerIndex = 0;
-        
-        // Keep top 3 from Stage 6
-        if (liveStageParticipants.length > 3) {
-            liveStageParticipants = liveStageParticipants.slice(0, 3);
-        }
-        
-        eliminatedPlayers = [];
-        finalRoundSpelling = null;
-        
-        // Generate words for Final Round (championship level)
-        selectedGameLevel = 'championship';
-        await generateLiveStageWords(20); // 20 championship words
-        
-        // Hide Stage 6
-        const stage6 = document.getElementById('tournament-stage6');
-        if (stage6) stage6.style.display = 'none';
-        
-        // Create Stage 7 container
-        const tournamentsSection = document.querySelector('#tournaments-section .word-database');
-        let stage7Container = document.getElementById('tournament-stage7');
-        
-        if (!stage7Container) {
-            stage7Container = document.createElement('div');
-            stage7Container.id = 'tournament-stage7';
-            tournamentsSection.appendChild(stage7Container);
-        }
-        
-        stage7Container.style.display = 'block';
-        
-        // Show final spell-off interface
-        buildStage7UI();
-        
-    } catch (error) {
-        console.error('Error starting Stage 7:', error);
-        alert('Failed to start Final Spell-Off: ' + error.message);
-    }
-}
-
-// ===== COMPLETE STAGE 7 FUNCTIONS =====
-
-function buildStage7UI() {
-    const container = document.getElementById('tournament-stage7');
-    
-    // Check if we have a winner
-    if (liveStageParticipants.length === 1) {
-        showTournamentWinner();
+// ===== CREATE STAGE 6 ROOM (TOP 5 → TOP 3) =====
+async function createStage6Room(tournamentId) {
+    if (!isAdmin) {
+        alert('⛔ Admin access required');
         return;
     }
     
-    const currentSpeller = liveStageParticipants[currentSpellerIndex];
-    const currentWord = liveStageWords[currentLiveStageIndex];
+    try {
+        // Get current active participants from Stage 5
+        const stage5RoomDoc = await db.collection('tournaments').doc(tournamentId)
+            .collection('liveRooms').doc('stage5').get();
+        
+        if (!stage5RoomDoc.exists) {
+            alert('⛔ Stage 5 room not found');
+            return;
+        }
+        
+        const stage5Data = stage5RoomDoc.data();
+        const activeParticipants = stage5Data.activeParticipants || [];
+        
+        if (activeParticipants.length === 0) {
+            alert('⚠️ No active participants to advance to Stage 6');
+            return;
+        }
+        
+        if (activeParticipants.length > 3) {
+            alert(`⚠️ Stage 6 is for Top 3 only.\n\nCurrent active: ${activeParticipants.length}\n\nPlease eliminate ${activeParticipants.length - 3} more participant(s) before creating Stage 6.`);
+            return;
+        }
+        
+        if (!confirm(`🚀 Create Stage 6 room with ${activeParticipants.length} participant(s)?`)) {
+            return;
+        }
+        
+        console.log('🎥 Creating Stage 6 room...');
+        
+        // Create Stage 6 room
+        await db.collection('tournaments').doc(tournamentId)
+            .collection('liveRooms').doc('stage6').set({
+                stage: 6,
+                createdBy: currentUser.uid,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                isActive: true,
+                activeParticipants: activeParticipants,
+                eliminatedParticipants: [],
+                adminInRoom: true
+            });
+        
+        // Update all participants to Stage 6
+        const batch = db.batch();
+        activeParticipants.forEach(userId => {
+            const userRef = db.collection('tournaments').doc(tournamentId)
+                .collection('participants').doc(userId);
+            batch.update(userRef, {
+                status: 'stage6-active',
+                stage: 6,
+                advancedToStage6At: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        });
+        await batch.commit();
+        
+        // Close Stage 5 room
+        await db.collection('tournaments').doc(tournamentId)
+            .collection('liveRooms').doc('stage5').update({
+                isActive: false,
+                closedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        
+        console.log('✅ Stage 6 room created');
+        
+        alert(`✅ Stage 6 room created with ${activeParticipants.length} participant(s)!\n\nParticipants are being automatically moved to Stage 6.`);
+        
+        // Show Stage 6 admin interface
+        showStage6AdminUI(tournamentId);
+        
+    } catch (error) {
+        console.error('Error creating Stage 6 room:', error);
+        alert('Failed to create Stage 6 room: ' + error.message);
+    }
+}
+
+// ===== STAGE 6 ADMIN INTERFACE =====
+function showStage6AdminUI(tournamentId) {
+    const stage5Container = document.getElementById('stage5-admin-container');
+    if (stage5Container) stage5Container.style.display = 'none';
     
-    container.innerHTML = `
+    const wordDatabase = document.querySelector('#tournaments-section .word-database');
+    
+    let stage6AdminContainer = document.getElementById('stage6-admin-container');
+    if (!stage6AdminContainer) {
+        stage6AdminContainer = document.createElement('div');
+        stage6AdminContainer.id = 'stage6-admin-container';
+        wordDatabase.appendChild(stage6AdminContainer);
+    }
+    
+    stage6AdminContainer.style.display = 'block';
+    
+    stage6AdminContainer.innerHTML = `
         <div class="quiz-question-card">
-            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 15px; margin-bottom: 20px; color: white; text-align: center;">
-                <h1 style="margin: 0 0 10px 0; color: white; font-size: 2.5rem;">🏆 FINAL SPELL-OFF 🏆</h1>
-                <p style="margin: 0; opacity: 0.9; font-size: 1.2rem;">Classic Turn-Based Spelling • One Wrong Disqualifies</p>
+            <div style="background: linear-gradient(135deg, #FFD700, #FFA500); padding: 20px; border-radius: 10px; margin-bottom: 20px; color: #0d3b66;">
+                <h2 style="margin: 0 0 10px 0;">🎥 STAGE 6 ADMIN CONTROL (TOP 3)</h2>
+                <p style="margin: 0; opacity: 0.9;">Final 3 Participants - All advance to Finals</p>
             </div>
             
-            <!-- Remaining Finalists -->
+            <!-- Admin Video Controls -->
+            <div style="background: #f9f9f9; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
+                <h4 style="color: #0d3b66; margin: 0 0 10px 0;">🎛️ Admin Controls</h4>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button class="practice-btn" onclick="toggleAdminAudio()" id="admin-audio-btn-stage6" 
+                            style="background: #28a745; font-size: 0.9rem; padding: 10px 20px;">
+                        🎤 Mic: ON
+                    </button>
+                    <button class="practice-btn" onclick="toggleAdminVideo()" id="admin-video-btn-stage6" 
+                            style="background: #28a745; font-size: 0.9rem; padding: 10px 20px;">
+                        🎥 Camera: ON
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Admin Video Feed -->
+            <div style="background: #000; border-radius: 10px; overflow: hidden; margin-bottom: 20px; position: relative;">
+                <video id="admin-video-stage6" autoplay muted playsinline 
+                       style="width: 100%; max-height: 300px; object-fit: cover;"></video>
+                <div style="position: absolute; bottom: 10px; left: 10px; background: rgba(255,215,0,0.9); padding: 8px 15px; border-radius: 20px; color: #0d3b66; font-weight: bold;">
+                    👑 ADMIN
+                </div>
+            </div>
+            
+            <!-- Participants Grid -->
             <div style="background: #f9f9f9; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
-                <h3 style="color: #0d3b66; margin: 0 0 15px 0; text-align: center;">🌟 Remaining Finalists (${liveStageParticipants.length})</h3>
-                <div style="display: flex; flex-wrap: wrap; gap: 15px; justify-content: center;">
-                    ${liveStageParticipants.map((player, idx) => `
-                        <div style="background: ${player === currentSpeller ? 'linear-gradient(135deg, #FFD700, #FFA500)' : 'white'}; padding: 20px 30px; border-radius: 15px; color: #0d3b66; font-weight: bold; font-size: 1.2rem; border: 3px solid ${player === currentSpeller ? '#FFD700' : '#e0e0e0'}; box-shadow: ${player === currentSpeller ? '0 5px 20px rgba(255,215,0,0.5)' : '0 2px 8px rgba(0,0,0,0.1)'}; transition: all 0.3s;">
-                            ${player === currentSpeller ? '➤ ' : ''}${player}${player === currentSpeller ? ' ⬅️' : ''}
-                        </div>
-                    `).join('')}
+                <h3 style="color: #0d3b66; margin: 0 0 15px 0;">
+                    🌟 Final 3 Participants (<span id="stage6-active-count">0</span>)
+                </h3>
+                <div id="stage6-participants-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px;">
+                    <!-- Participants will be loaded here -->
                 </div>
             </div>
             
-            ${eliminatedPlayers.length > 0 ? `
-                <div style="background: #f8d7da; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
-                    <h3 style="color: #721c24; margin: 0 0 15px 0; text-align: center;">❌ Eliminated</h3>
-                    <div style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;">
-                        ${eliminatedPlayers.map(player => `
-                            <div style="background: white; padding: 10px 20px; border-radius: 20px; color: #721c24;">
-                                ${player}
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>
-            ` : ''}
-            
-            <!-- Current Turn -->
-            <div style="background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%); padding: 30px; border-radius: 15px; margin: 20px 0; color: #0d3b66; text-align: center;">
-                <h3 style="margin: 0 0 15px 0;">🎯 ${currentSpeller}'s Turn</h3>
-                <div style="font-size: 3rem; font-weight: bold; margin: 20px 0; letter-spacing: 2px;">
-                    ${currentWord.toUpperCase()}
-                </div>
-                
-                <div style="margin-top: 20px;">
-                    <button class="practice-btn" onclick="speakStage7Word()" style="background: white; color: #0d3b66; font-size: 1.2rem; padding: 15px 40px; margin: 10px;">
-                        🔊 Pronounce Word
+            <!-- Admin Actions -->
+            <div style="background: #d4edda; padding: 20px; border-radius: 10px; border-left: 4px solid #28a745;">
+                <h4 style="color: #155724; margin: 0 0 15px 0;">✅ All 3 finalists will advance to Stage 7</h4>
+                <p style="color: #155724; margin: 0 0 15px 0;">
+                    The final stage lets you select winner, 2nd place, and 3rd place.
+                </p>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button class="practice-btn" onclick="createStage7Room('${tournamentId}')" 
+                            style="flex: 1; background: linear-gradient(135deg, #FFD700, #FFA500); color: #0d3b66; font-size: 1.2rem; padding: 15px 30px; font-weight: bold;">
+                        🏆 CREATE STAGE 7 - FINALS
                     </button>
-                    <button class="practice-btn" onclick="speakStage7Sentence()" style="background: rgba(255,255,255,0.9); color: #0d3b66; font-size: 1.1rem; padding: 12px 30px; margin: 10px;">
-                        💬 Use in Sentence
-                    </button>
-                </div>
-            </div>
-            
-            <!-- Caller Controls -->
-            <div style="text-align: center; margin: 30px 0;">
-                <h4 style="color: #0d3b66; margin-bottom: 20px;">Did ${currentSpeller} spell "${currentWord}" correctly?</h4>
-                <div style="display: flex; gap: 20px; justify-content: center;">
-                    <button class="practice-btn" onclick="markStage7Correct()" style="background: #28a745; font-size: 1.2rem; padding: 15px 40px;">
-                        ✅ CORRECT
-                    </button>
-                    <button class="practice-btn" onclick="markStage7Incorrect()" style="background: #dc3545; font-size: 1.2rem; padding: 15px 40px;">
-                        ❌ WRONG
+                    <button class="practice-btn" onclick="closeStage6AdminRoom('${tournamentId}')" 
+                            style="background: #dc3545; font-size: 1rem; padding: 15px 30px;">
+                        🚪 Close Room
                     </button>
                 </div>
             </div>
         </div>
     `;
-}
-
-function speakStage7Word() {
-    const word = liveStageWords[currentLiveStageIndex];
-    const utterance = new SpeechSynthesisUtterance(word);
-    utterance.rate = 0.7;
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(utterance);
-}
-
-async function speakStage7Sentence() {
-    const word = liveStageWords[currentLiveStageIndex];
     
-    try {
-        const wordRef = db.collection('dictionary').doc(word.toLowerCase());
-        const wordDoc = await wordRef.get();
-        
-        let sentence = `The word is ${word}.`;
-        
-        if (wordDoc.exists) {
-            const data = wordDoc.data();
-            if (data.meanings && data.meanings.length > 0) {
-                for (let meaning of data.meanings) {
-                    if (meaning.example) {
-                        sentence = meaning.example;
-                        break;
-                    }
-                }
+    // Setup admin video
+    const adminVideo = document.getElementById('admin-video-stage6');
+    if (adminVideo && localStream) {
+        adminVideo.srcObject = localStream;
+    }
+    
+    // Load participants
+    loadStage6Participants(tournamentId);
+}
+
+// ===== LOAD STAGE 6 PARTICIPANTS =====
+async function loadStage6Participants(tournamentId) {
+    const grid = document.getElementById('stage6-participants-grid');
+    
+    if (!grid) return;
+    
+    const roomListener = db.collection('tournaments').doc(tournamentId)
+        .collection('liveRooms').doc('stage6')
+        .onSnapshot(async (doc) => {
+            if (!doc.exists) return;
+            
+            const roomData = doc.data();
+            const activeIds = roomData.activeParticipants || [];
+            
+            document.getElementById('stage6-active-count').textContent = activeIds.length;
+            
+            grid.innerHTML = '';
+            
+            // Load active participants
+            for (const userId of activeIds) {
+                const userDoc = await db.collection('users').doc(userId).get();
+                if (!userDoc.exists) continue;
+                
+                const userData = userDoc.data();
+                
+                const participantCard = document.createElement('div');
+                participantCard.style.cssText = `
+                    background: white;
+                    border-radius: 10px;
+                    padding: 15px;
+                    border: 3px solid #FFD700;
+                    box-shadow: 0 5px 15px rgba(255,215,0,0.3);
+                `;
+                
+                participantCard.innerHTML = `
+                    <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                        <img src="${userData.photoURL || 'https://via.placeholder.com/50'}" 
+                             style="width: 50px; height: 50px; border-radius: 50%; margin-right: 12px; object-fit: cover; border: 2px solid #FFD700;">
+                        <div style="flex: 1;">
+                            <div style="font-weight: bold; color: #0d3b66; font-size: 1rem;">
+                                🌟 ${userData.firstName} ${userData.lastName}
+                            </div>
+                            <div style="color: #666; font-size: 0.85rem;">
+                                📧 ${userData.email}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="background: #000; border-radius: 8px; height: 120px; display: flex; align-items: center; justify-content: center; color: white; margin-bottom: 10px;">
+                        <div style="text-align: center;">
+                            <div style="font-size: 2rem; margin-bottom: 5px;">👤</div>
+                            <div style="font-size: 0.85rem;">Camera feed</div>
+                        </div>
+                    </div>
+                    
+                    <div style="background: linear-gradient(135deg, #FFD700, #FFA500); padding: 12px; border-radius: 8px; text-align: center; color: #0d3b66; font-weight: bold; font-size: 1.1rem;">
+                        🏆 FINALIST
+                    </div>
+                `;
+                
+                grid.appendChild(participantCard);
             }
+        });
+
+    if (!window.tournamentListeners) {
+        window.tournamentListeners = [];
+    }
+    window.tournamentListeners.push(roomListener);
+}
+
+// ===== PARTICIPANT: JOIN STAGE 6 =====
+async function joinStage6Room() {
+    try {
+        console.log('🎥 Joining Stage 6...');
+        
+        // Ensure media is still active
+        if (!localStream) {
+            localStream = await navigator.mediaDevices.getUserMedia({
+                audio: true,
+                video: true
+            });
         }
         
-        const utterance = new SpeechSynthesisUtterance(sentence);
-        utterance.rate = 0.8;
-        window.speechSynthesis.cancel();
-        window.speechSynthesis.speak(utterance);
+        // Hide Stage 5 UI
+        const stage5UI = document.getElementById('tournament-stage5-participant');
+        if (stage5UI) stage5UI.style.display = 'none';
+        
+        // Show Stage 6 UI
+        showStage6ParticipantUI();
         
     } catch (error) {
-        console.error('Error getting sentence:', error);
-        speakStage7Word();
+        console.error('Error joining Stage 6:', error);
+        alert('Failed to join Stage 6');
     }
 }
 
-function markStage7Correct() {
-    console.log(`✅ ${liveStageParticipants[currentSpellerIndex]} spelled correctly`);
+function showStage6ParticipantUI() {
+    const tournamentsSection = document.querySelector('#tournaments-section .word-database');
+    let stage6Container = document.getElementById('tournament-stage6-participant');
     
-    // Move to next speller
-    currentSpellerIndex++;
-    if (currentSpellerIndex >= liveStageParticipants.length) {
-        currentSpellerIndex = 0; // Loop back to first speller
-        currentLiveStageIndex++; // New word for next round
+    if (!stage6Container) {
+        stage6Container = document.createElement('div');
+        stage6Container.id = 'tournament-stage6-participant';
+        tournamentsSection.appendChild(stage6Container);
     }
     
-    // Check if we ran out of words
-    if (currentLiveStageIndex >= liveStageWords.length) {
-        alert('⚠️ Need more words! Generating additional championship words...');
-        generateLiveStageWords(10).then(() => {
-            currentLiveStageIndex = 0;
-            buildStage7UI();
-        });
-    } else {
-        buildStage7UI();
-    }
-}
-
-function markStage7Incorrect() {
-    const player = liveStageParticipants[currentSpellerIndex];
+    stage6Container.style.display = 'block';
     
-    if (confirm(`❌ Are you sure ${player} spelled incorrectly? This will eliminate them from the finals.`)) {
-        eliminatedPlayers.push(player);
-        liveStageParticipants.splice(currentSpellerIndex, 1);
-        
-        // Adjust current speller index
-        if (currentSpellerIndex >= liveStageParticipants.length) {
-            currentSpellerIndex = 0;
-        }
-        
-        // Check if we have a winner
-        if (liveStageParticipants.length === 1) {
-            showTournamentWinner();
-        } else {
-            // Move to next word
-            currentLiveStageIndex++;
-            buildStage7UI();
-        }
-    }
-}
-
-function showTournamentWinner() {
-    const container = document.getElementById('tournament-stage7');
-    const winner = liveStageParticipants[0];
-    
-    container.innerHTML = `
-        <div class="quiz-question-card" style="text-align: center; padding: 50px; background: linear-gradient(135deg, #FFD700, #FFA500);">
-            <div style="font-size: 6rem; margin-bottom: 30px; animation: bounce 2s infinite;">🏆</div>
+    stage6Container.innerHTML = `
+        <div class="quiz-question-card">
+            <div style="background: linear-gradient(135deg, #FFD700, #FFA500); padding: 20px; border-radius: 10px; margin-bottom: 20px; color: #0d3b66;">
+                <h2 style="margin: 0 0 10px 0;">🎥 STAGE 6 LIVE ROOM</h2>
+                <p style="margin: 0; opacity: 0.9;">Top 3 Final Round</p>
+            </div>
             
-            <h1 style="color: #0d3b66; font-size: 3rem; margin-bottom: 20px; text-shadow: 2px 2px 4px rgba(0,0,0,0.2);">
-                SPELLING CHAMPION
-            </h1>
-            
-            <div style="background: white; padding: 40px; border-radius: 20px; margin: 30px 0; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
-                <div style="font-size: 2.5rem; font-weight: bold; color: #0d3b66; margin-bottom: 20px;">
-                    🌟 ${winner} 🌟
+            <div style="background: #f9f9f9; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
+                <div style="display: flex; gap: 10px;">
+                    <button class="practice-btn" onclick="toggleMyAudio()" id="my-audio-btn-stage6" 
+                            style="flex: 1; background: #28a745;">
+                        🎤 Mic: ON
+                    </button>
+                    <button class="practice-btn" onclick="toggleMyVideo()" id="my-video-btn-stage6" 
+                            style="flex: 1; background: #28a745;">
+                        🎥 Camera: ON
+                    </button>
+                    <button class="practice-btn" onclick="leaveStage6Room()" 
+                            style="flex: 1; background: #dc3545;">
+                        🚪 Leave
+                    </button>
                 </div>
-                <p style="font-size: 1.3rem; color: #666; margin: 15px 0;">
-                    Conquered all 7 stages to become the ultimate spelling champion!
+            </div>
+            
+            <div style="background: #000; border-radius: 10px; overflow: hidden; margin-bottom: 20px; position: relative;">
+                <video id="my-video-stage6" autoplay muted playsinline 
+                       style="width: 100%; max-height: 400px; object-fit: cover;"></video>
+                <div style="position: absolute; bottom: 15px; left: 15px; background: rgba(255,215,0,0.9); padding: 10px 20px; border-radius: 25px; color: #0d3b66; font-weight: bold;">
+                    👤 YOU - TOP 3!
+                </div>
+            </div>
+            
+            <div id="stage6-participant-status" style="text-align: center; padding: 40px; background: linear-gradient(135deg, #FFD700, #FFA500); border-radius: 15px; color: #0d3b66;">
+                <div style="font-size: 3rem; margin-bottom: 15px;">🏆</div>
+                <h3 style="margin-bottom: 10px;">Stage 6 - FINAL 3!</h3>
+                <p style="opacity: 0.9;">
+                    Congratulations on making the finals!<br>
+                    Wait for admin to advance you to Stage 7...
                 </p>
             </div>
+        </div>
+    `;
+    
+    const myVideo = document.getElementById('my-video-stage6');
+    if (myVideo && localStream) {
+        myVideo.srcObject = localStream;
+    }
+    
+    listenForStage6Changes();
+}
+
+function listenForStage6Changes() {
+    const listener = db.collection('tournaments').doc(currentTournament)
+        .collection('liveRooms').doc('stage6')
+        .onSnapshot(doc => {
+            if (!doc.exists) return;
             
-            <div style="background: rgba(255,255,255,0.9); padding: 30px; border-radius: 15px; margin: 30px 0;">
-                <h3 style="color: #0d3b66; margin-bottom: 20px;">🎯 Tournament Journey</h3>
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">
-                    <div style="background: #d4edda; padding: 15px; border-radius: 10px;">
-                        <div style="font-size: 1.5rem; font-weight: bold; color: #155724;">Stage 1</div>
-                        <div style="color: #666; font-size: 0.9rem;">Antonym/Synonym</div>
-                    </div>
-                    <div style="background: #d4edda; padding: 15px; border-radius: 10px;">
-                        <div style="font-size: 1.5rem; font-weight: bold; color: #155724;">Stage 2</div>
-                        <div style="color: #666; font-size: 0.9rem;">AI Audio Spelling</div>
-                    </div>
-                    <div style="background: #d4edda; padding: 15px; border-radius: 10px;">
-                        <div style="font-size: 1.5rem; font-weight: bold; color: #155724;">Stage 3</div>
-                        <div style="color: #666; font-size: 0.9rem;">Unscramble</div>
-                    </div>
-                    <div style="background: #d4edda; padding: 15px; border-radius: 10px;">
-                        <div style="font-size: 1.5rem; font-weight: bold; color: #155724;">Stage 4</div>
-                        <div style="color: #666; font-size: 0.9rem;">Top 10</div>
-                    </div>
-                    <div style="background: #d4edda; padding: 15px; border-radius: 10px;">
-                        <div style="font-size: 1.5rem; font-weight: bold; color: #155724;">Stage 5</div>
-                        <div style="color: #666; font-size: 0.9rem;">Top 5</div>
-                    </div>
-                    <div style="background: #d4edda; padding: 15px; border-radius: 10px;">
-                        <div style="font-size: 1.5rem; font-weight: bold; color: #155724;">Stage 6</div>
-                        <div style="color: #666; font-size: 0.9rem;">Top 3</div>
-                    </div>
-                    <div style="background: linear-gradient(135deg, #FFD700, #FFA500); padding: 15px; border-radius: 10px;">
-                        <div style="font-size: 1.5rem; font-weight: bold; color: #0d3b66;">Stage 7</div>
-                        <div style="color: #0d3b66; font-size: 0.9rem; font-weight: bold;">🏆 CHAMPION</div>
-                    </div>
+            // Check Stage 7
+            db.collection('tournaments').doc(currentTournament)
+                .collection('liveRooms').doc('stage7').get()
+                .then(stage7Doc => {
+                    if (stage7Doc.exists && stage7Doc.data().activeParticipants?.includes(currentUser.uid)) {
+                        showAdvancementMessage(7);
+                    }
+                });
+        });
+    
+    if (!window.tournamentListeners) window.tournamentListeners = [];
+    window.tournamentListeners.push(listener);
+}
+
+async function leaveStage6Room() {
+    if (!confirm('🚪 Leave Stage 6?')) return;
+    
+    try {
+        if (localStream) {
+            localStream.getTracks().forEach(track => track.stop());
+            localStream = null;
+        }
+        
+        exitTournament();
+    } catch (error) {
+        console.error('Error:', error);
+    }
+}
+
+async function closeStage6AdminRoom(tournamentId) {
+    if (!confirm('🚪 Close Stage 6 room?')) return;
+    
+    try {
+        if (localStream) {
+            localStream.getTracks().forEach(track => track.stop());
+            localStream = null;
+        }
+        
+        await db.collection('tournaments').doc(tournamentId)
+            .collection('liveRooms').doc('stage6').update({
+                adminInRoom: false
+            });
+        
+        const stage6Container = document.getElementById('stage6-admin-container');
+        if (stage6Container) stage6Container.style.display = 'none';
+        
+        navigateTo('admin');
+    } catch (error) {
+        console.error('Error:', error);
+    }
+}
+
+// ===== CREATE STAGE 7 ROOM (FINALS - SELECT WINNER) =====
+async function createStage7Room(tournamentId) {
+    if (!isAdmin) {
+        alert('⛔ Admin access required');
+        return;
+    }
+    
+    try {
+        // Get current active participants from Stage 6
+        const stage6RoomDoc = await db.collection('tournaments').doc(tournamentId)
+            .collection('liveRooms').doc('stage6').get();
+        
+        if (!stage6RoomDoc.exists) {
+            alert('⛔ Stage 6 room not found');
+            return;
+        }
+        
+        const stage6Data = stage6RoomDoc.data();
+        const activeParticipants = stage6Data.activeParticipants || [];
+        
+        if (activeParticipants.length !== 3) {
+            alert(`⚠️ Stage 7 requires exactly 3 participants.\n\nCurrent: ${activeParticipants.length}`);
+            return;
+        }
+        
+        if (!confirm(`🏆 Create Stage 7 FINALS with all 3 participants?`)) {
+            return;
+        }
+        
+        console.log('🎥 Creating Stage 7 FINALS room...');
+        
+        // Create Stage 7 room
+        await db.collection('tournaments').doc(tournamentId)
+            .collection('liveRooms').doc('stage7').set({
+                stage: 7,
+                createdBy: currentUser.uid,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                isActive: true,
+                activeParticipants: activeParticipants,
+                winner: null,
+                secondPlace: null,
+                thirdPlace: null,
+                adminInRoom: true
+            });
+        
+        // Update all participants to Stage 7
+        const batch = db.batch();
+        activeParticipants.forEach(userId => {
+            const userRef = db.collection('tournaments').doc(tournamentId)
+                .collection('participants').doc(userId);
+            batch.update(userRef, {
+                status: 'stage7-finals',
+                stage: 7,
+                advancedToStage7At: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        });
+        await batch.commit();
+        
+        // Close Stage 6 room
+        await db.collection('tournaments').doc(tournamentId)
+            .collection('liveRooms').doc('stage6').update({
+                isActive: false,
+                closedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        
+        console.log('✅ Stage 7 FINALS room created');
+        
+        alert(`✅ Stage 7 FINALS created!\n\nAll 3 participants are moving to the final stage.`);
+        
+        // Show Stage 7 admin interface
+        showStage7AdminUI(tournamentId);
+        
+    } catch (error) {
+        console.error('Error creating Stage 7 room:', error);
+        alert('Failed to create Stage 7 room: ' + error.message);
+    }
+}
+
+// ===== STAGE 7 ADMIN INTERFACE (FINALS) =====
+function showStage7AdminUI(tournamentId) {
+    const stage6Container = document.getElementById('stage6-admin-container');
+    if (stage6Container) stage6Container.style.display = 'none';
+    
+    const wordDatabase = document.querySelector('#tournaments-section .word-database');
+    
+    let stage7AdminContainer = document.getElementById('stage7-admin-container');
+    if (!stage7AdminContainer) {
+        stage7AdminContainer = document.createElement('div');
+        stage7AdminContainer.id = 'stage7-admin-container';
+        wordDatabase.appendChild(stage7AdminContainer);
+    }
+    
+    stage7AdminContainer.style.display = 'block';
+    
+    stage7AdminContainer.innerHTML = `
+        <div class="quiz-question-card">
+            <div style="background: linear-gradient(135deg, #667eea, #764ba2); padding: 30px; border-radius: 15px; margin-bottom: 20px; color: white; text-align: center;">
+                <div style="font-size: 3rem; margin-bottom: 10px;">🏆</div>
+                <h1 style="margin: 0 0 10px 0; color: white; font-size: 2.5rem;">STAGE 7 - GRAND FINALS</h1>
+                <p style="margin: 0; opacity: 0.9; font-size: 1.2rem;">Select Winner, 2nd Place & 3rd Place</p>
+            </div>
+            
+            <!-- Admin Video Controls -->
+            <div style="background: #f9f9f9; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
+                <h4 style="color: #0d3b66; margin: 0 0 10px 0;">🎛️ Admin Controls</h4>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button class="practice-btn" onclick="toggleAdminAudio()" id="admin-audio-btn-stage7" 
+                            style="background: #28a745; font-size: 0.9rem; padding: 10px 20px;">
+                        🎤 Mic: ON
+                    </button>
+                    <button class="practice-btn" onclick="toggleAdminVideo()" id="admin-video-btn-stage7" 
+                            style="background: #28a745; font-size: 0.9rem; padding: 10px 20px;">
+                        🎥 Camera: ON
+                    </button>
                 </div>
             </div>
             
-            <div style="margin-top: 40px;">
-                <button class="practice-btn" onclick="exitTournament()" style="font-size: 1.3rem; padding: 20px 50px; background: white; color: #0d3b66; font-weight: bold;">
-                    🏠 Return to Lobby
+            <!-- Admin Video Feed -->
+            <div style="background: #000; border-radius: 10px; overflow: hidden; margin-bottom: 20px; position: relative;">
+                <video id="admin-video-stage7" autoplay muted playsinline 
+                       style="width: 100%; max-height: 300px; object-fit: cover;"></video>
+                <div style="position: absolute; bottom: 10px; left: 10px; background: rgba(255,215,0,0.9); padding: 8px 15px; border-radius: 20px; color: #0d3b66; font-weight: bold;">
+                    👑 ADMIN
+                </div>
+            </div>
+            
+            <!-- Finalists Selection -->
+            <div style="background: #f9f9f9; padding: 25px; border-radius: 15px; margin-bottom: 20px;">
+                <h3 style="color: #0d3b66; margin: 0 0 20px 0; text-align: center;">
+                    🌟 Select Final Rankings
+                </h3>
+                <div id="stage7-finalists-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px;">
+                    <!-- Finalists will be loaded here -->
+                </div>
+            </div>
+            
+            <!-- Results Display -->
+            <div id="stage7-results" style="display: none; background: linear-gradient(135deg, #FFD700, #FFA500); padding: 30px; border-radius: 15px; margin-bottom: 20px;">
+                <h3 style="color: #0d3b66; margin: 0 0 20px 0; text-align: center; font-size: 1.8rem;">
+                    🏆 FINAL RESULTS
+                </h3>
+                <div id="stage7-results-content" style="display: grid; gap: 20px;">
+                    <!-- Results will be shown here -->
+                </div>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px;">
+                <button class="practice-btn" onclick="finalizeTournament('${tournamentId}')" id="finalize-btn"
+                        style="flex: 1; background: linear-gradient(135deg, #28a745, #20c997); color: white; font-size: 1.2rem; padding: 15px 30px; font-weight: bold;" disabled>
+                    ✅ FINALIZE TOURNAMENT
+                </button>
+                <button class="practice-btn" onclick="closeStage7AdminRoom('${tournamentId}')" 
+                        style="background: #dc3545; font-size: 1rem; padding: 15px 30px;">
+                    🚪 Close Room
                 </button>
             </div>
         </div>
     `;
     
-    // Add bounce animation
-    const style = document.createElement('style');
-    style.textContent = `
-        @keyframes bounce {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-20px); }
-        }
-    `;
-    document.head.appendChild(style);
+    // Setup admin video
+    const adminVideo = document.getElementById('admin-video-stage7');
+    if (adminVideo && localStream) {
+        adminVideo.srcObject = localStream;
+    }
+    
+    // Load finalists
+    loadStage7Finalists(tournamentId);
 }
 
+// ===== LOAD STAGE 7 FINALISTS =====
+async function loadStage7Finalists(tournamentId) {
+    const grid = document.getElementById('stage7-finalists-grid');
+    
+    if (!grid) return;
+    
+    const roomListener = db.collection('tournaments').doc(tournamentId)
+        .collection('liveRooms').doc('stage7')
+        .onSnapshot(async (doc) => {
+            if (!doc.exists) return;
+            
+            const roomData = doc.data();
+            const activeIds = roomData.activeParticipants || [];
+            const winner = roomData.winner;
+            const secondPlace = roomData.secondPlace;
+            const thirdPlace = roomData.thirdPlace;
+            
+            grid.innerHTML = '';
+            
+            // Load all 3 finalists
+            for (const userId of activeIds) {
+                const userDoc = await db.collection('users').doc(userId).get();
+                if (!userDoc.exists) continue;
+                
+                const userData = userDoc.data();
+                
+                // Determine if this person has been selected
+                let selectedAs = null;
+                let borderColor = '#0d3b66';
+                let bgColor = 'white';
+                
+                if (userId === winner) {
+                    selectedAs = '🥇 1ST PLACE';
+                    borderColor = '#FFD700';
+                    bgColor = 'linear-gradient(135deg, #FFD700, #FFA500)';
+                } else if (userId === secondPlace) {
+                    selectedAs = '🥈 2ND PLACE';
+                    borderColor = '#C0C0C0';
+                    bgColor = 'linear-gradient(135deg, #C0C0C0, #A8A8A8)';
+                } else if (userId === thirdPlace) {
+                    selectedAs = '🥉 3RD PLACE';
+                    borderColor = '#CD7F32';
+                    bgColor = 'linear-gradient(135deg, #CD7F32, #B8860B)';
+                }
+                
+                const participantCard = document.createElement('div');
+                participantCard.style.cssText = `
+                    background: ${bgColor};
+                    border-radius: 15px;
+                    padding: 20px;
+                    border: 4px solid ${borderColor};
+                    box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+                    transition: all 0.3s;
+                `;
+                
+                participantCard.innerHTML = `
+                    ${selectedAs ? `
+                        <div style="background: white; padding: 10px; border-radius: 10px; margin-bottom: 15px; text-align: center; font-weight: bold; font-size: 1.2rem; color: #0d3b66;">
+                            ${selectedAs}
+                        </div>
+                    ` : ''}
+                    
+                    <div style="display: flex; align-items: center; margin-bottom: 15px;">
+                        <img src="${userData.photoURL || 'https://via.placeholder.com/60'}" 
+                             style="width: 60px; height: 60px; border-radius: 50%; margin-right: 15px; object-fit: cover; border: 3px solid ${borderColor};">
+                        <div style="flex: 1;">
+                                <div style="font-weight: bold; color: ${selectedAs ? 'white' : '#0d3b66'}; font-size: 1.1rem;">
+                                    ${userData.firstName} ${userData.lastName}
+                                </div>
+                                <div style="color: ${selectedAs ? 'rgba(255,255,255,0.8)' : '#666'}; font-size: 0.9rem;">
+                                    📧 ${userData.email}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div style="background: #000; border-radius: 10px; height: 150px; display: flex; align-items: center; justify-content: center; color: white; margin-bottom: 15px;">
+                            <div style="text-align: center;">
+                                <div style="font-size: 3rem; margin-bottom: 10px;">👤</div>
+                                <div style="font-size: 0.9rem;">Camera feed</div>
+                            </div>
+                        </div>
+                        
+                        ${!selectedAs ? `
+                            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
+                                <button class="practice-btn" onclick="selectWinner('${userId}', '${tournamentId}')"
+                                        style="font-size: 0.85rem; padding: 12px 8px; background: linear-gradient(135deg, #FFD700, #FFA500); color: #0d3b66; font-weight: bold;">
+                                    🥇 1st
+                                </button>
+                                <button class="practice-btn" onclick="selectSecondPlace('${userId}', '${tournamentId}')"
+                                        style="font-size: 0.85rem; padding: 12px 8px; background: linear-gradient(135deg, #C0C0C0, #A8A8A8); color: #0d3b66; font-weight: bold;">
+                                    🥈 2nd
+                                </button>
+                                <button class="practice-btn" onclick="selectThirdPlace('${userId}', '${tournamentId}')"
+                                        style="font-size: 0.85rem; padding: 12px 8px; background: linear-gradient(135deg, #CD7F32, #B8860B); color: white; font-weight: bold;">
+                                    🥉 3rd
+                                </button>
+                            </div>
+                        ` : `
+                            <button class="practice-btn" onclick="clearSelection('${userId}', '${tournamentId}')"
+                                    style="width: 100%; font-size: 0.9rem; padding: 10px; background: #dc3545;">
+                                ❌ Clear Selection
+                            </button>
+                        `}
+                    `;
+                    
+                    grid.appendChild(participantCard);
+                }
+                
+                // Check if all positions are filled
+                if (winner && secondPlace && thirdPlace) {
+                    document.getElementById('finalize-btn').disabled = false;
+                    showStage7Results(tournamentId, winner, secondPlace, thirdPlace);
+                } else {
+                    document.getElementById('finalize-btn').disabled = true;
+                    const resultsDiv = document.getElementById('stage7-results');
+                    if (resultsDiv) resultsDiv.style.display = 'none';
+                }
+            });
+        
+        if (!window.tournamentListeners) {
+            window.tournamentListeners = [];
+        }
+        window.tournamentListeners.push(roomListener);
+    }
+    
+    // ===== SELECT POSITIONS =====
+    async function selectWinner(userId, tournamentId) {
+        try {
+            await db.collection('tournaments').doc(tournamentId)
+                .collection('liveRooms').doc('stage7').update({
+                    winner: userId
+                });
+            console.log('✅ Winner selected');
+        } catch (error) {
+            console.error('Error selecting winner:', error);
+            alert('Failed to select winner');
+        }
+    }
+    
+    async function selectSecondPlace(userId, tournamentId) {
+        try {
+            await db.collection('tournaments').doc(tournamentId)
+                .collection('liveRooms').doc('stage7').update({
+                    secondPlace: userId
+                });
+            console.log('✅ 2nd place selected');
+        } catch (error) {
+            console.error('Error selecting 2nd place:', error);
+            alert('Failed to select 2nd place');
+        }
+    }
+    
+    async function selectThirdPlace(userId, tournamentId) {
+        try {
+            await db.collection('tournaments').doc(tournamentId)
+                .collection('liveRooms').doc('stage7').update({
+                    thirdPlace: userId
+                });
+            console.log('✅ 3rd place selected');
+        } catch (error) {
+            console.error('Error selecting 3rd place:', error);
+            alert('Failed to select 3rd place');
+        }
+    }
+    
+    async function clearSelection(userId, tournamentId) {
+        try {
+            const roomDoc = await db.collection('tournaments').doc(tournamentId)
+                .collection('liveRooms').doc('stage7').get();
+            const roomData = roomDoc.data();
+            
+            const updates = {};
+            if (roomData.winner === userId) updates.winner = null;
+            if (roomData.secondPlace === userId) updates.secondPlace = null;
+            if (roomData.thirdPlace === userId) updates.thirdPlace = null;
+            
+            await db.collection('tournaments').doc(tournamentId)
+                .collection('liveRooms').doc('stage7').update(updates);
+            
+            console.log('✅ Selection cleared');
+        } catch (error) {
+            console.error('Error clearing selection:', error);
+            alert('Failed to clear selection');
+        }
+    }
+    
+    // ===== SHOW STAGE 7 RESULTS =====
+    async function showStage7Results(tournamentId, winnerId, secondId, thirdId) {
+        const resultsDiv = document.getElementById('stage7-results');
+        const resultsContent = document.getElementById('stage7-results-content');
+        
+        if (!resultsDiv || !resultsContent) return;
+        
+        // Get user data
+        const [winnerDoc, secondDoc, thirdDoc] = await Promise.all([
+            db.collection('users').doc(winnerId).get(),
+            db.collection('users').doc(secondId).get(),
+            db.collection('users').doc(thirdId).get()
+        ]);
+        
+        const winner = winnerDoc.data();
+        const second = secondDoc.data();
+        const third = thirdDoc.data();
+        
+        resultsContent.innerHTML = `
+            <!-- 1st Place -->
+            <div style="background: linear-gradient(135deg, #FFD700, #FFA500); padding: 25px; border-radius: 15px; text-align: center; box-shadow: 0 10px 30px rgba(255,215,0,0.5);">
+                <div style="font-size: 4rem; margin-bottom: 10px;">🥇</div>
+                <h3 style="color: #0d3b66; margin: 0 0 10px 0; font-size: 1.8rem;">CHAMPION</h3>
+                <img src="${winner.photoURL || 'https://via.placeholder.com/100'}" 
+                     style="width: 100px; height: 100px; border-radius: 50%; margin: 15px 0; object-fit: cover; border: 5px solid white;">
+                <div style="font-size: 1.5rem; font-weight: bold; color: #0d3b66;">
+                    ${winner.firstName} ${winner.lastName}
+                </div>
+                <div style="font-size: 1rem; color: #0d3b66; margin-top: 5px;">
+                    ${winner.email}
+                </div>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <!-- 2nd Place -->
+                <div style="background: linear-gradient(135deg, #C0C0C0, #A8A8A8); padding: 20px; border-radius: 15px; text-align: center;">
+                    <div style="font-size: 3rem; margin-bottom: 10px;">🥈</div>
+                    <h4 style="color: #0d3b66; margin: 0 0 10px 0; font-size: 1.3rem;">2ND PLACE</h4>
+                    <img src="${second.photoURL || 'https://via.placeholder.com/80'}" 
+                         style="width: 80px; height: 80px; border-radius: 50%; margin: 10px 0; object-fit: cover; border: 4px solid white;">
+                    <div style="font-size: 1.2rem; font-weight: bold; color: #0d3b66;">
+                        ${second.firstName} ${second.lastName}
+                    </div>
+                    <div style="font-size: 0.9rem; color: #0d3b66; margin-top: 5px;">
+                        ${second.email}
+                    </div>
+                </div>
+                
+                <!-- 3rd Place -->
+                <div style="background: linear-gradient(135deg, #CD7F32, #B8860B); padding: 20px; border-radius: 15px; text-align: center;">
+                    <div style="font-size: 3rem; margin-bottom: 10px;">🥉</div>
+                    <h4 style="color: white; margin: 0 0 10px 0; font-size: 1.3rem;">3RD PLACE</h4>
+                    <img src="${third.photoURL || 'https://via.placeholder.com/80'}" 
+                         style="width: 80px; height: 80px; border-radius: 50%; margin: 10px 0; object-fit: cover; border: 4px solid white;">
+                    <div style="font-size: 1.2rem; font-weight: bold; color: white;">
+                        ${third.firstName} ${third.lastName}
+                    </div>
+                    <div style="font-size: 0.9rem; color: white; margin-top: 5px;">
+                        ${third.email}
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        resultsDiv.style.display = 'block';
+    }
+    
+    // ===== FINALIZE TOURNAMENT =====
+    async function finalizeTournament(tournamentId) {
+        if (!confirm('🏆 FINALIZE this tournament with the current rankings?\n\nThis action cannot be undone.')) {
+            return;
+        }
+        
+        try {
+            const roomDoc = await db.collection('tournaments').doc(tournamentId)
+                .collection('liveRooms').doc('stage7').get();
+            
+            if (!roomDoc.exists) {
+                alert('Stage 7 room not found');
+                return;
+            }
+            
+            const roomData = roomDoc.data();
+            
+            // Update tournament status
+            await db.collection('tournaments').doc(tournamentId).update({
+                status: 'completed',
+                completedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                winnerId: roomData.winner,
+                secondPlaceId: roomData.secondPlace,
+                thirdPlaceId: roomData.thirdPlace
+            });
+            
+            // Update participant records
+            const batch = db.batch();
+            
+            const winnerRef = db.collection('tournaments').doc(tournamentId)
+                .collection('participants').doc(roomData.winner);
+            batch.update(winnerRef, {
+                finalRank: 1,
+                status: 'champion',
+                completedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            
+            const secondRef = db.collection('tournaments').doc(tournamentId)
+                .collection('participants').doc(roomData.secondPlace);
+            batch.update(secondRef, {
+                finalRank: 2,
+                status: 'runner-up',
+                completedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            
+            const thirdRef = db.collection('tournaments').doc(tournamentId)
+                .collection('participants').doc(roomData.thirdPlace);
+            batch.update(thirdRef, {
+                finalRank: 3,
+                status: 'third-place',
+                completedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            
+            await batch.commit();
+            
+            // Close Stage 7 room
+            await db.collection('tournaments').doc(tournamentId)
+                .collection('liveRooms').doc('stage7').update({
+                    isActive: false,
+                    finalizedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            
+            console.log('✅ Tournament finalized');
+            
+            alert('🎉 TOURNAMENT COMPLETED!\n\nResults have been saved.\n\nAll participants have been notified.');
+            
+            // Show completion screen
+            showTournamentCompletionScreen(tournamentId);
+            
+        } catch (error) {
+            console.error('Error finalizing tournament:', error);
+            alert('Failed to finalize tournament: ' + error.message);
+        }
+    }
+    
+    // ===== SHOW COMPLETION SCREEN =====
+    async function showTournamentCompletionScreen(tournamentId) {
+        const stage7Container = document.getElementById('stage7-admin-container');
+        
+        const roomDoc = await db.collection('tournaments').doc(tournamentId)
+            .collection('liveRooms').doc('stage7').get();
+        const roomData = roomDoc.data();
+        
+        // Get user data
+        const [winnerDoc, secondDoc, thirdDoc] = await Promise.all([
+            db.collection('users').doc(roomData.winner).get(),
+            db.collection('users').doc(roomData.secondPlace).get(),
+            db.collection('users').doc(roomData.thirdPlace).get()
+        ]);
+        
+        const winner = winnerDoc.data();
+        const second = secondDoc.data();
+        const third = thirdDoc.data();
+        
+        stage7Container.innerHTML = `
+            <div class="quiz-question-card" style="text-align: center; padding: 50px;">
+                <div style="font-size: 6rem; margin-bottom: 30px; animation: bounce 2s infinite;">🏆</div>
+                
+                <h1 style="color: #0d3b66; font-size: 3rem; margin-bottom: 30px;">
+                    TOURNAMENT COMPLETED!
+                </h1>
+                
+                <!-- Final Podium -->
+                <div style="background: linear-gradient(135deg, #FFD700, #FFA500); padding: 40px; border-radius: 20px; margin: 30px 0;">
+                    <h2 style="color: #0d3b66; margin-bottom: 30px;">🏅 FINAL STANDINGS</h2>
+                    
+                    <div style="display: grid; gap: 20px; max-width: 800px; margin: 0 auto;">
+                        <!-- Winner -->
+                        <div style="background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
+                            <div style="font-size: 4rem; margin-bottom: 15px;">🥇</div>
+                            <h3 style="color: #0d3b66; margin-bottom: 10px;">CHAMPION</h3>
+                            <img src="${winner.photoURL || 'https://via.placeholder.com/100'}" 
+                                 style="width: 100px; height: 100px; border-radius: 50%; margin: 15px 0; object-fit: cover; border: 5px solid #FFD700;">
+                            <div style="font-size: 1.5rem; font-weight: bold; color: #0d3b66;">
+                                ${winner.firstName} ${winner.lastName}
+                            </div>
+                        </div>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                            <!-- 2nd Place -->
+                            <div style="background: white; padding: 25px; border-radius: 15px;">
+                                <div style="font-size: 3rem; margin-bottom: 10px;">🥈</div>
+                                <h4 style="color: #0d3b66;">2ND PLACE</h4>
+                                <img src="${second.photoURL || 'https://via.placeholder.com/80'}" 
+                                     style="width: 80px; height: 80px; border-radius: 50%; margin: 10px 0; object-fit: cover; border: 4px solid #C0C0C0;">
+                                <div style="font-weight: bold; color: #0d3b66;">
+                                    ${second.firstName} ${second.lastName}
+                                </div>
+                            </div>
+                            
+                            <!-- 3rd Place -->
+                            <div style="background: white; padding: 25px; border-radius: 15px;">
+                                <div style="font-size: 3rem; margin-bottom: 10px;">🥉</div>
+                                <h4 style="color: #0d3b66;">3RD PLACE</h4>
+                                <img src="${third.photoURL || 'https://via.placeholder.com/80'}" 
+                                     style="width: 80px; height: 80px; border-radius: 50%; margin: 10px 0; object-fit: cover; border: 4px solid #CD7F32;">
+                                <div style="font-weight: bold; color: #0d3b66;">
+                                    ${third.firstName} ${third.lastName}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <button class="practice-btn" onclick="returnToAdminPanel()" 
+                        style="font-size: 1.3rem; padding: 20px 50px; background: linear-gradient(135deg, #667eea, #764ba2); margin-top: 30px;">
+                    🏠 Return to Admin Panel
+                </button>
+            </div>
+        `;
+        
+        // Stop media streams
+        if (localStream) {
+            localStream.getTracks().forEach(track => track.stop());
+            localStream = null;
+        }
+    }
+    
+    function returnToAdminPanel() {
+        const stage7Container = document.getElementById('stage7-admin-container');
+        if (stage7Container) stage7Container.style.display = 'none';
+        
+        navigateTo('admin');
+    }
+    
+    async function closeStage7AdminRoom(tournamentId) {
+        if (!confirm('🚪 Close Stage 7 room?')) return;
+        
+        try {
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+                localStream = null;
+            }
+            
+            await db.collection('tournaments').doc(tournamentId)
+                .collection('liveRooms').doc('stage7').update({
+                    adminInRoom: false
+                });
+            
+            const stage7Container = document.getElementById('stage7-admin-container');
+            if (stage7Container) stage7Container.style.display = 'none';
+            
+            navigateTo('admin');
+        } catch (error) {
+            console.error('Error:', error);
+        }
+    }
+    
+    // ===== PARTICIPANT: JOIN STAGE 7 =====
+    async function joinStage7Room() {
+        try {
+            console.log('🎥 Joining Stage 7 FINALS...');
+            
+            // Ensure media is still active
+            if (!localStream) {
+                localStream = await navigator.mediaDevices.getUserMedia({
+                    audio: true,
+                    video: true
+                });
+            }
+            
+            // Hide Stage 6 UI
+            const stage6UI = document.getElementById('tournament-stage6-participant');
+            if (stage6UI) stage6UI.style.display = 'none';
+            
+            // Show Stage 7 UI
+            showStage7ParticipantUI();
+            
+        } catch (error) {
+            console.error('Error joining Stage 7:', error);
+            alert('Failed to join Stage 7');
+        }
+    }
+    
+    function showStage7ParticipantUI() {
+        const tournamentsSection = document.querySelector('#tournaments-section .word-database');
+        let stage7Container = document.getElementById('tournament-stage7-participant');
+        
+        if (!stage7Container) {
+            stage7Container = document.createElement('div');
+            stage7Container.id = 'tournament-stage7-participant';
+            tournamentsSection.appendChild(stage7Container);
+        }
+        
+        stage7Container.style.display = 'block';
+        
+        stage7Container.innerHTML = `
+            <div class="quiz-question-card">
+                <div style="background: linear-gradient(135deg, #667eea, #764ba2); padding: 30px; border-radius: 15px; margin-bottom: 20px; color: white; text-align: center;">
+                    <div style="font-size: 4rem; margin-bottom: 15px;">🏆</div>
+                    <h2 style="margin: 0 0 10px 0; color: white;">STAGE 7 - GRAND FINALS</h2>
+                    <p style="margin: 0; opacity: 0.9; font-size: 1.1rem;">You're in the FINAL 3!</p>
+                </div>
+                
+                <div style="background: #f9f9f9; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
+                    <div style="display: flex; gap: 10px;">
+                        <button class="practice-btn" onclick="toggleMyAudio()" id="my-audio-btn-stage7" 
+                                style="flex: 1; background: #28a745;">
+                            🎤 Mic: ON
+                        </button>
+                        <button class="practice-btn" onclick="toggleMyVideo()" id="my-video-btn-stage7" 
+                                style="flex: 1; background: #28a745;">
+                            🎥 Camera: ON
+                        </button>
+                    </div>
+                </div>
+                
+                <div style="background: #000; border-radius: 10px; overflow: hidden; margin-bottom: 20px; position: relative;">
+                    <video id="my-video-stage7" autoplay muted playsinline 
+                           style="width: 100%; max-height: 400px; object-fit: cover;"></video>
+                    <div style="position: absolute; bottom: 15px; left: 15px; background: linear-gradient(135deg, #FFD700, #FFA500); padding: 12px 25px; border-radius: 25px; color: #0d3b66; font-weight: bold; font-size: 1.1rem;">
+                        👤 YOU - FINALIST!
+                    </div>
+                </div>
+                
+                <div id="stage7-participant-status" style="text-align: center; padding: 50px; background: linear-gradient(135deg, #667eea, #764ba2); border-radius: 15px; color: white;">
+                    <div style="font-size: 4rem; margin-bottom: 20px; animation: pulse 2s infinite;">🌟</div>
+                    <h2 style="color: white; margin-bottom: 15px;">YOU'RE A FINALIST!</h2>
+                    <p style="opacity: 0.9; font-size: 1.2rem; margin-bottom: 10px;">
+                        Congratulations on making it to the final stage!
+                    </p>
+                    <p style="opacity: 0.8; font-size: 1rem;">
+                        The admin will announce the final rankings shortly...
+                    </p>
+                </div>
+            </div>
+        `;
+        
+        const myVideo = document.getElementById('my-video-stage7');
+        if (myVideo && localStream) {
+            myVideo.srcObject = localStream;
+        }
+        
+        listenForStage7Results();
+    }
+    
+    function listenForStage7Results() {
+        const listener = db.collection('tournaments').doc(currentTournament)
+            .collection('liveRooms').doc('stage7')
+            .onSnapshot(async (doc) => {
+                if (!doc.exists) return;
+                
+                const roomData = doc.data();
+                
+                // Check if user has been ranked
+                if (roomData.winner === currentUser.uid) {
+                    showParticipantResult('🥇 CHAMPION', '1st Place', '#FFD700');
+                } else if (roomData.secondPlace === currentUser.uid) {
+                    showParticipantResult('🥈 RUNNER-UP', '2nd Place', '#C0C0C0');
+                } else if (roomData.thirdPlace === currentUser.uid) {
+                    showParticipantResult('🥉 THIRD PLACE', '3rd Place', '#CD7F32');
+                }
+                
+                // Check if tournament is completed
+                if (!roomData.isActive && roomData.finalizedAt) {
+                    setTimeout(() => {
+                        exitTournamentAfterCompletion();
+                    }, 5000);
+                }
+            });
+        
+        if (!window.tournamentListeners) window.tournamentListeners = [];
+        window.tournamentListeners.push(listener);
+    }
+    
+    function showParticipantResult(title, subtitle, color) {
+        const statusDiv = document.getElementById('stage7-participant-status');
+        if (!statusDiv) return;
+        
+        statusDiv.innerHTML = `
+            <div style="font-size: 5rem; margin-bottom: 20px; animation: bounce 1s infinite;">${title.split(' ')[0]}</div>
+            <h2 style="color: white; margin-bottom: 10px; font-size: 2.5rem;">${title}</h2>
+            <div style="background: white; padding: 15px 30px; border-radius: 25px; display: inline-block; margin: 20px 0;">
+                <div style="font-size: 1.5rem; font-weight: bold; color: ${color};">
+                    ${subtitle}
+                </div>
+            </div>
+            <p style="opacity: 0.9; font-size: 1.2rem; margin-top: 20px;">
+                🎉 Congratulations! 🎉
+            </p>
+        `;
+    }
+    
+    function exitTournamentAfterCompletion() {
+        if (localStream) {
+            localStream.getTracks().forEach(track => track.stop());
+            localStream = null;
+        }
+        
+        alert('🏆 Tournament completed! Thank you for participating!');
+        exitTournament();
+    }
 
 
 
@@ -16910,6 +18855,23 @@ async function viewTournament(tournamentId) {
         
         const tournament = { id: tournamentDoc.id, ...tournamentDoc.data() };
         
+        // ✅ GET STAGE 3 QUALIFIED PARTICIPANTS
+        const participantsSnapshot = await db.collection('tournaments').doc(tournamentId)
+            .collection('participants')
+            .where('status', '==', 'qualified-stage4')
+            .orderBy('stage3Percentage', 'desc')
+            .get();
+        
+        const qualifiedParticipants = [];
+        participantsSnapshot.forEach(doc => {
+            qualifiedParticipants.push({ id: doc.id, ...doc.data() });
+        });
+        
+        // ✅ CHECK IF STAGE 4 ROOM EXISTS
+        const stage4RoomDoc = await db.collection('tournaments').doc(tournamentId)
+            .collection('liveRooms').doc('stage4').get();
+        const stage4RoomExists = stage4RoomDoc.exists;
+        
         // Create detailed view modal
         const modal = document.createElement('div');
         modal.className = 'auth-modal';
@@ -16918,7 +18880,7 @@ async function viewTournament(tournamentId) {
         modal.classList.add('active');
         
         modal.innerHTML = `
-            <div class="auth-content" style="max-width: 700px;">
+            <div class="auth-content" style="max-width: 900px; max-height: 90vh; overflow-y: auto;">
                 <div class="auth-header" style="background: linear-gradient(135deg, #17a2b8, #138496);">
                     <h2 style="color: white;">👁️ ${tournament.name}</h2>
                     <button class="modal-close" onclick="closeViewTournamentModal()" style="color: white;">×</button>
@@ -16950,38 +18912,71 @@ async function viewTournament(tournamentId) {
                         </div>
                     </div>
                     
-                    ${tournament.registeredUsers && tournament.registeredUsers.length > 0 ? `
-                        <div style="background: #f9f9f9; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
-                            <h4 style="color: #0d3b66; margin-bottom: 10px;">👥 Registered Users (${tournament.registeredUsers.length})</h4>
-                            <div style="max-height: 200px; overflow-y: auto;">
-                                ${await getRegisteredUserNames(tournament.registeredUsers)}
+                    <!-- ✅ STAGE 3 QUALIFIED PARTICIPANTS -->
+                    ${qualifiedParticipants.length > 0 ? `
+                        <div style="background: #d4edda; padding: 20px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #28a745;">
+                            <h4 style="color: #155724; margin: 0 0 15px 0;">
+                                ✅ Stage 3 Qualified (${qualifiedParticipants.length} users)
+                            </h4>
+                            <div style="max-height: 300px; overflow-y: auto;">
+                                <table style="width: 100%; border-collapse: collapse;">
+                                    <thead>
+                                        <tr style="background: #c3e6cb; border-bottom: 2px solid #155724;">
+                                            <th style="padding: 10px; text-align: left; color: #155724;">Rank</th>
+                                            <th style="padding: 10px; text-align: left; color: #155724;">Name</th>
+                                            <th style="padding: 10px; text-align: center; color: #155724;">Score</th>
+                                            <th style="padding: 10px; text-align: center; color: #155724;">Accuracy</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${qualifiedParticipants.map((p, index) => `
+                                            <tr style="border-bottom: 1px solid #d4edda; background: ${index < 10 ? '#e8f5e9' : 'white'};">
+                                                <td style="padding: 10px; font-weight: bold; color: ${index < 10 ? '#28a745' : '#666'};">
+                                                    ${index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : index + 1}
+                                                    ${index < 10 ? ' ✅' : ' ⏸️'}
+                                                </td>
+                                                <td style="padding: 10px;">${p.name}</td>
+                                                <td style="padding: 10px; text-align: center; font-weight: bold;">${p.stage3Score}/${p.stage3Total}</td>
+                                                <td style="padding: 10px; text-align: center; font-weight: bold; color: #28a745;">${p.stage3Percentage}%</td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
                             </div>
+                            <p style="color: #155724; font-size: 0.9rem; margin: 15px 0 0 0;">
+                                ℹ️ Top 10 will advance to Stage 4. Others will be eliminated.
+                            </p>
                         </div>
-                    ` : '<p style="color: #999;">No users registered yet</p>'}
+                    ` : '<p style="color: #999;">No Stage 3 completions yet</p>'}
                     
-                    <!-- ✅ CREATE LIVE ROOM BUTTONS FOR STAGES 4-7 -->
-                    <div style="background: #fff3cd; padding: 15px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #ffc107;">
-                        <h4 style="color: #856404; margin: 0 0 10px 0;">🎥 Live Room Management (Stages 4-7)</h4>
-                        <p style="color: #856404; font-size: 0.9rem; margin-bottom: 10px;">Create live video rooms for face-to-face spelling rounds</p>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                            <button class="practice-btn" onclick="createLiveRoom('${tournamentId}', 4)" 
-                                    style="background: #e74c3c; font-size: 0.9rem; padding: 10px;">
-                                🎥 Stage 4 Room (Top 10)
-                            </button>
-                            <button class="practice-btn" onclick="createLiveRoom('${tournamentId}', 5)" 
-                                    style="background: #e67e22; font-size: 0.9rem; padding: 10px;">
-                                🎥 Stage 5 Room (Top 5)
-                            </button>
-                            <button class="practice-btn" onclick="createLiveRoom('${tournamentId}', 6)" 
-                                    style="background: #f39c12; font-size: 0.9rem; padding: 10px;">
-                                🎥 Stage 6 Room (Top 3)
-                            </button>
-                            <button class="practice-btn" onclick="createLiveRoom('${tournamentId}', 7)" 
-                                    style="background: #d35400; font-size: 0.9rem; padding: 10px;">
-                                🎥 Stage 7 Room (Finals)
-                            </button>
+                    <!-- ✅ STAGE 4 ROOM CONTROLS -->
+                    ${qualifiedParticipants.length > 0 ? `
+                        <div style="background: #fff3cd; padding: 20px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #ffc107;">
+                            <h4 style="color: #856404; margin: 0 0 15px 0;">🎥 Stage 4 Live Room</h4>
+                            ${!stage4RoomExists ? `
+                                <p style="color: #856404; margin-bottom: 15px;">
+                                    ${qualifiedParticipants.length >= 10 
+                                        ? `✅ Ready to create! ${qualifiedParticipants.length} qualified users (top 10 will advance)`
+                                        : `⏳ ${qualifiedParticipants.length} qualified so far (need 10+ to create room)`
+                                    }
+                                </p>
+                                <button class="practice-btn" 
+                                        onclick="createStage4Room('${tournamentId}')" 
+                                        ${qualifiedParticipants.length < 10 ? 'disabled' : ''}
+                                        style="background: ${qualifiedParticipants.length >= 10 ? '#28a745' : '#6c757d'}; font-size: 1.1rem; padding: 15px 30px; ${qualifiedParticipants.length < 10 ? 'opacity: 0.6; cursor: not-allowed;' : ''}">
+                                    🚀 Create Stage 4 Room (Top 10)
+                                </button>
+                            ` : `
+                                <div style="background: #d4edda; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                                    <p style="color: #155724; margin: 0; font-weight: bold;">✅ Stage 4 room is active!</p>
+                                </div>
+                                <button class="practice-btn" onclick="enterStage4RoomAdmin('${tournamentId}')" 
+                                        style="background: #17a2b8; font-size: 1.1rem; padding: 15px 30px;">
+                                    🎥 Enter Stage 4 Room
+                                </button>
+                            `}
                         </div>
-                    </div>
+                    ` : ''}
                     
                     <div style="display: flex; gap: 10px; margin-top: 20px;">
                         ${!tournament.sessionActive && tournament.status === 'active' && tournament.participants > 0 ? `
@@ -17003,6 +18998,9 @@ async function viewTournament(tournamentId) {
         `;
         
         document.body.appendChild(modal);
+        
+        // ✅ LISTEN FOR NEW STAGE 3 COMPLETIONS
+        listenForStage3Completions(tournamentId);
         
     } catch (error) {
         console.error('Error viewing tournament:', error);
