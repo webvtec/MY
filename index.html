@@ -4493,9 +4493,14 @@
     <!-- Tournament Section -->
 <div id="tournaments-section" class="content-section">
     <div class="word-database">
-        <div class="database-header">
-            <h2>🏆 SPELLING TOURNAMENTS</h2>
-            <p style="color: #666; margin-top: 10px;">Compete in 7-stage tournaments to become the champion!</p>
+        <div class="database-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+            <div>
+                <h2>🏆 SPELLING TOURNAMENTS</h2>
+                <p style="color: #666; margin-top: 10px;">Compete in 7-stage tournaments to become the champion!</p>
+            </div>
+            <button class="practice-btn" onclick="showTournamentLeaderboard()" style="background: linear-gradient(135deg, #FFD700, #FFA500); color: #0d3b66; font-weight: bold; padding: 12px 25px; white-space: nowrap; margin: 0;">
+                🏆 Tournament Leaderboard
+            </button>
         </div>
         
         <!-- Tournament Lobby -->
@@ -14345,7 +14350,9 @@ function exitTournament() {
     
     loadTournamentList();
 }
-        async function completeStage1() {
+
+        
+       async function completeStage1() {
     clearInterval(stage1Timer);
     
     // ✅ Mark as completed in Firestore
@@ -14361,69 +14368,26 @@ function exitTournament() {
     const container = document.getElementById('stage1-question-container');
     const percentage = Math.round((stage1Score / stage1Questions.length) * 100);
     
-    // ✅ Get final rankings (for display only, doesn't block progression)
-    const participantsSnapshot = await db.collection('tournaments').doc(currentTournament)
-        .collection('participants')
-        .where('stage', '==', 1)
-        .orderBy('score', 'desc')
-        .get();
-    
-    const allPlayers = [];
-    participantsSnapshot.forEach(doc => {
-        allPlayers.push({ id: doc.id, ...doc.data() });
-    });
-    
-    const myRank = allPlayers.findIndex(p => p.id === currentUser.uid) + 1;
-    
     container.innerHTML = `
         <div style="text-align: center; padding: 40px;">
-            <div style="font-size: 4rem; margin-bottom: 20px;">
-                ${percentage >= 80 ? '🏆' : percentage >= 60 ? '⭐' : '📚'}
+            <div style="font-size: 6rem; margin-bottom: 30px; animation: bounce 2s infinite;">
+                🏆
             </div>
-            <h2 style="color: #0d3b66; margin-bottom: 20px;">Stage 1 Complete!</h2>
+            <h2 style="color: #0d3b66; margin-bottom: 20px; font-size: 2rem;">Stage 1 Complete!</h2>
             
-            <div style="background: #f9f9f9; padding: 20px; border-radius: 10px; margin: 20px 0;">
-                <div style="font-size: 2rem; font-weight: bold; color: #0d3b66; margin: 10px 0;">
-                    ${stage1Score} / ${stage1Questions.length} Correct
+            <div style="background: linear-gradient(135deg, #667eea, #764ba2); padding: 30px; border-radius: 15px; margin: 30px 0; color: white;">
+                <div style="font-size: 3rem; font-weight: bold; margin-bottom: 10px;">
+                    ${stage1Score} / ${stage1Questions.length}
                 </div>
-                <p style="font-size: 1.2rem; color: #666;">
+                <p style="font-size: 1.5rem; opacity: 0.9;">
                     Accuracy: ${percentage}%
                 </p>
-                <p style="font-size: 1.3rem; color: #667eea; font-weight: bold; margin: 10px 0;">
-                    🏅 Current Rank: #${myRank} of ${allPlayers.length}
-                </p>
-                <p style="font-size: 1.1rem; color: #667eea;">
+                <p style="font-size: 1.2rem; margin-top: 20px;">
                     🛡️ Handicaps Remaining: ${stage1Handicaps}
                 </p>
             </div>
             
-            <div style="background: #f9f9f9; padding: 20px; border-radius: 10px; margin: 20px 0; max-height: 300px; overflow-y: auto;">
-                <h3 style="color: #0d3b66; margin-bottom: 15px;">🏆 Live Rankings</h3>
-                ${allPlayers.slice(0, 10).map((player, index) => `
-                    <div style="display: flex; justify-content: space-between; padding: 10px; margin-bottom: 5px; background: ${player.id === currentUser.uid ? '#e3f2fd' : 'white'}; border-radius: 5px;">
-                        <span style="font-weight: ${index < 3 ? 'bold' : 'normal'};">
-                            ${index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`} 
-                            ${player.name || 'Player'}
-                            ${player.id === currentUser.uid ? ' (You)' : ''}
-                        </span>
-                        <span style="font-weight: bold; color: #28a745;">
-                            ${player.score} pts
-                        </span>
-                    </div>
-                `).join('')}
-            </div>
-            
-            <!-- ✅ ALWAYS SHOW PROCEED BUTTON -->
-            <div style="background: #e3f2fd; padding: 20px; border-radius: 10px; margin: 20px 0;">
-                <h3 style="color: #0d3b66; margin-bottom: 10px;">✅ Ready for Stage 2!</h3>
-                <p style="color: #0d3b66;">
-                    You'll carry ${stage1Handicaps} handicap(s) into the next round.
-                </p>
-                <p style="color: #666; font-size: 0.9rem; margin-top: 10px;">
-                    Note: Rankings are live and may change as other players complete Stage 1
-                </p>
-            </div>
-            <button class="practice-btn" onclick="proceedToStage2()" style="font-size: 1.2rem; padding: 15px 40px; margin-top: 20px;">
+            <button class="practice-btn" onclick="proceedToStage2()" style="font-size: 1.3rem; padding: 20px 50px; margin-top: 20px; background: linear-gradient(135deg, #28a745, #20c997);">
                 ➡️ Proceed to Stage 2
             </button>
         </div>
@@ -15050,34 +15014,29 @@ async function completeStage2() {
     
     container.innerHTML = `
         <div class="quiz-question-card" style="text-align: center; padding: 40px;">
-            <div style="font-size: 4rem; margin-bottom: 20px;">
-                ${percentage >= 80 ? '🏆' : percentage >= 60 ? '⭐' : '📚'}
+            <div style="font-size: 6rem; margin-bottom: 30px; animation: bounce 2s infinite;">
+                🏆
             </div>
-            <h2 style="color: #0d3b66; margin-bottom: 20px;">Stage 2 Complete!</h2>
-            <div style="font-size: 2rem; font-weight: bold; color: #0d3b66; margin: 20px 0;">
-                ${stage2Score} / ${stage2Words.length} Correct
-            </div>
-            <p style="font-size: 1.2rem; color: #666; margin: 20px 0;">
-                Accuracy: ${percentage}%
-            </p>
-            <p style="font-size: 1.1rem; color: #667eea; margin: 20px 0;">
-                🛡️ Handicaps Remaining: ${stage2HandicapsRemaining}
-            </p>
+            <h2 style="color: #0d3b66; margin-bottom: 20px; font-size: 2rem;">Stage 2 Complete!</h2>
             
-            <!-- ✅ ALWAYS SHOW PROCEED BUTTON -->
-            <div style="background: #d4edda; padding: 20px; border-radius: 10px; margin: 20px 0;">
-                <h3 style="color: #155724; margin-bottom: 10px;">✅ Ready for Stage 3!</h3>
-                <p style="color: #155724;">
-                    You'll carry ${stage2HandicapsRemaining} handicap(s) into Stage 3.
+            <div style="background: linear-gradient(135deg, #f093fb, #f5576c); padding: 30px; border-radius: 15px; margin: 30px 0; color: white;">
+                <div style="font-size: 3rem; font-weight: bold; margin-bottom: 10px;">
+                    ${stage2Score} / ${stage2Words.length}
+                </div>
+                <p style="font-size: 1.5rem; opacity: 0.9;">
+                    Accuracy: ${percentage}%
+                </p>
+                <p style="font-size: 1.2rem; margin-top: 20px;">
+                    🛡️ Handicaps Remaining: ${stage2HandicapsRemaining}
                 </p>
             </div>
-            <button class="practice-btn" onclick="proceedToStage3()" style="font-size: 1.2rem; padding: 15px 40px; margin-top: 20px;">
+            
+            <button class="practice-btn" onclick="proceedToStage3()" style="font-size: 1.3rem; padding: 20px 50px; margin-top: 20px; background: linear-gradient(135deg, #28a745, #20c997);">
                 ➡️ Proceed to Stage 3
             </button>
         </div>
     `;
 }
-
 
 function eliminateFromStage2() {
     clearInterval(stage2Timer);
@@ -15521,78 +15480,36 @@ async function completeStage3() {
         console.error('Error recording Stage 3 completion:', error);
     }
     
-    // ✅ Get current rankings
-    const allCompletions = await getStage3Rankings();
-    
-    const myRank = allCompletions.findIndex(p => p.id === currentUser.uid) + 1;
-    const totalParticipants = allCompletions.length;
-    const willMakeTop10 = myRank <= 10;
-    
     const container = document.getElementById('tournament-stage3');
     
     container.innerHTML = `
         <div class="quiz-question-card" style="text-align: center; padding: 40px;">
-            <div style="font-size: 4rem; margin-bottom: 20px;">
-                ${willMakeTop10 ? '🏆' : '⭐'}
+            <div style="font-size: 6rem; margin-bottom: 30px; animation: bounce 2s infinite;">
+                🏆
             </div>
-            <h2 style="color: #0d3b66; margin-bottom: 20px;">Stage 3 Complete!</h2>
-            <div style="font-size: 2rem; font-weight: bold; color: #0d3b66; margin: 20px 0;">
-                ${stage3Score} / ${stage3Words.length} Correct
-            </div>
-            <p style="font-size: 1.2rem; color: #666; margin: 20px 0;">
-                Accuracy: ${percentage}%
-            </p>
-            <p style="font-size: 1.1rem; color: #667eea; margin: 20px 0;">
-                🛡️ Handicaps Remaining: ${stage3HandicapsRemaining}
-            </p>
+            <h2 style="color: #0d3b66; margin-bottom: 20px; font-size: 2rem;">Stage 3 Complete!</h2>
             
-            <!-- ✅ SHOW CURRENT RANKINGS -->
-            <div style="background: #f9f9f9; padding: 20px; border-radius: 10px; margin: 20px 0;">
-                <h3 style="color: #0d3b66; margin-bottom: 15px;">📊 Current Stage 3 Rankings</h3>
-                <p style="color: #666; margin-bottom: 15px;">
-                    Your Rank: <strong style="color: ${willMakeTop10 ? '#28a745' : '#dc3545'};">#${myRank}</strong> of ${totalParticipants} participants
-                </p>
-                <div style="max-height: 300px; overflow-y: auto; margin-top: 15px;">
-                    ${allCompletions.slice(0, 15).map((p, index) => `
-                        <div style="display: flex; justify-content: space-between; padding: 10px; margin-bottom: 5px; background: ${p.id === currentUser.uid ? '#e3f2fd' : index < 10 ? '#e8f5e9' : 'white'}; border-radius: 5px; border-left: 4px solid ${index < 10 ? '#28a745' : '#dc3545'};">
-                            <span style="font-weight: ${index < 3 ? 'bold' : 'normal'};">
-                                ${index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`}
-                                ${p.name || 'Player'}
-                                ${p.id === currentUser.uid ? ' (You)' : ''}
-                                ${index < 10 ? ' ✅' : ' ⏸️'}
-                            </span>
-                            <span style="font-weight: bold; color: #28a745;">
-                                ${p.stage3Percentage}%
-                            </span>
-                        </div>
-                    `).join('')}
+            <div style="background: linear-gradient(135deg, #FFD700, #FFA500); padding: 30px; border-radius: 15px; margin: 30px 0; color: #0d3b66;">
+                <div style="font-size: 3rem; font-weight: bold; margin-bottom: 10px;">
+                    ${stage3Score} / ${stage3Words.length}
                 </div>
-                <p style="color: #666; font-size: 0.9rem; margin-top: 15px;">
-                    ${willMakeTop10 ? 
-                        '✅ You\'re currently in TOP 10 position!' : 
-                        '⏸️ You need to be in TOP 10 to advance to Stage 4'
-                    }
+                <p style="font-size: 1.5rem; opacity: 0.9;">
+                    Accuracy: ${percentage}%
+                </p>
+                <p style="font-size: 1.2rem; margin-top: 20px;">
+                    🛡️ Handicaps Remaining: ${stage3HandicapsRemaining}
                 </p>
             </div>
             
-            <!-- ✅ AUTO-ELIMINATION WARNING -->
-            <div style="background: ${willMakeTop10 ? '#d4edda' : '#fff3cd'}; padding: 20px; border-radius: 10px; margin: 20px 0;">
-                <h3 style="color: ${willMakeTop10 ? '#155724' : '#856404'}; margin-bottom: 10px;">
-                    ${willMakeTop10 ? '✅ Currently Qualified!' : '⚠️ At Risk of Elimination'}
-                </h3>
-                <p style="color: ${willMakeTop10 ? '#155724' : '#856404'};">
-                    ${willMakeTop10 ? 
-                        'Great job! You\'re in the Top 10. Rankings may still change as others complete.' :
-                        'You\'re currently outside Top 10. Rankings will be finalized 2 minutes after the first player completes Stage 3.'
-                    }
-                </p>
-                <p style="color: ${willMakeTop10 ? '#155724' : '#856404'}; font-weight: bold; margin-top: 15px;">
-                    🎥 Auto-elimination will occur, then admin will create Stage 4 room for Top 10.
+            <div style="background: #e3f2fd; padding: 20px; border-radius: 10px; margin: 20px 0;">
+                <p style="color: #0d3b66; font-size: 1.1rem;">
+                    ⏳ Waiting for final rankings...<br>
+                    Admin will create Stage 4 room for Top 10 finalists
                 </p>
             </div>
             
             <div id="stage4-join-section" style="margin: 20px 0;">
-                <div class="loading">⏳ Waiting for final rankings and Stage 4 room creation...</div>
+                <div class="loading">⏳ Waiting for Stage 4 room creation...</div>
             </div>
             
             <button class="practice-btn" onclick="exitTournament()" style="font-size: 1rem; padding: 12px 30px; background: #6c757d; margin-top: 20px;">
@@ -15604,7 +15521,7 @@ async function completeStage3() {
     // ✅ LISTEN FOR STAGE 4 ROOM CREATION
     listenForStage4Room();
 }
-    
+        
   // ===== GET STAGE 3 RANKINGS =====
 async function getStage3Rankings() {
     const participantsSnapshot = await db.collection('tournaments').doc(currentTournament)
@@ -18497,87 +18414,88 @@ async function loadStage7Finalists(tournamentId) {
     }
     
     // ===== SHOW COMPLETION SCREEN =====
-    async function showTournamentCompletionScreen(tournamentId) {
-        const stage7Container = document.getElementById('stage7-admin-container');
-        
-        const roomDoc = await db.collection('tournaments').doc(tournamentId)
-            .collection('liveRooms').doc('stage7').get();
-        const roomData = roomDoc.data();
-        
-        // Get user data
-        const [winnerDoc, secondDoc, thirdDoc] = await Promise.all([
-            db.collection('users').doc(roomData.winner).get(),
-            db.collection('users').doc(roomData.secondPlace).get(),
-            db.collection('users').doc(roomData.thirdPlace).get()
-        ]);
-        
-        const winner = winnerDoc.data();
-        const second = secondDoc.data();
-        const third = thirdDoc.data();
-        
-        stage7Container.innerHTML = `
-            <div class="quiz-question-card" style="text-align: center; padding: 50px;">
-                <div style="font-size: 6rem; margin-bottom: 30px; animation: bounce 2s infinite;">🏆</div>
+   async function showTournamentCompletionScreen(tournamentId) {
+    const stage7Container = document.getElementById('stage7-admin-container');
+    
+    const roomDoc = await db.collection('tournaments').doc(tournamentId)
+        .collection('liveRooms').doc('stage7').get();
+    const roomData = roomDoc.data();
+    
+    // Get user data
+    const [winnerDoc, secondDoc, thirdDoc] = await Promise.all([
+        db.collection('users').doc(roomData.winner).get(),
+        db.collection('users').doc(roomData.secondPlace).get(),
+        db.collection('users').doc(roomData.thirdPlace).get()
+    ]);
+    
+    const winner = winnerDoc.data();
+    const second = secondDoc.data();
+    const third = thirdDoc.data();
+    
+    stage7Container.innerHTML = `
+        <div class="quiz-question-card" style="text-align: center; padding: 50px;">
+            <div style="font-size: 6rem; margin-bottom: 30px; animation: bounce 2s infinite;">🏆</div>
+            
+            <h1 style="color: #0d3b66; font-size: 3rem; margin-bottom: 30px;">
+                TOURNAMENT COMPLETED!
+            </h1>
+            
+            <!-- Final Podium -->
+            <div style="background: linear-gradient(135deg, #FFD700, #FFA500); padding: 40px; border-radius: 20px; margin: 30px 0;">
+                <h2 style="color: #0d3b66; margin-bottom: 30px;">🏅 FINAL STANDINGS</h2>
                 
-                <h1 style="color: #0d3b66; font-size: 3rem; margin-bottom: 30px;">
-                    TOURNAMENT COMPLETED!
-                </h1>
-                
-                <!-- Final Podium -->
-                <div style="background: linear-gradient(135deg, #FFD700, #FFA500); padding: 40px; border-radius: 20px; margin: 30px 0;">
-                    <h2 style="color: #0d3b66; margin-bottom: 30px;">🏅 FINAL STANDINGS</h2>
+                <div style="display: grid; gap: 20px; max-width: 800px; margin: 0 auto;">
+                    <!-- Winner -->
+                    <div style="background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
+                        <div style="font-size: 4rem; margin-bottom: 15px;">🥇</div>
+                        <h3 style="color: #0d3b66; margin-bottom: 10px;">CHAMPION</h3>
+                        <img src="${winner.photoURL || 'https://via.placeholder.com/100'}" 
+                             style="width: 100px; height: 100px; border-radius: 50%; margin: 15px 0; object-fit: cover; border: 5px solid #FFD700;">
+                        <div style="font-size: 1.5rem; font-weight: bold; color: #0d3b66;">
+                            ${winner.firstName} ${winner.lastName}
+                        </div>
+                    </div>
                     
-                    <div style="display: grid; gap: 20px; max-width: 800px; margin: 0 auto;">
-                        <!-- Winner -->
-                        <div style="background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
-                            <div style="font-size: 4rem; margin-bottom: 15px;">🥇</div>
-                            <h3 style="color: #0d3b66; margin-bottom: 10px;">CHAMPION</h3>
-                            <img src="${winner.photoURL || 'https://via.placeholder.com/100'}" 
-                                 style="width: 100px; height: 100px; border-radius: 50%; margin: 15px 0; object-fit: cover; border: 5px solid #FFD700;">
-                            <div style="font-size: 1.5rem; font-weight: bold; color: #0d3b66;">
-                                ${winner.firstName} ${winner.lastName}
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                        <!-- 2nd Place -->
+                        <div style="background: white; padding: 25px; border-radius: 15px;">
+                            <div style="font-size: 3rem; margin-bottom: 10px;">🥈</div>
+                            <h4 style="color: #0d3b66;">2ND PLACE</h4>
+                            <img src="${second.photoURL || 'https://via.placeholder.com/80'}" 
+                                 style="width: 80px; height: 80px; border-radius: 50%; margin: 10px 0; object-fit: cover; border: 4px solid #C0C0C0;">
+                            <div style="font-weight: bold; color: #0d3b66;">
+                                ${second.firstName} ${second.lastName}
                             </div>
                         </div>
                         
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-                            <!-- 2nd Place -->
-                            <div style="background: white; padding: 25px; border-radius: 15px;">
-                                <div style="font-size: 3rem; margin-bottom: 10px;">🥈</div>
-                                <h4 style="color: #0d3b66;">2ND PLACE</h4>
-                                <img src="${second.photoURL || 'https://via.placeholder.com/80'}" 
-                                     style="width: 80px; height: 80px; border-radius: 50%; margin: 10px 0; object-fit: cover; border: 4px solid #C0C0C0;">
-                                <div style="font-weight: bold; color: #0d3b66;">
-                                    ${second.firstName} ${second.lastName}
-                                </div>
-                            </div>
-                            
-                            <!-- 3rd Place -->
-                            <div style="background: white; padding: 25px; border-radius: 15px;">
-                                <div style="font-size: 3rem; margin-bottom: 10px;">🥉</div>
-                                <h4 style="color: #0d3b66;">3RD PLACE</h4>
-                                <img src="${third.photoURL || 'https://via.placeholder.com/80'}" 
-                                     style="width: 80px; height: 80px; border-radius: 50%; margin: 10px 0; object-fit: cover; border: 4px solid #CD7F32;">
-                                <div style="font-weight: bold; color: #0d3b66;">
-                                    ${third.firstName} ${third.lastName}
-                                </div>
+                        <!-- 3rd Place -->
+                        <div style="background: white; padding: 25px; border-radius: 15px;">
+                            <div style="font-size: 3rem; margin-bottom: 10px;">🥉</div>
+                            <h4 style="color: #0d3b66;">3RD PLACE</h4>
+                            <img src="${third.photoURL || 'https://via.placeholder.com/80'}" 
+                                 style="width: 80px; height: 80px; border-radius: 50%; margin: 10px 0; object-fit: cover; border: 4px solid #CD7F32;">
+                            <div style="font-weight: bold; color: #0d3b66;">
+                                ${third.firstName} ${third.lastName}
                             </div>
                         </div>
                     </div>
                 </div>
-                
-                <button class="practice-btn" onclick="returnToAdminPanel()" 
-                        style="font-size: 1.3rem; padding: 20px 50px; background: linear-gradient(135deg, #667eea, #764ba2); margin-top: 30px;">
-                    🏠 Return to Admin Panel
-                </button>
             </div>
-        `;
-        
-        // Stop media streams
-        if (localStream) {
-            localStream.getTracks().forEach(track => track.stop());
-            localStream = null;
-        }
+            
+            <button class="practice-btn" onclick="returnToAdminPanel()" 
+                    style="font-size: 1.3rem; padding: 20px 50px; background: linear-gradient(135deg, #667eea, #764ba2); margin-top: 30px;">
+                🏠 Return to Admin Panel
+            </button>
+        </div>
+    `;
+    
+    // Stop media streams
+    if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+        localStream = null;
     }
+}
+
     
     function returnToAdminPanel() {
         const stage7Container = document.getElementById('stage7-admin-container');
@@ -20181,6 +20099,166 @@ function createSeededRandom(seed) {
         return currentSeed / 233280;
     };
 }        
+
+
+  // ===== TOURNAMENT LEADERBOARD =====
+async function showTournamentLeaderboard() {
+    const modal = document.createElement('div');
+    modal.className = 'auth-modal';
+    modal.id = 'tournamentLeaderboardModal';
+    modal.style.display = 'block';
+    modal.classList.add('active');
+    
+    modal.innerHTML = `
+        <div class="auth-content" style="max-width: 900px; max-height: 90vh; overflow-y: auto;">
+            <div class="auth-header" style="background: linear-gradient(135deg, #FFD700, #FFA500);">
+                <h2 style="color: #0d3b66;">🏆 Tournament Leaderboard</h2>
+                <button class="modal-close" onclick="closeTournamentLeaderboard()" style="color: #0d3b66;">×</button>
+            </div>
+            <div class="auth-body">
+                <div id="leaderboard-content">
+                    <div class="loading">Loading tournament results...</div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Load leaderboard data
+    await loadTournamentLeaderboardData();
+}
+
+function closeTournamentLeaderboard() {
+    const modal = document.getElementById('tournamentLeaderboardModal');
+    if (modal) modal.remove();
+}
+
+async function loadTournamentLeaderboardData() {
+    const container = document.getElementById('leaderboard-content');
+    
+    try {
+        // Get all completed tournaments
+        const tournamentsSnapshot = await db.collection('tournaments')
+            .where('status', '==', 'completed')
+            .orderBy('completedAt', 'desc')
+            .get();
+        
+        if (tournamentsSnapshot.empty) {
+            container.innerHTML = `
+                <div style="text-align: center; padding: 40px; color: #666;">
+                    <div style="font-size: 3rem; margin-bottom: 15px;">🏆</div>
+                    <h3>No Completed Tournaments Yet</h3>
+                    <p>Tournament results will appear here once tournaments are completed</p>
+                </div>
+            `;
+            return;
+        }
+        
+        let html = '';
+        
+        for (const doc of tournamentsSnapshot.docs) {
+            const tournament = { id: doc.id, ...doc.data() };
+            
+            // Get winner, 2nd, 3rd place user data
+            const [winnerDoc, secondDoc, thirdDoc] = await Promise.all([
+                tournament.winnerId ? db.collection('users').doc(tournament.winnerId).get() : null,
+                tournament.secondPlaceId ? db.collection('users').doc(tournament.secondPlaceId).get() : null,
+                tournament.thirdPlaceId ? db.collection('users').doc(tournament.thirdPlaceId).get() : null
+            ]);
+            
+            const winner = winnerDoc?.exists ? winnerDoc.data() : null;
+            const second = secondDoc?.exists ? secondDoc.data() : null;
+            const third = thirdDoc?.exists ? thirdDoc.data() : null;
+            
+            html += `
+                <div style="background: white; border-radius: 15px; padding: 25px; margin-bottom: 25px; box-shadow: 0 5px 20px rgba(0,0,0,0.1); border-left: 5px solid #FFD700;">
+                    <h3 style="color: #0d3b66; margin: 0 0 10px 0; font-size: 1.5rem;">
+                        ${tournament.name}
+                    </h3>
+                    <p style="color: #666; margin-bottom: 20px;">
+                        📅 ${tournament.startDate} • Level: ${tournament.level} • Completed: ${tournament.completedAt?.toDate().toLocaleDateString() || 'N/A'}
+                    </p>
+                    
+                    ${winner || second || third ? `
+                        <div style="display: grid; gap: 15px;">
+                            ${winner ? `
+                                <div style="background: linear-gradient(135deg, #FFD700, #FFA500); padding: 20px; border-radius: 12px; display: flex; align-items: center; gap: 15px;">
+                                    <div style="font-size: 3rem;">🥇</div>
+                                    <img src="${winner.photoURL || 'https://via.placeholder.com/60'}" 
+                                         style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover; border: 3px solid white;">
+                                    <div style="flex: 1;">
+                                        <div style="font-size: 1.3rem; font-weight: bold; color: #0d3b66;">
+                                            ${winner.firstName} ${winner.lastName}
+                                        </div>
+                                        <div style="color: #0d3b66; opacity: 0.8;">
+                                            ${winner.email}
+                                        </div>
+                                    </div>
+                                    <div style="font-size: 1.5rem; font-weight: bold; color: #0d3b66;">
+                                        CHAMPION
+                                    </div>
+                                </div>
+                            ` : ''}
+                            
+                            ${second ? `
+                                <div style="background: linear-gradient(135deg, #C0C0C0, #A8A8A8); padding: 15px; border-radius: 12px; display: flex; align-items: center; gap: 15px;">
+                                    <div style="font-size: 2.5rem;">🥈</div>
+                                    <img src="${second.photoURL || 'https://via.placeholder.com/50'}" 
+                                         style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 3px solid white;">
+                                    <div style="flex: 1;">
+                                        <div style="font-size: 1.1rem; font-weight: bold; color: #0d3b66;">
+                                            ${second.firstName} ${second.lastName}
+                                        </div>
+                                        <div style="color: #0d3b66; opacity: 0.8; font-size: 0.9rem;">
+                                            ${second.email}
+                                        </div>
+                                    </div>
+                                    <div style="font-size: 1.2rem; font-weight: bold; color: #0d3b66;">
+                                        2ND PLACE
+                                    </div>
+                                </div>
+                            ` : ''}
+                            
+                            ${third ? `
+                                <div style="background: linear-gradient(135deg, #CD7F32, #B8860B); padding: 15px; border-radius: 12px; display: flex; align-items: center; gap: 15px;">
+                                    <div style="font-size: 2.5rem;">🥉</div>
+                                    <img src="${third.photoURL || 'https://via.placeholder.com/50'}" 
+                                         style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 3px solid white;">
+                                    <div style="flex: 1;">
+                                        <div style="font-size: 1.1rem; font-weight: bold; color: white;">
+                                            ${third.firstName} ${third.lastName}
+                                        </div>
+                                        <div style="color: white; opacity: 0.9; font-size: 0.9rem;">
+                                            ${third.email}
+                                        </div>
+                                    </div>
+                                    <div style="font-size: 1.2rem; font-weight: bold; color: white;">
+                                        3RD PLACE
+                                    </div>
+                                </div>
+                            ` : ''}
+                        </div>
+                    ` : `
+                        <p style="color: #999; text-align: center; padding: 20px;">
+                            Results not available
+                        </p>
+                    `}
+                </div>
+            `;
+        }
+        
+        container.innerHTML = html;
+        
+    } catch (error) {
+        console.error('Error loading leaderboard:', error);
+        container.innerHTML = `
+            <div class="feedback error">
+                ❌ Failed to load leaderboard: ${error.message}
+            </div>
+        `;
+    }
+}      
     </script>
 </body>
 </html>
