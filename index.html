@@ -2654,17 +2654,6 @@
 }
 
 
- @keyframes slideIn {
-    from {
-        transform: translateX(100%);
-        opacity: 0;
-    }
-    to {
-        transform: translateX(0);
-        opacity: 1;
-    }
-}
-
 @keyframes pulse {
     0%, 100% {
         transform: scale(1);
@@ -2674,7 +2663,19 @@
         transform: scale(1.05);
         box-shadow: 0 0 0 10px rgba(40, 167, 69, 0);
     }
-}       
+}    
+
+
+  @keyframes slideIn {
+    from {
+        transform: translateX(400px);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}      
     </style>
 </head>
     </style>
@@ -19473,7 +19474,12 @@ function setupTournamentListeners(tournaments) {
 
 // ✅ NEW: Show notification when tournament starts
 function showTournamentStartNotification(tournamentId, tournamentData) {
+    // ✅ Remove any existing notifications first
+    const existingNotifs = document.querySelectorAll('[id^="tournament-notification-"]');
+    existingNotifs.forEach(notif => notif.remove());
+    
     const notification = document.createElement('div');
+    notification.id = `tournament-notification-${tournamentId}`;
     notification.style.cssText = `
         position: fixed;
         top: 20px;
@@ -19492,10 +19498,10 @@ function showTournamentStartNotification(tournamentId, tournamentData) {
         <div style="font-size: 2rem; margin-bottom: 10px;">🏆</div>
         <h3 style="margin: 0 0 10px 0; color: white;">Tournament Starting!</h3>
         <p style="margin: 0 0 15px 0; opacity: 0.9;">${tournamentData.name} is now LIVE!</p>
-        <button onclick="joinLiveTournament('${tournamentId}')" class="practice-btn" style="background: white; color: #28a745; width: 100%; font-weight: bold;">
+        <button onclick="joinLiveTournament('${tournamentId}')" class="practice-btn" style="background: white; color: #28a745; width: 100%; font-weight: bold; font-size: 1.1rem; padding: 12px;">
             ⚡ JOIN NOW
         </button>
-        <button onclick="this.parentElement.remove()" style="position: absolute; top: 10px; right: 10px; background: transparent; border: none; color: white; font-size: 1.5rem; cursor: pointer;">×</button>
+        <button onclick="document.getElementById('tournament-notification-${tournamentId}').remove()" style="position: absolute; top: 10px; right: 10px; background: transparent; border: none; color: white; font-size: 1.5rem; cursor: pointer;">×</button>
     `;
     
     document.body.appendChild(notification);
@@ -19508,9 +19514,12 @@ function showTournamentStartNotification(tournamentId, tournamentData) {
     }, 30000);
 }
 
+        
 // ✅ NEW: Join live tournament
 async function joinLiveTournament(tournamentId) {
     try {
+        console.log('🎯 Joining live tournament:', tournamentId);
+        
         const tournamentDoc = await db.collection('tournaments').doc(tournamentId).get();
         
         if (!tournamentDoc.exists) {
@@ -19531,19 +19540,32 @@ async function joinLiveTournament(tournamentId) {
             sessionJoined: firebase.firestore.FieldValue.arrayUnion(currentUser.uid)
         });
         
+        // ✅ Remove notification
+        const notifications = document.querySelectorAll('[style*="position: fixed"]');
+        notifications.forEach(notif => {
+            if (notif.textContent.includes('Tournament Starting')) {
+                notif.remove();
+            }
+        });
+        
+        // ✅ Navigate to tournaments section first
+        await navigateTo('tournaments', true);
+        
         // Set current tournament
         currentTournament = tournamentId;
         selectedGameLevel = tournament.level;
         
-        // Start Stage 1
-        await startTournamentStage1(tournamentId);
+        // ✅ Small delay to ensure navigation completes
+        setTimeout(async () => {
+            // Start Stage 1
+            await startTournamentStage1(tournamentId);
+        }, 300);
         
     } catch (error) {
         console.error('Error joining tournament:', error);
         alert('Failed to join tournament: ' + error.message);
     }
-}       
-
+}
 
 // ========================================
 // LIVE ROOM SYSTEM FOR STAGES 4-7
