@@ -14416,17 +14416,16 @@ async function completeStage1() {
                 `).join('')}
             </div>
             
-            <!-- ✅ ALWAYS SHOW PROCEED BUTTON (NO QUALIFICATION CHECK) -->
-            <div style="background: #e3f2fd; padding: 20px; border-radius: 10px; margin: 20px 0;">
-                <h3 style="color: #0d3b66; margin-bottom: 10px;">✅ Ready for Stage 2!</h3>
-                <p style="color: #0d3b66;">
+            <!-- ✅ PROCEED TO STAGE 2 BUTTON -->
+            <div style="background: #d4edda; padding: 20px; border-radius: 10px; margin: 20px 0; border: 2px solid #28a745;">
+                <h3 style="color: #155724; margin-bottom: 10px;">✅ Ready for Stage 2!</h3>
+                <p style="color: #155724; margin-bottom: 15px;">
                     You'll carry ${stage1Handicaps} handicap(s) into the next round.
                 </p>
-                <p style="color: #666; font-size: 0.9rem; margin-top: 10px;">
-                    Note: Rankings are live and may change as other players complete Stage 1
-                </p>
             </div>
-            <button class="practice-btn" onclick="proceedToStage2()" style="font-size: 1.2rem; padding: 15px 40px;">
+            
+            <button class="practice-btn" onclick="proceedToStage2()" 
+                    style="font-size: 1.3rem; padding: 18px 50px; background: linear-gradient(135deg, #28a745, #20c997); color: white; font-weight: bold; margin-top: 20px; width: auto; display: inline-block; cursor: pointer;">
                 ➡️ Proceed to Stage 2
             </button>
         </div>
@@ -15064,6 +15063,7 @@ async function completeStage2() {
                 ${percentage >= 80 ? '🏆' : percentage >= 60 ? '⭐' : '📚'}
             </div>
             <h2 style="color: #0d3b66; margin-bottom: 20px;">Stage 2 Complete!</h2>
+            
             <div style="font-size: 2rem; font-weight: bold; color: #0d3b66; margin: 20px 0;">
                 ${stage2Score} / ${stage2Words.length} Correct
             </div>
@@ -15074,20 +15074,22 @@ async function completeStage2() {
                 🛡️ Handicaps Remaining: ${stage2HandicapsRemaining}
             </p>
             
-            <!-- ✅ ALWAYS SHOW PROCEED BUTTON -->
-            <div style="background: #d4edda; padding: 20px; border-radius: 10px; margin: 20px 0;">
+            <!-- ✅ PROCEED TO STAGE 3 BUTTON -->
+            <div style="background: #d4edda; padding: 20px; border-radius: 10px; margin: 20px 0; border: 2px solid #28a745;">
                 <h3 style="color: #155724; margin-bottom: 10px;">✅ Ready for Stage 3!</h3>
                 <p style="color: #155724;">
                     You'll carry ${stage2HandicapsRemaining} handicap(s) into Stage 3.
                 </p>
             </div>
-            <button class="practice-btn" onclick="proceedToStage3()" style="font-size: 1.2rem; padding: 15px 40px;">
+            
+            <button class="practice-btn" onclick="proceedToStage3()" 
+                    style="font-size: 1.3rem; padding: 18px 50px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; font-weight: bold; margin-top: 20px; width: auto; display: inline-block; cursor: pointer;">
                 ➡️ Proceed to Stage 3
             </button>
         </div>
     `;
 }
-
+        
 function eliminateFromStage2() {
     clearInterval(stage2Timer);
     
@@ -15521,7 +15523,7 @@ async function completeStage3() {
                 stage3Total: stage3Words.length,
                 stage3Percentage: percentage,
                 stage3CompletedAt: firebase.firestore.FieldValue.serverTimestamp(),
-                stage3CompletionTimestamp: completionTime, // For sorting by time
+                stage3CompletionTimestamp: completionTime,
                 status: 'stage3-completed',
                 handicaps: stage3HandicapsRemaining
             }, { merge: true });
@@ -15531,7 +15533,7 @@ async function completeStage3() {
         // ✅ NOTIFY ADMIN
         await notifyAdminStage3Complete();
         
-        // ✅ START AUTO-ELIMINATION CHECKER (only first person triggers this)
+        // ✅ START AUTO-ELIMINATION CHECKER
         await initializeStage3AutoElimination();
         
     } catch (error) {
@@ -15553,6 +15555,7 @@ async function completeStage3() {
                 ${willMakeTop10 ? '🏆' : '⭐'}
             </div>
             <h2 style="color: #0d3b66; margin-bottom: 20px;">Stage 3 Complete!</h2>
+            
             <div style="font-size: 2rem; font-weight: bold; color: #0d3b66; margin: 20px 0;">
                 ${stage3Score} / ${stage3Words.length} Correct
             </div>
@@ -15564,12 +15567,12 @@ async function completeStage3() {
             </p>
             
             <!-- ✅ SHOW CURRENT RANKINGS -->
-            <div style="background: #f9f9f9; padding: 20px; border-radius: 10px; margin: 20px 0;">
+            <div style="background: #f9f9f9; padding: 20px; border-radius: 10px; margin: 20px 0; max-height: 400px; overflow-y: auto;">
                 <h3 style="color: #0d3b66; margin-bottom: 15px;">📊 Current Stage 3 Rankings</h3>
                 <p style="color: #666; margin-bottom: 15px;">
                     Your Rank: <strong style="color: ${willMakeTop10 ? '#28a745' : '#dc3545'};">#${myRank}</strong> of ${totalParticipants} participants
                 </p>
-                <div style="max-height: 300px; overflow-y: auto; margin-top: 15px;">
+                <div style="margin-top: 15px;">
                     ${allCompletions.slice(0, 15).map((p, index) => `
                         <div style="display: flex; justify-content: space-between; padding: 10px; margin-bottom: 5px; background: ${p.id === currentUser.uid ? '#e3f2fd' : index < 10 ? '#e8f5e9' : 'white'}; border-radius: 5px; border-left: 4px solid ${index < 10 ? '#28a745' : '#dc3545'};">
                             <span style="font-weight: ${index < 3 ? 'bold' : 'normal'};">
@@ -15593,7 +15596,7 @@ async function completeStage3() {
             </div>
             
             <!-- ✅ AUTO-ELIMINATION WARNING -->
-            <div style="background: ${willMakeTop10 ? '#d4edda' : '#fff3cd'}; padding: 20px; border-radius: 10px; margin: 20px 0;">
+            <div style="background: ${willMakeTop10 ? '#d4edda' : '#fff3cd'}; padding: 20px; border-radius: 10px; margin: 20px 0; border: 2px solid ${willMakeTop10 ? '#28a745' : '#ffc107'};">
                 <h3 style="color: ${willMakeTop10 ? '#155724' : '#856404'}; margin-bottom: 10px;">
                     ${willMakeTop10 ? '✅ Currently Qualified!' : '⚠️ At Risk of Elimination'}
                 </h3>
@@ -15612,7 +15615,8 @@ async function completeStage3() {
                 <div class="loading">⏳ Waiting for final rankings and Stage 4 room creation...</div>
             </div>
             
-            <button class="practice-btn" onclick="exitTournament()" style="font-size: 1rem; padding: 12px 30px; background: #6c757d; margin-top: 20px;">
+            <button class="practice-btn" onclick="exitTournament()" 
+                    style="font-size: 1rem; padding: 12px 30px; background: #6c757d; margin-top: 20px; width: auto; display: inline-block; cursor: pointer;">
                 🏠 Return to Lobby
             </button>
         </div>
@@ -15622,7 +15626,7 @@ async function completeStage3() {
     listenForStage4Room();
 }
 
-
+    
   // ===== GET STAGE 3 RANKINGS =====
 async function getStage3Rankings() {
     const participantsSnapshot = await db.collection('tournaments').doc(currentTournament)
