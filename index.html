@@ -4767,8 +4767,6 @@ let stage1Handicaps = 2;
 let stage1TimeLeft = 600; // 10 minutes in seconds
 let stage1Timer = null;
 
-
-
 // ===== STAGE 2: AI AUDIO SPELLING =====
 let stage2Words = [];
 let stage2CurrentIndex = 0;
@@ -4778,8 +4776,7 @@ let stage2TimeLeft = 900; // 15 minutes
 let stage2Timer = null;
 let stage2HandicapsRemaining = 1; // Base 1 + carried from Stage 1
 
-
-   // ===== TOURNAMENT STAGE 3 FUNCTIONS =====
+// ===== TOURNAMENT STAGE 3 FUNCTIONS =====
 let stage3Words = [];
 let stage3CurrentIndex = 0;
 let stage3Score = 0;
@@ -4788,17 +4785,15 @@ let stage3TimeLeft = 900; // 15 minutes
 let stage3Timer = null;
 let stage3HandicapsRemaining = 0;
 let stage3CurrentLetterOrder = [];
-let stage3DraggedElement = null; 
+let stage3DraggedElement = null;
 
- // ===== LIVE SPELL MASTER STAGES (4-7) =====
-let liveStageParticipants = [];
-let currentLiveStageIndex = 0;
-let liveStageTimer = null;
-let callerMode = false; // true if user is the caller
-let liveStageWords = [];
-let eliminatedPlayers = [];
-let currentSpellerIndex = 0;
-let finalRoundSpelling = null;
+// ===== LIVE STAGES 4-7 VARIABLES =====
+let stage4RoomId = null;
+let stage5RoomId = null;
+let stage6RoomId = null;
+let stage7RoomId = null;
+let currentStageRoom = null;
+let stageRoomListener = null;
 
 
 // ===== LIVE ROOM VARIABLES =====
