@@ -4800,6 +4800,14 @@ let eliminatedPlayers = [];
 let currentSpellerIndex = 0;
 let finalRoundSpelling = null;
 
+
+// ===== LIVE ROOM VARIABLES =====
+let localStream = null;
+let liveRoomParticipants = new Map(); // userId -> {name, email, schoolId, stream, audioEnabled, videoEnabled}
+let liveRoomListener = null;
+let myAudioEnabled = true;
+let myVideoEnabled = true;
+
         
      // ===== INITIALIZE =====
 document.addEventListener('DOMContentLoaded', function() {
@@ -13936,6 +13944,9 @@ function closeSponsorModal() {
 
 
 
+    
+
+
      // ===== TOURNAMENT STAGE 1 FUNCTIONS =====
 
 async function startTournamentStage1(tournamentId) {
@@ -14032,14 +14043,20 @@ async function generateStage1Questions() {
     try {
         console.log('🎯 Fetching words from database for level:', selectedGameLevel);
         
-        // ✅ Fetch words from Firestore dictionary that match the tournament level
+        // ✅ Use tournament ID + timestamp as seed for unique randomization
+        const tournamentSeed = currentTournament + Date.now();
+        const seededRandom = () => {
+            const x = Math.sin(tournamentSeed++) * 10000;
+            return x - Math.floor(x);
+        };
+        
+        // Fetch words from Firestore dictionary
         const wordsSnapshot = await db.collection('dictionary')
             .where('level', '==', selectedGameLevel)
             .limit(100)
             .get();
         
         if (wordsSnapshot.empty) {
-            // Try without level filter
             console.log('⚠️ No words found with level filter, fetching random words...');
             const randomWordsSnapshot = await db.collection('dictionary').limit(100).get();
             
@@ -14052,7 +14069,9 @@ async function generateStage1Questions() {
                 allWords.push({ id: doc.id, ...doc.data() });
             });
             
-            return await buildQuestionsFromWords(allWords.slice(0, 25));
+            // ✅ Use seeded random for shuffling
+            const shuffled = allWords.sort(() => seededRandom() - 0.5);
+            return await buildQuestionsFromWords(shuffled.slice(0, 25));
         }
         
         const words = [];
@@ -14062,8 +14081,8 @@ async function generateStage1Questions() {
         
         console.log(`✅ Found ${words.length} words in database`);
         
-        // Randomly select 25 words
-        const shuffled = words.sort(() => 0.5 - Math.random());
+        // ✅ Use seeded random for unique shuffling per tournament
+        const shuffled = words.sort(() => seededRandom() - 0.5);
         const selected = shuffled.slice(0, 25);
         
         return await buildQuestionsFromWords(selected);
@@ -14756,13 +14775,24 @@ async function proceedToStage2() {
 
 async function generateStage2Words() {
     try {
-        // Use words from current level
+        // ✅ Use tournament ID + stage as seed for unique randomization
+        const tournamentSeed = (currentTournament + 'stage2').split('').reduce((a, b) => {
+            a = ((a << 5) - a) + b.charCodeAt(0);
+            return a & a;
+        }, 0);
+        
+        let seedValue = Math.abs(tournamentSeed);
+        const seededRandom = () => {
+            seedValue = (seedValue * 9301 + 49297) % 233280;
+            return seedValue / 233280;
+        };
+        
         if (levelWords[selectedGameLevel].length === 0) {
             await loadLevelWords(selectedGameLevel);
         }
         
-        // Select 25 random words
-        const shuffled = [...levelWords[selectedGameLevel]].sort(() => 0.5 - Math.random());
+        // ✅ Use seeded random for unique shuffling
+        const shuffled = [...levelWords[selectedGameLevel]].sort(() => seededRandom() - 0.5);
         stage2Words = shuffled.slice(0, 25);
         
         console.log('✅ Generated 25 words for Stage 2:', stage2Words);
@@ -15135,12 +15165,24 @@ async function proceedToStage3() {
 
 async function generateStage3Words() {
     try {
+        // ✅ Use tournament ID + stage as seed for unique randomization
+        const tournamentSeed = (currentTournament + 'stage3').split('').reduce((a, b) => {
+            a = ((a << 5) - a) + b.charCodeAt(0);
+            return a & a;
+        }, 0);
+        
+        let seedValue = Math.abs(tournamentSeed);
+        const seededRandom = () => {
+            seedValue = (seedValue * 9301 + 49297) % 233280;
+            return seedValue / 233280;
+        };
+        
         if (levelWords[selectedGameLevel].length === 0) {
             await loadLevelWords(selectedGameLevel);
         }
         
-        // Select 25 random words for unscrambling
-        const shuffled = [...levelWords[selectedGameLevel]].sort(() => 0.5 - Math.random());
+        // ✅ Use seeded random for unique shuffling
+        const shuffled = [...levelWords[selectedGameLevel]].sort(() => seededRandom() - 0.5);
         stage3Words = shuffled.slice(0, 25);
         
         console.log('✅ Generated 25 words for Stage 3:', stage3Words);
@@ -16922,6 +16964,30 @@ async function viewTournament(tournamentId) {
                         </div>
                     ` : '<p style="color: #999;">No users registered yet</p>'}
                     
+                    <!-- ✅ CREATE LIVE ROOM BUTTONS FOR STAGES 4-7 -->
+                    <div style="background: #fff3cd; padding: 15px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #ffc107;">
+                        <h4 style="color: #856404; margin: 0 0 10px 0;">🎥 Live Room Management (Stages 4-7)</h4>
+                        <p style="color: #856404; font-size: 0.9rem; margin-bottom: 10px;">Create live video rooms for face-to-face spelling rounds</p>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <button class="practice-btn" onclick="createLiveRoom('${tournamentId}', 4)" 
+                                    style="background: #e74c3c; font-size: 0.9rem; padding: 10px;">
+                                🎥 Stage 4 Room (Top 10)
+                            </button>
+                            <button class="practice-btn" onclick="createLiveRoom('${tournamentId}', 5)" 
+                                    style="background: #e67e22; font-size: 0.9rem; padding: 10px;">
+                                🎥 Stage 5 Room (Top 5)
+                            </button>
+                            <button class="practice-btn" onclick="createLiveRoom('${tournamentId}', 6)" 
+                                    style="background: #f39c12; font-size: 0.9rem; padding: 10px;">
+                                🎥 Stage 6 Room (Top 3)
+                            </button>
+                            <button class="practice-btn" onclick="createLiveRoom('${tournamentId}', 7)" 
+                                    style="background: #d35400; font-size: 0.9rem; padding: 10px;">
+                                🎥 Stage 7 Room (Finals)
+                            </button>
+                        </div>
+                    </div>
+                    
                     <div style="display: flex; gap: 10px; margin-top: 20px;">
                         ${!tournament.sessionActive && tournament.status === 'active' && tournament.participants > 0 ? `
                             <button class="practice-btn" onclick="startTournamentSession('${tournamentId}')" style="flex: 1; background: #28a745; font-size: 1.1rem;">
@@ -17264,6 +17330,602 @@ async function joinLiveTournament(tournamentId) {
     } catch (error) {
         console.error('Error joining tournament:', error);
         alert('Failed to join tournament: ' + error.message);
+    }
+}       
+
+
+// ========================================
+// LIVE ROOM SYSTEM FOR STAGES 4-7
+// ========================================
+
+async function createLiveRoom(tournamentId, stage) {
+    if (!isAdmin) {
+        alert('❌ Only admins can create live rooms');
+        return;
+    }
+    
+    try {
+        console.log('🎥 Creating live room for Stage', stage);
+        
+        // Create live room document in Firestore
+        await db.collection('tournaments').doc(tournamentId).collection('liveRooms').doc(`stage${stage}`).set({
+            stage: stage,
+            createdBy: currentUser.uid,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            isActive: true,
+            participants: [],
+            adminMicOpen: true,
+            adminVideoOpen: true
+        });
+        
+        console.log('✅ Live room created for Stage', stage);
+        
+        // Open live room interface for admin
+        await openLiveRoomAdmin(tournamentId, stage);
+        
+    } catch (error) {
+        console.error('Error creating live room:', error);
+        alert('Failed to create live room: ' + error.message);
+    }
+}
+
+async function openLiveRoomAdmin(tournamentId, stage) {
+    try {
+        // Request media permissions
+        localStream = await navigator.mediaDevices.getUserMedia({
+            audio: true,
+            video: true
+        });
+        
+        // Hide current stage
+        hideAllStages();
+        
+        // Create live room container
+        const tournamentsSection = document.querySelector('#tournaments-section .word-database');
+        let liveRoomContainer = document.getElementById('live-room-container');
+        
+        if (!liveRoomContainer) {
+            liveRoomContainer = document.createElement('div');
+            liveRoomContainer.id = 'live-room-container';
+            tournamentsSection.appendChild(liveRoomContainer);
+        }
+        
+        liveRoomContainer.style.display = 'block';
+        
+        buildLiveRoomAdminUI(tournamentId, stage);
+        
+        // Setup my video
+        const myVideo = document.getElementById('admin-video');
+        if (myVideo) {
+            myVideo.srcObject = localStream;
+        }
+        
+        // Listen for participants joining
+        setupLiveRoomListener(tournamentId, stage);
+        
+    } catch (error) {
+        console.error('Error opening live room:', error);
+        alert('Failed to access camera/microphone: ' + error.message);
+    }
+}
+
+function buildLiveRoomAdminUI(tournamentId, stage) {
+    const container = document.getElementById('live-room-container');
+    
+    container.innerHTML = `
+        <div class="quiz-question-card">
+            <div style="background: linear-gradient(135deg, #e74c3c, #c0392b); padding: 20px; border-radius: 10px; margin-bottom: 20px; color: white;">
+                <h2 style="margin: 0 0 10px 0; color: white;">🎥 LIVE ROOM - Stage ${stage} (Admin Mode)</h2>
+                <p style="margin: 0; opacity: 0.9;">Face-to-face tournament round with live participants</p>
+            </div>
+            
+            <!-- Admin Controls -->
+            <div style="background: #f9f9f9; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                <h3 style="color: #0d3b66; margin: 0 0 15px 0;">🎛️ Admin Controls</h3>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button class="practice-btn" onclick="toggleAdminAudio()" id="admin-audio-btn" style="background: #28a745;">
+                        🎤 Mic: ON
+                    </button>
+                    <button class="practice-btn" onclick="toggleAdminVideo()" id="admin-video-btn" style="background: #28a745;">
+                        📹 Camera: ON
+                    </button>
+                    <button class="practice-btn" onclick="closeLiveRoom('${tournamentId}', ${stage})" style="background: #dc3545;">
+                        🚪 Close Room
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Admin Video -->
+            <div style="background: #000; border-radius: 10px; overflow: hidden; margin-bottom: 20px; position: relative;">
+                <video id="admin-video" autoplay muted playsinline style="width: 100%; max-height: 300px; object-fit: cover;"></video>
+                <div style="position: absolute; bottom: 10px; left: 10px; background: rgba(0,0,0,0.7); padding: 8px 15px; border-radius: 20px; color: white; font-weight: bold;">
+                    👑 YOU (Admin)
+                </div>
+            </div>
+            
+            <!-- Participants Grid -->
+            <div style="background: #f9f9f9; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                <h3 style="color: #0d3b66; margin: 0 0 15px 0;">👥 Participants (<span id="participant-count">0</span>)</h3>
+                <div id="participants-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px;">
+                    <!-- Participants will be added here -->
+                </div>
+            </div>
+            
+            <!-- Waiting Message -->
+            <div id="waiting-message" style="text-align: center; padding: 40px; background: #fff3cd; border-radius: 10px;">
+                <div style="font-size: 3rem; margin-bottom: 15px;">⏳</div>
+                <h3 style="color: #856404; margin-bottom: 10px;">Waiting for participants to join...</h3>
+                <p style="color: #856404;">Qualified participants will automatically enter this room</p>
+            </div>
+        </div>
+    `;
+}
+
+async function setupLiveRoomListener(tournamentId, stage) {
+    // Listen to participants in real-time
+    liveRoomListener = db.collection('tournaments').doc(tournamentId)
+        .collection('liveRooms').doc(`stage${stage}`)
+        .onSnapshot(async (doc) => {
+            if (!doc.exists) return;
+            
+            const roomData = doc.data();
+            const participantIds = roomData.participants || [];
+            
+            // Update participant count
+            document.getElementById('participant-count').textContent = participantIds.length;
+            
+            // Hide/show waiting message
+            const waitingMsg = document.getElementById('waiting-message');
+            if (waitingMsg) {
+                waitingMsg.style.display = participantIds.length === 0 ? 'block' : 'none';
+            }
+            
+            // Load participant details
+            await loadParticipantDetails(participantIds);
+        });
+}
+
+async function loadParticipantDetails(participantIds) {
+    const grid = document.getElementById('participants-grid');
+    if (!grid) return;
+    
+    grid.innerHTML = '';
+    
+    for (const uid of participantIds) {
+        try {
+            const userDoc = await db.collection('users').doc(uid).get();
+            if (!userDoc.exists) continue;
+            
+            const userData = userDoc.data();
+            
+            const participantCard = document.createElement('div');
+            participantCard.style.cssText = `
+                background: white;
+                border-radius: 10px;
+                padding: 15px;
+                border: 2px solid #0d3b66;
+            `;
+            
+            participantCard.innerHTML = `
+                <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                    <img src="${userData.photoURL || 'https://via.placeholder.com/50'}" 
+                         style="width: 50px; height: 50px; border-radius: 50%; margin-right: 15px; object-fit: cover;">
+                    <div style="flex: 1;">
+                        <div style="font-weight: bold; color: #0d3b66; font-size: 1.1rem;">
+                            ${userData.firstName} ${userData.lastName}
+                        </div>
+                        <div style="color: #666; font-size: 0.9rem;">
+                            📧 ${userData.email}
+                        </div>
+                        <div style="color: #666; font-size: 0.9rem;">
+                            🎓 School ID: ${userData.schoolId || 'N/A'}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Participant Video Placeholder -->
+                <div style="background: #000; border-radius: 8px; height: 150px; display: flex; align-items: center; justify-content: center; color: white; margin-bottom: 10px;">
+                    <div style="text-align: center;">
+                        <div style="font-size: 3rem; margin-bottom: 10px;">👤</div>
+                        <div>Camera not connected</div>
+                    </div>
+                </div>
+                
+                <!-- Participant Controls -->
+                <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+                    <button class="practice-btn" onclick="toggleParticipantMic('${uid}')" id="mic-${uid}" 
+                            style="flex: 1; font-size: 0.85rem; padding: 8px; background: #28a745;">
+                        🎤 Mic ON
+                    </button>
+                    <button class="practice-btn" onclick="toggleParticipantVideo('${uid}')" id="video-${uid}"
+                            style="flex: 1; font-size: 0.85rem; padding: 8px; background: #28a745;">
+                        📹 Cam ON
+                    </button>
+                </div>
+                
+                <!-- Admin Actions -->
+                <div style="display: flex; gap: 8px;">
+                    <button class="practice-btn" onclick="eliminateParticipant('${uid}', '${tournamentId}', ${stage})"
+                            style="flex: 1; font-size: 0.85rem; padding: 8px; background: #dc3545;">
+                        ❌ Eliminate
+                    </button>
+                    <button class="practice-btn" onclick="advanceParticipant('${uid}', '${tournamentId}', ${stage})"
+                            style="flex: 1; font-size: 0.85rem; padding: 8px; background: #667eea;">
+                        ➡️ Advance
+                    </button>
+                </div>
+            `;
+            
+            grid.appendChild(participantCard);
+            
+        } catch (error) {
+            console.error('Error loading participant:', uid, error);
+        }
+    }
+}
+
+function toggleAdminAudio() {
+    myAudioEnabled = !myAudioEnabled;
+    
+    if (localStream) {
+        localStream.getAudioTracks().forEach(track => {
+            track.enabled = myAudioEnabled;
+        });
+    }
+    
+    const btn = document.getElementById('admin-audio-btn');
+    if (btn) {
+        btn.textContent = myAudioEnabled ? '🎤 Mic: ON' : '🎤 Mic: OFF';
+        btn.style.background = myAudioEnabled ? '#28a745' : '#dc3545';
+    }
+}
+
+function toggleAdminVideo() {
+    myVideoEnabled = !myVideoEnabled;
+    
+    if (localStream) {
+        localStream.getVideoTracks().forEach(track => {
+            track.enabled = myVideoEnabled;
+        });
+    }
+    
+    const btn = document.getElementById('admin-video-btn');
+    if (btn) {
+        btn.textContent = myVideoEnabled ? '📹 Camera: ON' : '📹 Camera: OFF';
+        btn.style.background = myVideoEnabled ? '#28a745' : '#dc3545';
+    }
+}
+
+async function toggleParticipantMic(userId) {
+    // In real implementation, this would send a signal through WebRTC
+    // For now, we'll update Firestore to track state
+    try {
+        await db.collection('liveRoomControls').doc(userId).set({
+            micEnabled: false,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+        
+        const btn = document.getElementById(`mic-${userId}`);
+        if (btn) {
+            const currentState = btn.textContent.includes('ON');
+            btn.textContent = currentState ? '🎤 Mic OFF' : '🎤 Mic ON';
+            btn.style.background = currentState ? '#dc3545' : '#28a745';
+        }
+        
+    } catch (error) {
+        console.error('Error toggling mic:', error);
+    }
+}
+
+async function toggleParticipantVideo(userId) {
+    try {
+        await db.collection('liveRoomControls').doc(userId).set({
+            videoEnabled: false,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+        
+        const btn = document.getElementById(`video-${userId}`);
+        if (btn) {
+            const currentState = btn.textContent.includes('ON');
+            btn.textContent = currentState ? '📹 Cam OFF' : '📹 Cam ON';
+            btn.style.background = currentState ? '#dc3545' : '#28a745';
+        }
+        
+    } catch (error) {
+        console.error('Error toggling video:', error);
+    }
+}
+
+async function eliminateParticipant(userId, tournamentId, stage) {
+    if (!confirm('❌ Are you sure you want to ELIMINATE this participant?')) {
+        return;
+    }
+    
+    try {
+        // Remove from live room
+        await db.collection('tournaments').doc(tournamentId)
+            .collection('liveRooms').doc(`stage${stage}`).update({
+                participants: firebase.firestore.FieldValue.arrayRemove(userId)
+            });
+        
+        // Mark as eliminated in tournament
+        await db.collection('tournaments').doc(tournamentId)
+            .collection('participants').doc(userId).update({
+                status: 'eliminated',
+                eliminatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                eliminatedStage: stage
+            });
+        
+        alert('✅ Participant eliminated');
+        
+    } catch (error) {
+        console.error('Error eliminating participant:', error);
+        alert('Failed to eliminate participant');
+    }
+}
+
+async function advanceParticipant(userId, tournamentId, stage) {
+    if (!confirm('➡️ Advance this participant to the next stage?')) {
+        return;
+    }
+    
+    try {
+        const nextStage = stage + 1;
+        
+        // Remove from current room
+        await db.collection('tournaments').doc(tournamentId)
+            .collection('liveRooms').doc(`stage${stage}`).update({
+                participants: firebase.firestore.FieldValue.arrayRemove(userId)
+            });
+        
+        // Update participant stage
+        await db.collection('tournaments').doc(tournamentId)
+            .collection('participants').doc(userId).update({
+                stage: nextStage,
+                advancedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        
+        // Check if next stage room exists, if not create it
+        const nextRoomRef = db.collection('tournaments').doc(tournamentId)
+            .collection('liveRooms').doc(`stage${nextStage}`);
+        const nextRoomDoc = await nextRoomRef.get();
+        
+        if (!nextRoomDoc.exists) {
+            await nextRoomRef.set({
+                stage: nextStage,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                isActive: false,
+                participants: [userId]
+            });
+        } else {
+            await nextRoomRef.update({
+                participants: firebase.firestore.FieldValue.arrayUnion(userId)
+            });
+        }
+        
+        alert(`✅ Participant advanced to Stage ${nextStage}`);
+        
+    } catch (error) {
+        console.error('Error advancing participant:', error);
+        alert('Failed to advance participant');
+    }
+}
+
+async function closeLiveRoom(tournamentId, stage) {
+    if (!confirm('🚪 Close this live room? Participants will be disconnected.')) {
+        return;
+    }
+    
+    try {
+        // Stop local stream
+        if (localStream) {
+            localStream.getTracks().forEach(track => track.stop());
+            localStream = null;
+        }
+        
+        // Clean up listener
+        if (liveRoomListener) {
+            liveRoomListener();
+            liveRoomListener = null;
+        }
+        
+        // Mark room as inactive
+        await db.collection('tournaments').doc(tournamentId)
+            .collection('liveRooms').doc(`stage${stage}`).update({
+                isActive: false,
+                closedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        
+        // Hide container
+        const container = document.getElementById('live-room-container');
+        if (container) {
+            container.style.display = 'none';
+        }
+        
+        alert('✅ Live room closed');
+        
+        // Return to admin panel
+        navigateTo('admin');
+        
+    } catch (error) {
+        console.error('Error closing live room:', error);
+        alert('Failed to close live room');
+    }
+}
+
+function hideAllStages() {
+    const stages = [
+        'tournament-stage1',
+        'tournament-stage2',
+        'tournament-stage3',
+        'tournament-stage4',
+        'tournament-stage5',
+        'tournament-stage6',
+        'tournament-stage7'
+    ];
+    
+    stages.forEach(stageId => {
+        const stage = document.getElementById(stageId);
+        if (stage) stage.style.display = 'none';
+    });
+}
+
+// ========================================
+// PARTICIPANT SIDE - JOIN LIVE ROOM
+// ========================================
+
+async function joinLiveRoomAsParticipant(tournamentId, stage) {
+    if (!currentUser) {
+        alert('Please sign in first');
+        return;
+    }
+    
+    try {
+        console.log('🎥 Joining live room for Stage', stage);
+        
+        // Request media permissions
+        localStream = await navigator.mediaDevices.getUserMedia({
+            audio: true,
+            video: true
+        });
+        
+        // Add self to live room participants
+        await db.collection('tournaments').doc(tournamentId)
+            .collection('liveRooms').doc(`stage${stage}`).update({
+                participants: firebase.firestore.FieldValue.arrayUnion(currentUser.uid)
+            });
+        
+        // Show participant interface
+        showParticipantLiveRoomUI(tournamentId, stage);
+        
+    } catch (error) {
+        console.error('Error joining live room:', error);
+        alert('Failed to access camera/microphone: ' + error.message);
+    }
+}
+
+function showParticipantLiveRoomUI(tournamentId, stage) {
+    hideAllStages();
+    
+    const tournamentsSection = document.querySelector('#tournaments-section .word-database');
+    let participantContainer = document.getElementById('participant-live-room');
+    
+    if (!participantContainer) {
+        participantContainer = document.createElement('div');
+        participantContainer.id = 'participant-live-room';
+        tournamentsSection.appendChild(participantContainer);
+    }
+    
+    participantContainer.style.display = 'block';
+    
+    participantContainer.innerHTML = `
+        <div class="quiz-question-card">
+            <div style="background: linear-gradient(135deg, #667eea, #764ba2); padding: 20px; border-radius: 10px; margin-bottom: 20px; color: white;">
+                <h2 style="margin: 0 0 10px 0; color: white;">🎥 LIVE ROOM - Stage ${stage}</h2>
+                <p style="margin: 0; opacity: 0.9;">Face-to-face tournament round</p>
+            </div>
+            
+            <!-- My Controls -->
+            <div style="background: #f9f9f9; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
+                <div style="display: flex; gap: 10px;">
+                    <button class="practice-btn" onclick="toggleMyAudio()" id="my-audio-btn" style="flex: 1; background: #28a745;">
+                        🎤 Mic: ON
+                    </button>
+                    <button class="practice-btn" onclick="toggleMyVideo()" id="my-video-btn" style="flex: 1; background: #28a745;">
+                        📹 Camera: ON
+                    </button>
+                    <button class="practice-btn" onclick="leaveLiveRoom('${tournamentId}', ${stage})" style="flex: 1; background: #dc3545;">
+                        🚪 Leave
+                    </button>
+                </div>
+            </div>
+            
+            <!-- My Video -->
+            <div style="background: #000; border-radius: 10px; overflow: hidden; margin-bottom: 20px; position: relative;">
+                <video id="my-video" autoplay muted playsinline style="width: 100%; max-height: 300px; object-fit: cover;"></video>
+                <div style="position: absolute; bottom: 10px; left: 10px; background: rgba(0,0,0,0.7); padding: 8px 15px; border-radius: 20px; color: white; font-weight: bold;">
+                    👤 YOU
+                </div>
+            </div>
+            
+            <div style="text-align: center; padding: 30px; background: #e3f2fd; border-radius: 10px;">
+                <div style="font-size: 3rem; margin-bottom: 15px;">🎤</div>
+                <h3 style="color: #0d3b66; margin-bottom: 10px;">Ready for Live Round</h3>
+                <p style="color: #666;">Wait for the admin to start asking questions</p>
+            </div>
+        </div>
+    `;
+    
+    // Setup my video
+    const myVideo = document.getElementById('my-video');
+    if (myVideo && localStream) {
+        myVideo.srcObject = localStream;
+    }
+}
+
+function toggleMyAudio() {
+    myAudioEnabled = !myAudioEnabled;
+    
+    if (localStream) {
+        localStream.getAudioTracks().forEach(track => {
+            track.enabled = myAudioEnabled;
+        });
+    }
+    
+    const btn = document.getElementById('my-audio-btn');
+    if (btn) {
+        btn.textContent = myAudioEnabled ? '🎤 Mic: ON' : '🎤 Mic: OFF';
+        btn.style.background = myAudioEnabled ? '#28a745' : '#dc3545';
+    }
+}
+
+function toggleMyVideo() {
+    myVideoEnabled = !myVideoEnabled;
+    
+    if (localStream) {
+        localStream.getVideoTracks().forEach(track => {
+            track.enabled = myVideoEnabled;
+        });
+    }
+    
+    const btn = document.getElementById('my-video-btn');
+    if (btn) {
+        btn.textContent = myVideoEnabled ? '📹 Camera: ON' : '📹 Camera: OFF';
+        btn.style.background = myVideoEnabled ? '#28a745' : '#dc3545';
+    }
+}
+
+async function leaveLiveRoom(tournamentId, stage) {
+    if (!confirm('🚪 Leave this live room?')) {
+        return;
+    }
+    
+    try {
+        // Stop local stream
+        if (localStream) {
+            localStream.getTracks().forEach(track => track.stop());
+            localStream = null;
+        }
+        
+        // Remove from participants
+        await db.collection('tournaments').doc(tournamentId)
+            .collection('liveRooms').doc(`stage${stage}`).update({
+                participants: firebase.firestore.FieldValue.arrayRemove(currentUser.uid)
+            });
+        
+        // Hide container
+        const container = document.getElementById('participant-live-room');
+        if (container) {
+            container.style.display = 'none';
+        }
+        
+        alert('✅ Left live room');
+        
+        navigateTo('tournaments');
+        
+    } catch (error) {
+        console.error('Error leaving live room:', error);
+        alert('Failed to leave live room');
     }
 }        
     </script>
