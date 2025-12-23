@@ -14038,12 +14038,12 @@ async function generateStage1Questions() {
     try {
         console.log('🎯 Fetching words from database for level:', selectedGameLevel);
         
-        // ✅ Use tournament ID + timestamp as seed for unique randomization
-        const tournamentSeed = currentTournament + Date.now();
-        const seededRandom = () => {
-            const x = Math.sin(tournamentSeed++) * 10000;
-            return x - Math.floor(x);
-        };
+       // ✅ Use tournament ID + timestamp as seed for unique randomization
+let tournamentSeed = currentTournament + Date.now();  // Changed const to let
+const seededRandom = () => {
+    const x = Math.sin(tournamentSeed++) * 10000;  // ✅ Now it works
+    return x - Math.floor(x);
+};
         
         // Fetch words from Firestore dictionary
         const wordsSnapshot = await db.collection('dictionary')
