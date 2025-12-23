@@ -3991,7 +3991,7 @@ function nextStage5Word() {
 // ===== CREATE STAGE 6 ROOM (TOP 5 → TOP 3) =====
 async function createStage6Room(tournamentId) {
     if (!isAdmin) {
-        alert('❌ Admin access required');
+        alert('⛔ Admin access required');
         return;
     }
     
@@ -4001,7 +4001,7 @@ async function createStage6Room(tournamentId) {
             .collection('liveRooms').doc('stage5').get();
         
         if (!stage5RoomDoc.exists) {
-            alert('❌ Stage 5 room not found');
+            alert('⛔ Stage 5 room not found');
             return;
         }
         
@@ -4089,7 +4089,7 @@ function showStage6AdminUI(tournamentId) {
         <div class="quiz-question-card">
             <div style="background: linear-gradient(135deg, #FFD700, #FFA500); padding: 20px; border-radius: 10px; margin-bottom: 20px; color: #0d3b66;">
                 <h2 style="margin: 0 0 10px 0;">🎥 STAGE 6 ADMIN CONTROL (TOP 3)</h2>
-                <p style="margin: 0; opacity: 0.9;">Final 3 Participants - Select Winner, 2nd & 3rd Place</p>
+                <p style="margin: 0; opacity: 0.9;">Final 3 Participants - All advance to Finals</p>
             </div>
             
             <!-- Admin Video Controls -->
@@ -4127,21 +4127,21 @@ function showStage6AdminUI(tournamentId) {
             </div>
             
             <!-- Admin Actions -->
-            <div style="background: #fff3cd; padding: 20px; border-radius: 10px; border-left: 4px solid #ffc107;">
-                <h4 style="color: #856404; margin: 0 0 15px 0;">⚡ Final Stage Actions</h4>
+            <div style="background: #d4edda; padding: 20px; border-radius: 10px; border-left: 4px solid #28a745;">
+                <h4 style="color: #155724; margin: 0 0 15px 0;">✅ All 3 finalists will advance to Stage 7</h4>
+                <p style="color: #155724; margin: 0 0 15px 0;">
+                    The final stage lets you select winner, 2nd place, and 3rd place.
+                </p>
                 <div style="display: flex; gap: 10px; flex-wrap: wrap;">
                     <button class="practice-btn" onclick="createStage7Room('${tournamentId}')" 
-                            style="flex: 1; background: linear-gradient(135deg, #FFD700, #FFA500); color: #0d3b66; font-size: 1.1rem; padding: 15px 30px; font-weight: bold;">
-                        🏆 Create Stage 7 - FINALS
+                            style="flex: 1; background: linear-gradient(135deg, #FFD700, #FFA500); color: #0d3b66; font-size: 1.2rem; padding: 15px 30px; font-weight: bold;">
+                        🏆 CREATE STAGE 7 - FINALS
                     </button>
                     <button class="practice-btn" onclick="closeStage6AdminRoom('${tournamentId}')" 
                             style="background: #dc3545; font-size: 1rem; padding: 15px 30px;">
                         🚪 Close Room
                     </button>
                 </div>
-                <p style="color: #856404; margin: 15px 0 0 0; font-size: 0.9rem;">
-                    ℹ️ All 3 participants will advance to the final stage where you'll select the winner
-                </p>
             </div>
         </div>
     `;
@@ -4321,8 +4321,6 @@ function listenForStage6Changes() {
         .onSnapshot(doc => {
             if (!doc.exists) return;
             
-            const roomData = doc.data();
-            
             // Check Stage 7
             db.collection('tournaments').doc(currentTournament)
                 .collection('liveRooms').doc('stage7').get()
@@ -4378,7 +4376,7 @@ async function closeStage6AdminRoom(tournamentId) {
 // ===== CREATE STAGE 7 ROOM (FINALS - SELECT WINNER) =====
 async function createStage7Room(tournamentId) {
     if (!isAdmin) {
-        alert('❌ Admin access required');
+        alert('⛔ Admin access required');
         return;
     }
     
@@ -4388,7 +4386,7 @@ async function createStage7Room(tournamentId) {
             .collection('liveRooms').doc('stage6').get();
         
         if (!stage6RoomDoc.exists) {
-            alert('❌ Stage 6 room not found');
+            alert('⛔ Stage 6 room not found');
             return;
         }
         
@@ -4611,515 +4609,525 @@ async function loadStage7Finalists(tournamentId) {
                         <img src="${userData.photoURL || 'https://via.placeholder.com/60'}" 
                              style="width: 60px; height: 60px; border-radius: 50%; margin-right: 15px; object-fit: cover; border: 3px solid ${borderColor};">
                         <div style="flex: 1;">
-                            <div style="font-weight: bold; color: ${selectedAs ? 'white' : '#0d3b66'}; font-size: 1.1rem;">
-                                ${userData.firstName} ${userData.lastName}
-                            </div>
-                            <div style="color: ${selectedAs ? 'rgba(255,255,255,0.8)' : '#666'}; font-size: 0.9rem;">
-                                📧 ${userData.email}
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div style="background: #000; border-radius: 10px; height: 150px; display: flex; align-items: center; justify-content: center; color: white; margin-bottom: 15px;">
-                        <div style="text-align: center;">
-                            <div style="font-size: 3rem; margin-bottom: 10px;">👤</div>
-                            <div style="font-size: 0.9rem;">Camera feed</div>
-                        </div>
-                    </div>
-                    
-                    ${!selectedAs ? `
-                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
-                            <button class="practice-btn" onclick="selectWinner('${userId}', '${tournamentId}')"
-                                    style="font-size: 0.85rem; padding: 12px 8px; background: linear-gradient(135deg, #FFD700, #FFA500); color: #0d3b66; font-weight: bold;">
-                                🥇 1st
-                            </button>
-                            <button class="practice-btn" onclick="selectSecondPlace('${userId}', '${tournamentId}')"
-                                    style="font-size: 0.85rem; padding: 12px 8px; background: linear-gradient(135deg, #C0C0C0, #A8A8A8); color: #0d3b66; font-weight: bold;">
-                                🥈 2nd
-                            </button>
-                            <button class="practice-btn" onclick="selectThirdPlace('${userId}', '${tournamentId}')"
-                                    style="font-size: 0.85rem; padding: 12px 8px; background: linear-gradient(135deg, #CD7F32, #B8860B); color: white; font-weight: bold;">
-                                🥉 3rd
-                            </button>
-                        </div>
-                    ` : `
-                        <button class="practice-btn" onclick="clearSelection('${userId}', '${tournamentId}')"
-                                style="width: 100%; font-size: 0.9rem; padding: 10px; background: #dc3545;">
-                            ❌ Clear Selection
-                        </button>
-                    `}
-                `;
-                
-                grid.appendChild(participantCard);
-            }
-            
-            // Check if all positions are filled
-            if (winner && secondPlace && thirdPlace) {
-                document.getElementById('finalize-btn').disabled = false;
-                showStage7Results(tournamentId, winner, secondPlace, thirdPlace);
-            } else {
-                document.getElementById('finalize-btn').disabled = true;
-                const resultsDiv = document.getElementById('stage7-results');
-                if (resultsDiv) resultsDiv.style.display = 'none';
-            }
-        });
-    
-    if (!window.tournamentListeners) {
-        window.tournamentListeners = [];
-    }
-    window.tournamentListeners.push(roomListener);
-}
-
-// ===== SELECT POSITIONS =====
-async function selectWinner(userId, tournamentId) {
-    try {
-        await db.collection('tournaments').doc(tournamentId)
-            .collection('liveRooms').doc('stage7').update({
-                winner: userId
-            });
-        console.log('✅ Winner selected');
-    } catch (error) {
-        console.error('Error selecting winner:', error);
-        alert('Failed to select winner');
-    }
-}
-
-async function selectSecondPlace(userId, tournamentId) {
-    try {
-        await db.collection('tournaments').doc(tournamentId)
-            .collection('liveRooms').doc('stage7').update({
-                secondPlace: userId
-            });
-        console.log('✅ 2nd place selected');
-    } catch (error) {
-        console.error('Error selecting 2nd place:', error);
-        alert('Failed to select 2nd place');
-    }
-}
-
-async function selectThirdPlace(userId, tournamentId) {
-    try {
-        await db.collection('tournaments').doc(tournamentId)
-            .collection('liveRooms').doc('stage7').update({
-                thirdPlace: userId
-            });
-        console.log('✅ 3rd place selected');
-    } catch (error) {
-        console.error('Error selecting 3rd place:', error);
-        alert('Failed to select 3rd place');
-    }
-}
-
-async function clearSelection(userId, tournamentId) {
-    try {
-        const roomDoc = await db.collection('tournaments').doc(tournamentId)
-            .collection('liveRooms').doc('stage7').get();
-        const roomData = roomDoc.data();
-        
-        const updates = {};
-        if (roomData.winner === userId) updates.winner = null;
-        if (roomData.secondPlace === userId) updates.secondPlace = null;
-        if (roomData.thirdPlace === userId) updates.thirdPlace = null;
-        
-        await db.collection('tournaments').doc(tournamentId)
-            .collection('liveRooms').doc('stage7').update(updates);
-        
-        console.log('✅ Selection cleared');
-    } catch (error) {
-        console.error('Error clearing selection:', error);
-        alert('Failed to clear selection');
-    }
-}
-
-// ===== SHOW STAGE 7 RESULTS =====
-async function showStage7Results(tournamentId, winnerId, secondId, thirdId) {
-    const resultsDiv = document.getElementById('stage7-results');
-    const resultsContent = document.getElementById('stage7-results-content');
-    
-    if (!resultsDiv || !resultsContent) return;
-    
-    // Get user data
-    const [winnerDoc, secondDoc, thirdDoc] = await Promise.all([
-        db.collection('users').doc(winnerId).get(),
-        db.collection('users').doc(secondId).get(),
-        db.collection('users').doc(thirdId).get()
-    ]);
-    
-    const winner = winnerDoc.data();
-    const second = secondDoc.data();
-    const third = thirdDoc.data();
-    
-    resultsContent.innerHTML = `
-        <!-- 1st Place -->
-        <div style="background: linear-gradient(135deg, #FFD700, #FFA500); padding: 25px; border-radius: 15px; text-align: center; box-shadow: 0 10px 30px rgba(255,215,0,0.5);">
-            <div style="font-size: 4rem; margin-bottom: 10px;">🥇</div>
-            <h3 style="color: #0d3b66; margin: 0 0 10px 0; font-size: 1.8rem;">CHAMPION</h3>
-            <img src="${winner.photoURL || 'https://via.placeholder.com/100'}" 
-                 style="width: 100px; height: 100px; border-radius: 50%; margin: 15px 0; object-fit: cover; border: 5px solid white;">
-            <div style="font-size: 1.5rem; font-weight: bold; color: #0d3b66;">
-                ${winner.firstName} ${winner.lastName}
-            </div>
-            <div style="font-size: 1rem; color: #0d3b66; margin-top: 5px;">
-                ${winner.email}
-            </div>
-        </div>
-        
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-            <!-- 2nd Place -->
-            <div style="background: linear-gradient(135deg, #C0C0C0, #A8A8A8); padding: 20px; border-radius: 15px; text-align: center;">
-                <div style="font-size: 3rem; margin-bottom: 10px;">🥈</div>
-                <h4 style="color: #0d3b66; margin: 0 0 10px 0; font-size: 1.3rem;">2ND PLACE</h4>
-                <img src="${second.photoURL || 'https://via.placeholder.com/80'}" 
-                     style="width: 80px; height: 80px; border-radius: 50%; margin: 10px 0; object-fit: cover; border: 4px solid white;">
-                <div style="font-size: 1.2rem; font-weight: bold; color: #0d3b66;">
-                    ${second.firstName} ${second.lastName}
-                </div>
-                <div style="font-size: 0.9rem; color: #0d3b66; margin-top: 5px;">
-                    ${second.email}
-                </div>
-            </div>
-            
-            <!-- 3rd Place -->
-            <div style="background: linear-gradient(135deg, #CD7F32, #B8860B); padding: 20px; border-radius: 15px; text-align: center;">
-                <div style="font-size: 3rem; margin-bottom: 10px;">🥉</div>
-                <h4 style="color: white; margin: 0 0 10px 0; font-size: 1.3rem;">3RD PLACE</h4>
-                <img src="${third.photoURL || 'https://via.placeholder.com/80'}" 
-                     style="width: 80px; height: 80px; border-radius: 50%; margin: 10px 0; object-fit: cover; border: 4px solid white;">
-                <div style="font-size: 1.2rem; font-weight: bold; color: white;">
-                    ${third.firstName} ${third.lastName}
-                </div>
-                <div style="font-size: 0.9rem; color: white; margin-top: 5px;">
-                    ${third.email}
-                </div>
-            </div>
-        </div>
-    `;
-    
-    resultsDiv.style.display = 'block';
-}
-
-// ===== FINALIZE TOURNAMENT =====
-async function finalizeTournament(tournamentId) {
-    if (!confirm('🏆 FINALIZE this tournament with the current rankings?\n\nThis action cannot be undone.')) {
-        return;
-    }
-    
-    try {
-        const roomDoc = await db.collection('tournaments').doc(tournamentId)
-            .collection('liveRooms').doc('stage7').get();
-        
-        if (!roomDoc.exists) {
-            alert('Stage 7 room not found');
-            return;
-        }
-        
-        const roomData = roomDoc.data();
-        
-        // Update tournament status
-        await db.collection('tournaments').doc(tournamentId).update({
-            status: 'completed',
-            completedAt: firebase.firestore.FieldValue.serverTimestamp(),
-            winnerId: roomData.winner,
-            secondPlaceId: roomData.secondPlace,
-            thirdPlaceId: roomData.thirdPlace
-        });
-        
-        // Update participant records
-        const batch = db.batch();
-        
-        const winnerRef = db.collection('tournaments').doc(tournamentId)
-            .collection('participants').doc(roomData.winner);
-        batch.update(winnerRef, {
-            finalRank: 1,
-            status: 'champion',
-            completedAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        
-        const secondRef = db.collection('tournaments').doc(tournamentId)
-            .collection('participants').doc(roomData.secondPlace);
-        batch.update(secondRef, {
-            finalRank: 2,
-            status: 'runner-up',
-            completedAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        
-        const thirdRef = db.collection('tournaments').doc(tournamentId)
-            .collection('participants').doc(roomData.thirdPlace);
-        batch.update(thirdRef, {
-            finalRank: 3,
-            status: 'third-place',
-            completedAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        
-        await batch.commit();
-        
-        // Close Stage 7 room
-        await db.collection('tournaments').doc(tournamentId)
-            .collection('liveRooms').doc('stage7').update({
-                isActive: false,
-                finalizedAt: firebase.firestore.FieldValue.serverTimestamp()
-            });
-        
-        console.log('✅ Tournament finalized');
-        
-        alert('🎉 TOURNAMENT COMPLETED!\n\nResults have been saved.\n\nAll participants have been notified.');
-        
-        // Show completion screen
-        showTournamentCompletionScreen(tournamentId);
-        
-    } catch (error) {
-        console.error('Error finalizing tournament:', error);
-        alert('Failed to finalize tournament: ' + error.message);
-    }
-}
-
-// ===== SHOW COMPLETION SCREEN =====
-async function showTournamentCompletionScreen(tournamentId) {
-    const stage7Container = document.getElementById('stage7-admin-container');
-    
-    const roomDoc = await db.collection('tournaments').doc(tournamentId)
-        .collection('liveRooms').doc('stage7').get();
-    const roomData = roomDoc.data();
-    
-    // Get user data
-    const [winnerDoc, secondDoc, thirdDoc] = await Promise.all([
-        db.collection('users').doc(roomData.winner).get(),
-        db.collection('users').doc(roomData.secondPlace).get(),
-        db.collection('users').doc(roomData.thirdPlace).get()
-    ]);
-    
-    const winner = winnerDoc.data();
-    const second = secondDoc.data();
-    const third = thirdDoc.data();
-    
-    stage7Container.innerHTML = `
-        <div class="quiz-question-card" style="text-align: center; padding: 50px;">
-            <div style="font-size: 6rem; margin-bottom: 30px; animation: bounce 2s infinite;">🏆</div>
-            
-            <h1 style="color: #0d3b66; font-size: 3rem; margin-bottom: 30px;">
-                TOURNAMENT COMPLETED!
-            </h1>
-            
-            <!-- Final Podium -->
-            <div style="background: linear-gradient(135deg, #FFD700, #FFA500); padding: 40px; border-radius: 20px; margin: 30px 0;">
-                <h2 style="color: #0d3b66; margin-bottom: 30px;">🏅 FINAL STANDINGS</h2>
-                
-                <div style="display: grid; gap: 20px; max-width: 800px; margin: 0 auto;">
-                    <!-- Winner -->
-                    <div style="background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
-                        <div style="font-size: 4rem; margin-bottom: 15px;">🥇</div>
-                        <h3 style="color: #0d3b66; margin-bottom: 10px;">CHAMPION</h3>
-                        <img src="${winner.photoURL || 'https://via.placeholder.com/100'}" 
-                             style="width: 100px; height: 100px; border-radius: 50%; margin: 15px 0; object-fit: cover; border: 5px solid #FFD700;">
-                        <div style="font-size: 1.5rem; font-weight: bold; color: #0d3b66;">
-                            ${winner.firstName} ${winner.lastName}
-                        </div>
-                    </div>
-                    
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-                        <!-- 2nd Place -->
-                        <div style="background: white; padding: 25px; border-radius: 15px;">
-                            <div style="font-size: 3rem; margin-bottom: 10px;">🥈</div>
-                            <h4 style="color: #0d3b66;">2ND PLACE</h4>
-                            <img src="${second.photoURL || 'https://via.placeholder.com/80'}" 
-                                 style="width: 80px; height: 80px; border-radius: 50%; margin: 10px 0; object-fit: cover; border: 4px solid #C0C0C0;">
-                            <div style="font-weight: bold; color: #0d3b66;">
-                                ${second.firstName} ${second.lastName}
+                                <div style="font-weight: bold; color: ${selectedAs ? 'white' : '#0d3b66'}; font-size: 1.1rem;">
+                                    ${userData.firstName} ${userData.lastName}
+                                </div>
+                                <div style="color: ${selectedAs ? 'rgba(255,255,255,0.8)' : '#666'}; font-size: 0.9rem;">
+                                    📧 ${userData.email}
+                                </div>
                             </div>
                         </div>
                         
-                        <!-- 3rd Place -->
-                        <div style="background: white; padding: 25px; border-radius: 15px;">
-                            <div style="font-size: 3rem; margin-bottom: 10px;">🥉</div>
-                            <h4 style="color: #0d3b66;">3RD PLACE</h4>
-                            <img src="${third.photoURL || 'https://via.placeholder.com/80'}" 
-                                 style="width: 80px; height: 80px; border-radius: 50%; margin: 10px 0; object-fit: cover; border: 4px solid #CD7F32;">
-                            <div style="font-weight: bold; color: #0d3b66;">
-                                ${third.firstName} ${third.lastName}
+                        <div style="background: #000; border-radius: 10px; height: 150px; display: flex; align-items: center; justify-content: center; color: white; margin-bottom: 15px;">
+                            <div style="text-align: center;">
+                                <div style="font-size: 3rem; margin-bottom: 10px;">👤</div>
+                                <div style="font-size: 0.9rem;">Camera feed</div>
+                            </div>
+                        </div>
+                        
+                        ${!selectedAs ? `
+                            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
+                                <button class="practice-btn" onclick="selectWinner('${userId}', '${tournamentId}')"
+                                        style="font-size: 0.85rem; padding: 12px 8px; background: linear-gradient(135deg, #FFD700, #FFA500); color: #0d3b66; font-weight: bold;">
+                                    🥇 1st
+                                </button>
+                                <button class="practice-btn" onclick="selectSecondPlace('${userId}', '${tournamentId}')"
+                                        style="font-size: 0.85rem; padding: 12px 8px; background: linear-gradient(135deg, #C0C0C0, #A8A8A8); color: #0d3b66; font-weight: bold;">
+                                    🥈 2nd
+                                </button>
+                                <button class="practice-btn" onclick="selectThirdPlace('${userId}', '${tournamentId}')"
+                                        style="font-size: 0.85rem; padding: 12px 8px; background: linear-gradient(135deg, #CD7F32, #B8860B); color: white; font-weight: bold;">
+                                    🥉 3rd
+                                </button>
+                            </div>
+                        ` : `
+                            <button class="practice-btn" onclick="clearSelection('${userId}', '${tournamentId}')"
+                                    style="width: 100%; font-size: 0.9rem; padding: 10px; background: #dc3545;">
+                                ❌ Clear Selection
+                            </button>
+                        `}
+                    `;
+                    
+                    grid.appendChild(participantCard);
+                }
+                
+                // Check if all positions are filled
+                if (winner && secondPlace && thirdPlace) {
+                    document.getElementById('finalize-btn').disabled = false;
+                    showStage7Results(tournamentId, winner, secondPlace, thirdPlace);
+                } else {
+                    document.getElementById('finalize-btn').disabled = true;
+                    const resultsDiv = document.getElementById('stage7-results');
+                    if (resultsDiv) resultsDiv.style.display = 'none';
+                }
+            });
+        
+        if (!window.tournamentListeners) {
+            window.tournamentListeners = [];
+        }
+        window.tournamentListeners.push(roomListener);
+    }
+    
+    // ===== SELECT POSITIONS =====
+    async function selectWinner(userId, tournamentId) {
+        try {
+            await db.collection('tournaments').doc(tournamentId)
+                .collection('liveRooms').doc('stage7').update({
+                    winner: userId
+                });
+            console.log('✅ Winner selected');
+        } catch (error) {
+            console.error('Error selecting winner:', error);
+            alert('Failed to select winner');
+        }
+    }
+    
+    async function selectSecondPlace(userId, tournamentId) {
+        try {
+            await db.collection('tournaments').doc(tournamentId)
+                .collection('liveRooms').doc('stage7').update({
+                    secondPlace: userId
+                });
+            console.log('✅ 2nd place selected');
+        } catch (error) {
+            console.error('Error selecting 2nd place:', error);
+            alert('Failed to select 2nd place');
+        }
+    }
+    
+    async function selectThirdPlace(userId, tournamentId) {
+        try {
+            await db.collection('tournaments').doc(tournamentId)
+                .collection('liveRooms').doc('stage7').update({
+                    thirdPlace: userId
+                });
+            console.log('✅ 3rd place selected');
+        } catch (error) {
+            console.error('Error selecting 3rd place:', error);
+            alert('Failed to select 3rd place');
+        }
+    }
+    
+    async function clearSelection(userId, tournamentId) {
+        try {
+            const roomDoc = await db.collection('tournaments').doc(tournamentId)
+                .collection('liveRooms').doc('stage7').get();
+            const roomData = roomDoc.data();
+            
+            const updates = {};
+            if (roomData.winner === userId) updates.winner = null;
+            if (roomData.secondPlace === userId) updates.secondPlace = null;
+            if (roomData.thirdPlace === userId) updates.thirdPlace = null;
+            
+            await db.collection('tournaments').doc(tournamentId)
+                .collection('liveRooms').doc('stage7').update(updates);
+            
+            console.log('✅ Selection cleared');
+        } catch (error) {
+            console.error('Error clearing selection:', error);
+            alert('Failed to clear selection');
+        }
+    }
+    
+    // ===== SHOW STAGE 7 RESULTS =====
+    async function showStage7Results(tournamentId, winnerId, secondId, thirdId) {
+        const resultsDiv = document.getElementById('stage7-results');
+        const resultsContent = document.getElementById('stage7-results-content');
+        
+        if (!resultsDiv || !resultsContent) return;
+        
+        // Get user data
+        const [winnerDoc, secondDoc, thirdDoc] = await Promise.all([
+            db.collection('users').doc(winnerId).get(),
+            db.collection('users').doc(secondId).get(),
+            db.collection('users').doc(thirdId).get()
+        ]);
+        
+        const winner = winnerDoc.data();
+        const second = secondDoc.data();
+        const third = thirdDoc.data();
+        
+        resultsContent.innerHTML = `
+            <!-- 1st Place -->
+            <div style="background: linear-gradient(135deg, #FFD700, #FFA500); padding: 25px; border-radius: 15px; text-align: center; box-shadow: 0 10px 30px rgba(255,215,0,0.5);">
+                <div style="font-size: 4rem; margin-bottom: 10px;">🥇</div>
+                <h3 style="color: #0d3b66; margin: 0 0 10px 0; font-size: 1.8rem;">CHAMPION</h3>
+                <img src="${winner.photoURL || 'https://via.placeholder.com/100'}" 
+                     style="width: 100px; height: 100px; border-radius: 50%; margin: 15px 0; object-fit: cover; border: 5px solid white;">
+                <div style="font-size: 1.5rem; font-weight: bold; color: #0d3b66;">
+                    ${winner.firstName} ${winner.lastName}
+                </div>
+                <div style="font-size: 1rem; color: #0d3b66; margin-top: 5px;">
+                    ${winner.email}
+                </div>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <!-- 2nd Place -->
+                <div style="background: linear-gradient(135deg, #C0C0C0, #A8A8A8); padding: 20px; border-radius: 15px; text-align: center;">
+                    <div style="font-size: 3rem; margin-bottom: 10px;">🥈</div>
+                    <h4 style="color: #0d3b66; margin: 0 0 10px 0; font-size: 1.3rem;">2ND PLACE</h4>
+                    <img src="${second.photoURL || 'https://via.placeholder.com/80'}" 
+                         style="width: 80px; height: 80px; border-radius: 50%; margin: 10px 0; object-fit: cover; border: 4px solid white;">
+                    <div style="font-size: 1.2rem; font-weight: bold; color: #0d3b66;">
+                        ${second.firstName} ${second.lastName}
+                    </div>
+                    <div style="font-size: 0.9rem; color: #0d3b66; margin-top: 5px;">
+                        ${second.email}
+                    </div>
+                </div>
+                
+                <!-- 3rd Place -->
+                <div style="background: linear-gradient(135deg, #CD7F32, #B8860B); padding: 20px; border-radius: 15px; text-align: center;">
+                    <div style="font-size: 3rem; margin-bottom: 10px;">🥉</div>
+                    <h4 style="color: white; margin: 0 0 10px 0; font-size: 1.3rem;">3RD PLACE</h4>
+                    <img src="${third.photoURL || 'https://via.placeholder.com/80'}" 
+                         style="width: 80px; height: 80px; border-radius: 50%; margin: 10px 0; object-fit: cover; border: 4px solid white;">
+                    <div style="font-size: 1.2rem; font-weight: bold; color: white;">
+                        ${third.firstName} ${third.lastName}
+                    </div>
+                    <div style="font-size: 0.9rem; color: white; margin-top: 5px;">
+                        ${third.email}
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        resultsDiv.style.display = 'block';
+    }
+    
+    // ===== FINALIZE TOURNAMENT =====
+    async function finalizeTournament(tournamentId) {
+        if (!confirm('🏆 FINALIZE this tournament with the current rankings?\n\nThis action cannot be undone.')) {
+            return;
+        }
+        
+        try {
+            const roomDoc = await db.collection('tournaments').doc(tournamentId)
+                .collection('liveRooms').doc('stage7').get();
+            
+            if (!roomDoc.exists) {
+                alert('Stage 7 room not found');
+                return;
+            }
+            
+            const roomData = roomDoc.data();
+            
+            // Update tournament status
+            await db.collection('tournaments').doc(tournamentId).update({
+                status: 'completed',
+                completedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                winnerId: roomData.winner,
+                secondPlaceId: roomData.secondPlace,
+                thirdPlaceId: roomData.thirdPlace
+            });
+            
+            // Update participant records
+            const batch = db.batch();
+            
+            const winnerRef = db.collection('tournaments').doc(tournamentId)
+                .collection('participants').doc(roomData.winner);
+            batch.update(winnerRef, {
+                finalRank: 1,
+                status: 'champion',
+                completedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            
+            const secondRef = db.collection('tournaments').doc(tournamentId)
+                .collection('participants').doc(roomData.secondPlace);
+            batch.update(secondRef, {
+                finalRank: 2,
+                status: 'runner-up',
+                completedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            
+            const thirdRef = db.collection('tournaments').doc(tournamentId)
+                .collection('participants').doc(roomData.thirdPlace);
+            batch.update(thirdRef, {
+                finalRank: 3,
+                status: 'third-place',
+                completedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            
+            await batch.commit();
+            
+            // Close Stage 7 room
+            await db.collection('tournaments').doc(tournamentId)
+                .collection('liveRooms').doc('stage7').update({
+                    isActive: false,
+                    finalizedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            
+            console.log('✅ Tournament finalized');
+            
+            alert('🎉 TOURNAMENT COMPLETED!\n\nResults have been saved.\n\nAll participants have been notified.');
+            
+            // Show completion screen
+            showTournamentCompletionScreen(tournamentId);
+            
+        } catch (error) {
+            console.error('Error finalizing tournament:', error);
+            alert('Failed to finalize tournament: ' + error.message);
+        }
+    }
+    
+    // ===== SHOW COMPLETION SCREEN =====
+    async function showTournamentCompletionScreen(tournamentId) {
+        const stage7Container = document.getElementById('stage7-admin-container');
+        
+        const roomDoc = await db.collection('tournaments').doc(tournamentId)
+            .collection('liveRooms').doc('stage7').get();
+        const roomData = roomDoc.data();
+        
+        // Get user data
+        const [winnerDoc, secondDoc, thirdDoc] = await Promise.all([
+            db.collection('users').doc(roomData.winner).get(),
+            db.collection('users').doc(roomData.secondPlace).get(),
+            db.collection('users').doc(roomData.thirdPlace).get()
+        ]);
+        
+        const winner = winnerDoc.data();
+        const second = secondDoc.data();
+        const third = thirdDoc.data();
+        
+        stage7Container.innerHTML = `
+            <div class="quiz-question-card" style="text-align: center; padding: 50px;">
+                <div style="font-size: 6rem; margin-bottom: 30px; animation: bounce 2s infinite;">🏆</div>
+                
+                <h1 style="color: #0d3b66; font-size: 3rem; margin-bottom: 30px;">
+                    TOURNAMENT COMPLETED!
+                </h1>
+                
+                <!-- Final Podium -->
+                <div style="background: linear-gradient(135deg, #FFD700, #FFA500); padding: 40px; border-radius: 20px; margin: 30px 0;">
+                    <h2 style="color: #0d3b66; margin-bottom: 30px;">🏅 FINAL STANDINGS</h2>
+                    
+                    <div style="display: grid; gap: 20px; max-width: 800px; margin: 0 auto;">
+                        <!-- Winner -->
+                        <div style="background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
+                            <div style="font-size: 4rem; margin-bottom: 15px;">🥇</div>
+                            <h3 style="color: #0d3b66; margin-bottom: 10px;">CHAMPION</h3>
+                            <img src="${winner.photoURL || 'https://via.placeholder.com/100'}" 
+                                 style="width: 100px; height: 100px; border-radius: 50%; margin: 15px 0; object-fit: cover; border: 5px solid #FFD700;">
+                            <div style="font-size: 1.5rem; font-weight: bold; color: #0d3b66;">
+                                ${winner.firstName} ${winner.lastName}
+                            </div>
+                        </div>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                            <!-- 2nd Place -->
+                            <div style="background: white; padding: 25px; border-radius: 15px;">
+                                <div style="font-size: 3rem; margin-bottom: 10px;">🥈</div>
+                                <h4 style="color: #0d3b66;">2ND PLACE</h4>
+                                <img src="${second.photoURL || 'https://via.placeholder.com/80'}" 
+                                     style="width: 80px; height: 80px; border-radius: 50%; margin: 10px 0; object-fit: cover; border: 4px solid #C0C0C0;">
+                                <div style="font-weight: bold; color: #0d3b66;">
+                                    ${second.firstName} ${second.lastName}
+                                </div>
+                            </div>
+                            
+                            <!-- 3rd Place -->
+                            <div style="background: white; padding: 25px; border-radius: 15px;">
+                                <div style="font-size: 3rem; margin-bottom: 10px;">🥉</div>
+                                <h4 style="color: #0d3b66;">3RD PLACE</h4>
+                                <img src="${third.photoURL || 'https://via.placeholder.com/80'}" 
+                                     style="width: 80px; height: 80px; border-radius: 50%; margin: 10px 0; object-fit: cover; border: 4px solid #CD7F32;">
+                                <div style="font-weight: bold; color: #0d3b66;">
+                                    ${third.firstName} ${third.lastName}
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
+                
+                <button class="practice-btn" onclick="returnToAdminPanel()" 
+                        style="font-size: 1.3rem; padding: 20px 50px; background: linear-gradient(135deg, #667eea, #764ba2); margin-top: 30px;">
+                    🏠 Return to Admin Panel
+                </button>
             </div>
-            
-            <button class="practice-btn" onclick="returnToAdminPanel()" 
-                    style="font-size: 1.3rem; padding: 20px 50px; background: linear-gradient(135deg, #667eea, #764ba2); margin-top: 30px;">
-                🏠 Return to Admin Panel
-            </button>
-        </div>
-    `;
-    
-    // Stop media streams
-    if (localStream) {
-        localStream.getTracks().forEach(track => track.stop());
-        localStream = null;
+        `;
+        
+        // Stop media streams
+        if (localStream) {
+            localStream.getTracks().forEach(track => track.stop());
+            localStream = null;
+        }
     }
-}
-
-function returnToAdminPanel() {
-    const stage7Container = document.getElementById('stage7-admin-container');
-    if (stage7Container) stage7Container.style.display = 'none';
     
-    navigateTo('admin');
-}
-
-async function closeStage7AdminRoom(tournamentId) {
-    if (!confirm('🚪 Close Stage 7 room?')) return;
+    function returnToAdminPanel() {
+        const stage7Container = document.getElementById('stage7-admin-container');
+        if (stage7Container) stage7Container.style.display = 'none';
+        
+        navigateTo('admin');
+    }
     
-    try {
+    async function closeStage7AdminRoom(tournamentId) {
+        if (!confirm('🚪 Close Stage 7 room?')) return;
+        
+        try {
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+                localStream = null;
+            }
+            
+            await db.collection('tournaments').doc(tournamentId)
+                .collection('liveRooms').doc('stage7').update({
+                    adminInRoom: false
+                });
+            
+            const stage7Container = document.getElementById('stage7-admin-container');
+            if (stage7Container) stage7Container.style.display = 'none';
+            
+            navigateTo('admin');
+        } catch (error) {
+            console.error('Error:', error);
+        }
+    }
+    
+    // ===== PARTICIPANT: JOIN STAGE 7 =====
+    async function joinStage7Room() {
+        try {
+            console.log('🎥 Joining Stage 7 FINALS...');
+            
+            // Ensure media is still active
+            if (!localStream) {
+                localStream = await navigator.mediaDevices.getUserMedia({
+                    audio: true,
+                    video: true
+                });
+            }
+            
+            // Hide Stage 6 UI
+            const stage6UI = document.getElementById('tournament-stage6-participant');
+            if (stage6UI) stage6UI.style.display = 'none';
+            
+            // Show Stage 7 UI
+            showStage7ParticipantUI();
+            
+        } catch (error) {
+            console.error('Error joining Stage 7:', error);
+            alert('Failed to join Stage 7');
+        }
+    }
+    
+    function showStage7ParticipantUI() {
+        const tournamentsSection = document.querySelector('#tournaments-section .word-database');
+        let stage7Container = document.getElementById('tournament-stage7-participant');
+        
+        if (!stage7Container) {
+            stage7Container = document.createElement('div');
+            stage7Container.id = 'tournament-stage7-participant';
+            tournamentsSection.appendChild(stage7Container);
+        }
+        
+        stage7Container.style.display = 'block';
+        
+        stage7Container.innerHTML = `
+            <div class="quiz-question-card">
+                <div style="background: linear-gradient(135deg, #667eea, #764ba2); padding: 30px; border-radius: 15px; margin-bottom: 20px; color: white; text-align: center;">
+                    <div style="font-size: 4rem; margin-bottom: 15px;">🏆</div>
+                    <h2 style="margin: 0 0 10px 0; color: white;">STAGE 7 - GRAND FINALS</h2>
+                    <p style="margin: 0; opacity: 0.9; font-size: 1.1rem;">You're in the FINAL 3!</p>
+                </div>
+                
+                <div style="background: #f9f9f9; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
+                    <div style="display: flex; gap: 10px;">
+                        <button class="practice-btn" onclick="toggleMyAudio()" id="my-audio-btn-stage7" 
+                                style="flex: 1; background: #28a745;">
+                            🎤 Mic: ON
+                        </button>
+                        <button class="practice-btn" onclick="toggleMyVideo()" id="my-video-btn-stage7" 
+                                style="flex: 1; background: #28a745;">
+                            🎥 Camera: ON
+                        </button>
+                    </div>
+                </div>
+                
+                <div style="background: #000; border-radius: 10px; overflow: hidden; margin-bottom: 20px; position: relative;">
+                    <video id="my-video-stage7" autoplay muted playsinline 
+                           style="width: 100%; max-height: 400px; object-fit: cover;"></video>
+                    <div style="position: absolute; bottom: 15px; left: 15px; background: linear-gradient(135deg, #FFD700, #FFA500); padding: 12px 25px; border-radius: 25px; color: #0d3b66; font-weight: bold; font-size: 1.1rem;">
+                        👤 YOU - FINALIST!
+                    </div>
+                </div>
+                
+                <div id="stage7-participant-status" style="text-align: center; padding: 50px; background: linear-gradient(135deg, #667eea, #764ba2); border-radius: 15px; color: white;">
+                    <div style="font-size: 4rem; margin-bottom: 20px; animation: pulse 2s infinite;">🌟</div>
+                    <h2 style="color: white; margin-bottom: 15px;">YOU'RE A FINALIST!</h2>
+                    <p style="opacity: 0.9; font-size: 1.2rem; margin-bottom: 10px;">
+                        Congratulations on making it to the final stage!
+                    </p>
+                    <p style="opacity: 0.8; font-size: 1rem;">
+                        The admin will announce the final rankings shortly...
+                    </p>
+                </div>
+            </div>
+        `;
+        
+        const myVideo = document.getElementById('my-video-stage7');
+        if (myVideo && localStream) {
+            myVideo.srcObject = localStream;
+        }
+        
+        listenForStage7Results();
+    }
+    
+    function listenForStage7Results() {
+        const listener = db.collection('tournaments').doc(currentTournament)
+            .collection('liveRooms').doc('stage7')
+            .onSnapshot(async (doc) => {
+                if (!doc.exists) return;
+                
+                const roomData = doc.data();
+                
+                // Check if user has been ranked
+                if (roomData.winner === currentUser.uid) {
+                    showParticipantResult('🥇 CHAMPION', '1st Place', '#FFD700');
+                } else if (roomData.secondPlace === currentUser.uid) {
+                    showParticipantResult('🥈 RUNNER-UP', '2nd Place', '#C0C0C0');
+                } else if (roomData.thirdPlace === currentUser.uid) {
+                    showParticipantResult('🥉 THIRD PLACE', '3rd Place', '#CD7F32');
+                }
+                
+                // Check if tournament is completed
+                if (!roomData.isActive && roomData.finalizedAt) {
+                    setTimeout(() => {
+                        exitTournamentAfterCompletion();
+                    }, 5000);
+                }
+            });
+        
+        if (!window.tournamentListeners) window.tournamentListeners = [];
+        window.tournamentListeners.push(listener);
+    }
+    
+    function showParticipantResult(title, subtitle, color) {
+        const statusDiv = document.getElementById('stage7-participant-status');
+        if (!statusDiv) return;
+        
+        statusDiv.innerHTML = `
+            <div style="font-size: 5rem; margin-bottom: 20px; animation: bounce 1s infinite;">${title.split(' ')[0]}</div>
+            <h2 style="color: white; margin-bottom: 10px; font-size: 2.5rem;">${title}</h2>
+            <div style="background: white; padding: 15px 30px; border-radius: 25px; display: inline-block; margin: 20px 0;">
+                <div style="font-size: 1.5rem; font-weight: bold; color: ${color};">
+                    ${subtitle}
+                </div>
+            </div>
+            <p style="opacity: 0.9; font-size: 1.2rem; margin-top: 20px;">
+                🎉 Congratulations! 🎉
+            </p>
+        `;
+    }
+    
+    function exitTournamentAfterCompletion() {
         if (localStream) {
             localStream.getTracks().forEach(track => track.stop());
             localStream = null;
         }
         
-        await db.collection('tournaments').doc(tournamentId)
-            .collection('liveRooms').doc('stage7').update({
-                adminInRoom: false
-            });
-        
-        const stage7Container = document.getElementById('stage7-admin-container');
-if (stage7Container) stage7Container.style.display = 'none';
-    navigateTo('admin');
-} catch (error) {
-    console.error('Error:', error);
-}
-}
-// ===== PARTICIPANT: JOIN STAGE 7 =====
-async function joinStage7Room() {
-try {
-console.log('🎥 Joining Stage 7 FINALS...');
-    // Ensure media is still active
-    if (!localStream) {
-        localStream = await navigator.mediaDevices.getUserMedia({
-            audio: true,
-            video: true
-        });
+        alert('🏆 Tournament completed! Thank you for participating!');
+        exitTournament();
     }
-    
-    // Hide Stage 6 UI
-    const stage6UI = document.getElementById('tournament-stage6-participant');
-    if (stage6UI) stage6UI.style.display = 'none';
-    
-    // Show Stage 7 UI
-    showStage7ParticipantUI();
-    
-} catch (error) {
-    console.error('Error joining Stage 7:', error);
-    alert('Failed to join Stage 7');
-}
-}
-function showStage7ParticipantUI() {
-const tournamentsSection = document.querySelector('#tournaments-section .word-database');
-let stage7Container = document.getElementById('tournament-stage7-participant');
-if (!stage7Container) {
-    stage7Container = document.createElement('div');
-    stage7Container.id = 'tournament-stage7-participant';
-    tournamentsSection.appendChild(stage7Container);
-}
-
-stage7Container.style.display = 'block';
-
-stage7Container.innerHTML = `
-    <div class="quiz-question-card">
-        <div style="background: linear-gradient(135deg, #667eea, #764ba2); padding: 30px; border-radius: 15px; margin-bottom: 20px; color: white; text-align: center;">
-            <div style="font-size: 4rem; margin-bottom: 15px;">🏆</div>
-            <h2 style="margin: 0 0 10px 0; color: white;">STAGE 7 - GRAND FINALS</h2>
-            <p style="margin: 0; opacity: 0.9; font-size: 1.1rem;">You're in the FINAL 3!</p>
-        </div>
-        
-        <div style="background: #f9f9f9; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
-            <div style="display: flex; gap: 10px;">
-                <button class="practice-btn" onclick="toggleMyAudio()" id="my-audio-btn-stage7" 
-                        style="flex: 1; background: #28a745;">
-                    🎤 Mic: ON
-                </button>
-                <button class="practice-btn" onclick="toggleMyVideo()" id="my-video-btn-stage7" 
-                        style="flex: 1; background: #28a745;">
-                    🎥 Camera: ON
-                </button>
-            </div>
-        </div>
-        
-        <div style="background: #000; border-radius: 10px; overflow: hidden; margin-bottom: 20px; position: relative;">
-            <video id="my-video-stage7" autoplay muted playsinline 
-                   style="width: 100%; max-height: 400px; object-fit: cover;"></video>
-            <div style="position: absolute; bottom: 15px; left: 15px; background: linear-gradient(135deg, #FFD700, #FFA500); padding: 12px 25px; border-radius: 25px; color: #0d3b66; font-weight: bold; font-size: 1.1rem;">
-                👤 YOU - FINALIST!
-            </div>
-        </div>
-        
-        <div id="stage7-participant-status" style="text-align: center; padding: 50px; background: linear-gradient(135deg, #667eea, #764ba2); border-radius: 15px; color: white;">
-            <div style="font-size: 4rem; margin-bottom: 20px; animation: pulse 2s infinite;">🌟</div>
-            <h2 style="color: white; margin-bottom: 15px;">YOU'RE A FINALIST!</h2>
-            <p style="opacity: 0.9; font-size: 1.2rem; margin-bottom: 10px;">
-                Congratulations on making it to the final stage!
-            </p>
-            <p style="opacity: 0.8; font-size: 1rem;">
-                The admin will announce the final rankings shortly...
-            </p>
-        </div>
-    </div>
-`;
-
-const myVideo = document.getElementById('my-video-stage7');
-if (myVideo && localStream) {
-    myVideo.srcObject = localStream;
-}
-
-listenForStage7Results();
-}
-function listenForStage7Results() {
-const listener = db.collection('tournaments').doc(currentTournament)
-.collection('liveRooms').doc('stage7')
-.onSnapshot(async (doc) => {
-if (!doc.exists) return;
-        const roomData = doc.data();
-        
-        // Check if user has been ranked
-        if (roomData.winner === currentUser.uid) {
-            showParticipantResult('🥇 CHAMPION', '1st Place', '#FFD700');
-        } else if (roomData.secondPlace === currentUser.uid) {
-            showParticipantResult('🥈 RUNNER-UP', '2nd Place', '#C0C0C0');
-        } else if (roomData.thirdPlace === currentUser.uid) {
-            showParticipantResult('🥉 THIRD PLACE', '3rd Place', '#CD7F32');
-        }
-        
-        // Check if tournament is completed
-        if (!roomData.isActive && roomData.finalizedAt) {
-            // Tournament completed - show final screen
-            setTimeout(() => {
-                exitTournamentAfterCompletion();
-            }, 5000);
-        }
-    });
-
-if (!window.tournamentListeners) window.tournamentListeners = [];
-window.tournamentListeners.push(listener);
-}
-function showParticipantResult(title, subtitle, color) {
-const statusDiv = document.getElementById('stage7-participant-status');
-if (!statusDiv) return;
-statusDiv.innerHTML = `
-    <div style="font-size: 5rem; margin-bottom: 20px; animation: bounce 1s infinite;">${title.split(' ')[0]}</div>
-    <h2 style="color: white; margin-bottom: 10px; font-size: 2.5rem;">${title}</h2>
-    <div style="background: white; padding: 15px 30px; border-radius: 25px; display: inline-block; margin: 20px 0;">
-        <div style="font-size: 1.5rem; font-weight: bold; color: ${color};">
-            ${subtitle}
-        </div>
-    </div>
-    <p style="opacity: 0.9; font-size: 1.2rem; margin-top: 20px;">
-        🎉 Congratulations! 🎉
-    </p>
-`;
-}
-function exitTournamentAfterCompletion() {
-if (localStream) {
-localStream.getTracks().forEach(track => track.stop());
-localStream = null;
-}
-alert('🏆 Tournament completed! Thank you for participating!');
-exitTournament();
-}
 
 
 
