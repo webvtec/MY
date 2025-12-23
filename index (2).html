@@ -1,542 +1,4 @@
-
-    <script>
-        // ===== FIREBASE CONFIGURATION =====
-        const firebaseConfig = {
-            apiKey: "AIzaSyCDdnDKsCUaCK4L95G57AC9-BjCqJiIywA",
-            authDomain: "wordbiz-coaching-academy.firebaseapp.com",
-            projectId: "wordbiz-coaching-academy",
-            storageBucket: "wordbiz-coaching-academy.firebasestorage.app",
-            messagingSenderId: "829294789081",
-            appId: "1:829294789081:web:501ae4d3d6f3694a40d9c8"
-        };
-
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
-        const auth = firebase.auth();
-
-        // ===== CLOUD FUNCTION URL =====
-        const CLOUD_FUNCTION_URL = 'https://getworddefinition-998744778737.us-central1.run.app';
-
-
-        
-// ===== PAYPAL CONFIGURATION =====
-const PAYPAL_HANDLER_URL = 'https://verificationpaypalpayment-998744778737.us-central1.run.app';
-const REOPEN_ACCOUNT_COST = 6.50;
-const REOPEN_DAYS = 30;
-
-let paypalButtonRendered = false;
-let sponsorPaypalRendered = false;
-let currentChildData = null;
-
-        
-
-        let paypalSDKLoaded = false;
-
-async function loadPayPalSDK() {
-    if (paypalSDKLoaded) {
-        return Promise.resolve();
-    }
-    
-    try {
-        // Get client ID from Firebase function
-        const response = await fetch(`${PAYPAL_HANDLER_URL}?action=getClientId`);
-        const data = await response.json();
-        
-        if (!data.success || !data.clientId) {
-            throw new Error('Failed to get PayPal client ID');
-        }
-        
-        return new Promise((resolve, reject) => {
-            const script = document.createElement('script');
-            script.src = `https://www.paypal.com/sdk/js?client-id=${data.clientId}&currency=USD&locale=en_US`;
-            script.async = true;
-            
-            script.onload = () => {
-                paypalSDKLoaded = true;
-                console.log('✅ PayPal SDK loaded');
-                resolve();
-            };
-            
-            script.onerror = () => {
-                reject(new Error('Failed to load PayPal SDK'));
-            };
-            
-            document.head.appendChild(script);
-        });
-    } catch (error) {
-        console.error('Error loading PayPal SDK:', error);
-        throw error;
-    }
-}
-        
-        // ===== GLOBAL VARIABLES =====
-let allWords = [];
-let currentLetter = '';
-let currentWord = null;
-let isListening = false;
-let recognition = null;
-let currentUser = null;
-let currentQuiz = null;
-let currentQuestionIndex = 0;
-let quizScore = 0;
-let userFavorites = [];
-let userIncorrect = [];
-let userSpellingFavorites = [];
-let userSpellingIncorrect = [];
-let quizStartTime = null;
-let quizAnswerTimes = [];
-let quizDifficulty = 'medium'; // track difficulty
-let questionStartTime = null;
-
-// ===== LIVE SPELLING GLOBALS =====
-let challengeListener = null;
-let myChallengeListener = null;
-let shownPopupIds = new Set();
-let declinedChallengeIds = new Set(); // ✅ NEW: Track declined challenges
-let presenceInitialized = false; // ✅ NEW: Prevent duplicate presence initialization
-
-
-// ===== PARENT ID VERIFICATION VARIABLES =====
-let parentIDFile = null;
-let parentIDBase64 = null;
-let childIDFile = null;
-let childIDBase64 = null;
-let parentIDVerified = false;
-let childIDVerified = false;
-
-// ===== LEVEL-BASED WORD LOADING =====
-let currentLevel = '';
-let levelWords = {
-    foundation: [],
-    challenge: [],
-    advanced: [],
-    championship: []
-};
-
-// Google Docs URLs for each level - REPLACE WITH YOUR ACTUAL GOOGLE DOCS IDs
-const LEVEL_DOCS = {
-    foundation: 'https://docs.google.com/document/d/1cgq8FfGXHfFtzeroC1BU5CpNz8Y7Y8qk7f0lduoFdz4/export?format=txt',
-    challenge: 'https://docs.google.com/document/d/1sJLFvQZ2eOBOhZLEf4LhnDZCFJy8vn6sa_HV8JpK_Us/export?format=txt',
-    advanced: 'https://docs.google.com/document/d/1w2lG7hLHixwn-KtNTEUgHU0txtN7_bhGIPrnvdKnPtc/export?format=txt',
-    championship: 'https://docs.google.com/document/d/1ATXYyC7nQOYZ5yyDXow0v0o1efCpXLd3r0GCloCVUrY/export?format=txt'
-};
-
-// ===== SPELLING PRACTICE FUNCTIONS =====
-let spellingWords = [];
-let currentSpellingIndex = 0;
-let spellingScore = 0;
-let currentSpellingWord = '';
-let spellingMistakes = [];
-let selectedGameLevel = '';
-
-// ===== UNSCRAMBLE FUNCTIONS =====
-let unscrambleWords = [];
-let currentUnscrambleIndex = 0;
-let unscrambleScore = 0;
-let currentUnscrambleWord = '';
-let currentLetterOrder = [];
-let hintsUsed = 0;
-let draggedElement = null;
-
-// ===== ID VERIFICATION VARIABLES =====
-let uploadedIDFile = null;
-let uploadedIDBase64 = null;
-let isCoachVerification = false;
-let idVerificationPassed = false;
-
-// ===== LIVE SPELLING VARIABLES =====
-let onlineUsersRef = null;
-let challengesRef = null;
-let activeChallenge = null;
-let challengeWords = [];
-let currentChallengeIndex = 0;
-let myScore = 0;
-let opponentScore = 0;
-let presenceRef = null;
-
-
-// ===== LIVE QUIZ VARIABLES =====
-let quizOnlineUsersRef = null;
-let quizChallengesRef = null;
-let activeQuizChallenge = null;
-let quizChallengeWords = [];
-let currentQuizChallengeIndex = 0;
-let myQuizScore = 0;
-let opponentQuizScore = 0;
-let quizChallengeListener = null;
-let myQuizChallengeListener = null;
-let shownQuizPopupIds = new Set();
-
-// ✅ Challenge timeout constants
-const CHALLENGE_TIMEOUT = 5 * 60 * 1000; // 5 minutes max per challenge
-const TURN_TIMEOUT = 60 * 1000; // 60 seconds per turn
-const OFFLINE_CHECK_INTERVAL = 10 * 1000; // Check every 10 seconds
-
-let challengeTimeoutTimer = null;
-let turnTimeoutTimer = null;
-let offlineCheckTimer = null;
-
-
-let userCoins = 0;
-const COINS_PER_WIN = 5;
-const MAX_COINS = 1000;
-
-
-// ===== TOURNAMENT VARIABLES =====
-let currentTournament = null;
-let tournamentStage = 0;
-let stage1Questions = [];
-let stage1CurrentIndex = 0;
-let stage1Score = 0;
-let stage1Errors = 0;
-let stage1Handicaps = 2;
-let stage1TimeLeft = 600; // 10 minutes in seconds
-let stage1Timer = null;
-
-// ===== STAGE 2: AI AUDIO SPELLING =====
-let stage2Words = [];
-let stage2CurrentIndex = 0;
-let stage2Score = 0;
-let stage2Errors = 0;
-let stage2TimeLeft = 900; // 15 minutes
-let stage2Timer = null;
-let stage2HandicapsRemaining = 1; // Base 1 + carried from Stage 1
-
-// ===== TOURNAMENT STAGE 3 FUNCTIONS =====
-let stage3Words = [];
-let stage3CurrentIndex = 0;
-let stage3Score = 0;
-let stage3Errors = 0;
-let stage3TimeLeft = 900; // 15 minutes
-let stage3Timer = null;
-let stage3HandicapsRemaining = 0;
-let stage3CurrentLetterOrder = [];
-let stage3DraggedElement = null;
-
-// ===== LIVE STAGES 4-7 VARIABLES =====
-let stage4RoomId = null;
-let stage5RoomId = null;
-let stage6RoomId = null;
-let stage7RoomId = null;
-let currentStageRoom = null;
-let stageRoomListener = null;
-
-
-// ===== LIVE ROOM VARIABLES =====
-let localStream = null;
-let liveRoomParticipants = new Map(); // userId -> {name, email, schoolId, stream, audioEnabled, videoEnabled}
-let liveRoomListener = null;
-let myAudioEnabled = true;
-let myVideoEnabled = true;
-        
-     // ===== INITIALIZE =====
-document.addEventListener('DOMContentLoaded', function() {
-    initializeAlphabet();
-    initializeSpeechRecognition();
-    
-    // ✅ Cleanup old challenges on page load
-    cleanupOldChallenges();
-    
-    // ✅ ADD SCROLL LISTENER FOR COIN DISPLAY
-    window.addEventListener('scroll', function() {
-        const coinDisplay = document.getElementById('coinDisplay');
-        if (coinDisplay && coinDisplay.classList.contains('show')) {
-            if (window.scrollY > 50) {
-                coinDisplay.classList.add('scrolled');
-            } else {
-                coinDisplay.classList.remove('scrolled');
-            }
-        }
-    });
-    
-    document.getElementById('searchInput').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') searchWord();
-    });
-    
-  // âœ… ADD MODAL CLOSE HANDLERS
-    document.addEventListener('click', function(event) {
-        // Close coach detail modal
-        const coachModal = document.getElementById('coachDetailModal');
-        if (event.target === coachModal) {
-            closeCoachDetailModal();
-        }
-        
-        // Close student detail modal
-        const studentModal = document.getElementById('studentDetailModal');
-        if (event.target === studentModal) {
-            closeStudentDetailModal();
-        }
-        
-        // Close leaderboard player modal
-        const leaderboardModal = document.getElementById('leaderboardPlayerModal');
-        if (event.target === leaderboardModal) {
-            closeLeaderboardPlayerModal();
-        }
-        
-        // Close quiz leaderboard player modal
-        const quizLeaderboardModal = document.getElementById('quizLeaderboardPlayerModal');
-        if (event.target === quizLeaderboardModal) {
-            closeQuizLeaderboardPlayerModal();
-        }
-    });
-    
-auth.onAuthStateChanged(async user => {
-    if (user) {
-        currentUser = user;
-        
-        console.log('👤 User signed in:', user.email);
-        console.log('🖼️ Auth photoURL:', user.photoURL);
-        
-        const userRef = db.collection('users').doc(user.uid);
-        const userDoc = await userRef.get();
-        
-        if (!userDoc.exists) {
-            await auth.signOut();
-            alert('Account error. Please sign up again.');
-            return;
-        }
-        
-        const userData = userDoc.data();
-        console.log('📄 Firestore photoURL:', userData.photoURL);
-        
-        if (user.photoURL && !userData.photoURL) {
-            console.log('📄 Syncing photoURL to Firestore...');
-            await userRef.update({
-                photoURL: user.photoURL
-            });
-            console.log('✅ PhotoURL synced!');
-        }
-        
-        // ✅ INITIALIZE SPELLING STATS IF NOT EXISTS
-        if (!userData.spellingStats) {
-            console.log('📄 Initializing spelling stats...');
-            await userRef.update({
-                spellingStats: {
-                    totalChallenges: 0,
-                    wins: 0,
-                    losses: 0,
-                    totalScore: 0,
-                    winStreak: 0,
-                    bestStreak: 0
-                }
-            });
-            console.log('✅ Spelling stats initialized!');
-        }
-        
-        // ✅ CHECK ADMIN STATUS HERE (CRITICAL - RIGHT AFTER USER DATA IS LOADED)
-        await checkAdminStatus();
-        
-        // ✅ CHECK USER TYPE AND HANDLE ACCORDINGLY
-        if (userData.userType === 'parent') {
-            // Parent user - no profile completion needed
-            if (!userData.profileComplete) {
-                await userRef.update({ profileComplete: true });
-            }
-            updateUIForAuthenticatedUser(user);
-            
-            // Navigate to parent dashboard
-            navigateTo('parent-dashboard');
-            return;
-        }
-        
-        // STUDENT/COACH HANDLING
-        if (!userData.profileComplete) {
-            showVerificationModal(userData);
-            return;
-        }
-        
-        updateUIForAuthenticatedUser(user);
-        
-        // ✅ LOAD USER COINS (for students only)
-        if (userData.userType === 'student') {
-            await loadUserCoins(user.uid);
-            await checkSubscriptionStatus();
-        }
-        
-        await cleanupInvalidFavorites();
-        
-        await Promise.all([
-            loadUserFavorites(user.uid),
-            loadUserIncorrect(user.uid),
-            loadUserSpellingFavorites(user.uid),
-            loadUserSpellingIncorrect(user.uid)
-        ]);
-        
-        // ✅ Initialize presence immediately on login (only for students/coaches)
-        if (userData.userType !== 'parent') {
-            await initializeOnlinePresence();
-        }
-        
-        // Load appropriate dashboard
-        if (userData.userType === 'student') {
-            if (document.getElementById('student-dashboard-section').classList.contains('active')) {
-                loadUserDashboard();
-            }
-        }
-   } else {
-    currentUser = null;
-    isAdmin = false;
-    
-    // ✅ Clean up tournament listeners
-    if (tournamentListeners) {
-        tournamentListeners.forEach(unsubscribe => unsubscribe());
-        tournamentListeners = [];
-    }
-    
-    updateUIForGuestUser();
-    updateAdminUI();
-}
-});
-    });
-        
-        
-    
-// ===== NAVIGATION =====
-async function navigateTo(section, skipSidebarClose = false) {
-    // ✅ CHECK SUBSCRIPTION FOR STUDENTS BEFORE ALLOWING NAVIGATION
-    if (currentUser && !subscriptionActive && section !== 'student-dashboard' && section !== 'parent-dashboard' && section !== 'about') {
-        try {
-            const userDoc = await db.collection('users').doc(currentUser.uid).get();
-            const userData = userDoc.data();
-            
-            // ✅ ADD: Only check if user data is fully loaded
-            if (userData && userData.profileComplete && userData.userType === 'student') {
-                showSubscriptionModal();
-                return;
-            }
-        } catch (error) {
-            console.error('Error checking subscription in navigation:', error);
-            // Allow navigation on error
-        }
-    }
-    
-    // Check if user needs to be logged in
-    if ((section === 'favorites' || section === 'incorrect-quiz' || 
-         section === 'spelling-favorites' || section === 'spelling-incorrect' || 
-         section === 'student-dashboard' || section === 'parent-dashboard') && !currentUser) {
-        alert('Please sign in to access this feature');
-        showAuthModal();
-        return;
-    }
-    
-    // ✅ PREVENT PARENTS FROM ACCESSING STUDENT FEATURES
-    if (currentUser && section !== 'parent-dashboard' && section !== 'home' && section !== 'about' && section !== 'coaches' && section !== 'students') {
-        try {
-            const userDoc = await db.collection('users').doc(currentUser.uid).get();
-            const userData = userDoc.data();
-            
-            if (userData && userData.userType === 'parent') {
-                alert('⚠️ Parents can only access:\n• Parent Dashboard\n• Home\n• About\n• Coaches\n• Students\n\nPlease use the Parent Dashboard to manage your child\'s account.');
-                navigateTo('parent-dashboard');
-                return;
-            }
-        } catch (error) {
-            console.error('Error checking user type:', error);
-        }
-    }
-    
-    // ✅ Track current section BEFORE changing
-    const currentSection = document.querySelector('.content-section.active')?.id.replace('-section', '');
-    
-    // ✅ RESET QUIZ STATE WHEN LEAVING QUIZ SECTION
-    if (currentSection === 'quiz' && section !== 'quiz') {
-        currentQuiz = null;
-        currentQuestionIndex = 0;
-        quizScore = 0;
-        selectedGameLevel = '';
-    }
-    
-    document.querySelectorAll('.content-section').forEach(sec => {
-        sec.classList.remove('active');
-    });
-    
-    const sectionId = section + '-section';
-    const targetSection = document.getElementById(sectionId);
-    if (targetSection) {
-        targetSection.classList.add('active');
-    }
-    
-    if (section === 'word-database') {
-        // Always show level selection first
-        document.getElementById('level-selection').style.display = 'block';
-        document.getElementById('word-database-display').style.display = 'none';
-    }
-    
-    // ✅ Reset Quiz section ONLY if coming from OUTSIDE
-    if (section === 'quiz' && currentSection !== 'quiz') {
-        document.getElementById('quiz-level-selection').style.display = 'block';
-        document.getElementById('practice-quiz-container').innerHTML = '';
-        selectedGameLevel = '';
-    }
-    
-    // ✅ Reset Spelling section ONLY if coming from OUTSIDE
-    if (section === 'spelling' && currentSection !== 'spelling') {
-        document.getElementById('spelling-level-selection').style.display = 'block';
-        document.getElementById('spelling-game').style.display = 'none';
-        document.getElementById('spelling-results').style.display = 'none';
-        selectedGameLevel = '';
-    }
-    
-    if (section === 'favorites' && currentUser) {
-        displayFavorites();
-    }
-    
-    if (section === 'incorrect-quiz' && currentUser) {
-        displayIncorrect();
-    }
-    
-    if (section === 'spelling-favorites' && currentUser) {
-        displaySpellingFavorites();
-    }
-    
-    if (section === 'spelling-incorrect' && currentUser) {
-        displaySpellingIncorrect();
-    }
-    
-    // Load coaches section
-    if (section === 'coaches') {
-        await loadAndDisplayCoaches();
-    }
-    
-    // Load students section
-    if (section === 'students') {
-        await loadAndDisplayStudents();
-    }
-    
-    // ✅ Load student dashboard when navigating to it
-    if (section === 'student-dashboard' && currentUser) {
-        await loadUserDashboard();
-    }
-    
-    // ✅ Load parent dashboard when navigating to it
-    if (section === 'parent-dashboard' && currentUser) {
-        await loadParentDashboard();
-    }
-    
-    // ✅ LOAD ADMIN PANEL WHEN NAVIGATING TO IT
-    if (section === 'admin' && currentUser) {
-        console.log('🎯 Navigating to admin panel. isAdmin:', isAdmin);
-        if (!isAdmin) {
-            alert('❌ Admin access required. Please sign in with an admin account.');
-            navigateTo('home');
-            return;
-        }
-        await loadAdminPanel();
-    }
-    
-    if (!skipSidebarClose) {
-        toggleSidebar(true);
-    }
-
-    if (section === 'tournaments') {
-    await loadTournamentList();
-}
-}
-        
-     
-
-
-     // ===== TOURNAMENT STAGE 1 FUNCTIONS =====
+  // ===== TOURNAMENT STAGE 1 FUNCTIONS =====
 
 async function startTournamentStage1(tournamentId) {
     try {
@@ -632,12 +94,12 @@ async function generateStage1Questions() {
     try {
         console.log('🎯 Fetching words from database for level:', selectedGameLevel);
         
-        // ✅ Use tournament ID + timestamp as seed for unique randomization
-        const tournamentSeed = currentTournament + Date.now();
-        const seededRandom = () => {
-            const x = Math.sin(tournamentSeed++) * 10000;
-            return x - Math.floor(x);
-        };
+       // ✅ Use tournament ID + timestamp as seed for unique randomization
+let tournamentSeed = currentTournament + Date.now();  // Changed const to let
+const seededRandom = () => {
+    const x = Math.sin(tournamentSeed++) * 10000;  // ✅ Now it works
+    return x - Math.floor(x);
+};
         
         // Fetch words from Firestore dictionary
         const wordsSnapshot = await db.collection('dictionary')
@@ -941,14 +403,17 @@ async function completeStage1() {
     // ✅ Mark as completed in Firestore
     await db.collection('tournaments').doc(currentTournament)
         .collection('participants').doc(currentUser.uid).update({
-            status: 'completed',
-            completedAt: firebase.firestore.FieldValue.serverTimestamp()
+            status: 'stage1-completed',
+            stage1Score: stage1Score,
+            stage1Total: stage1Questions.length,
+            stage1Percentage: Math.round((stage1Score / stage1Questions.length) * 100),
+            stage1CompletedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
     
     const container = document.getElementById('stage1-question-container');
     const percentage = Math.round((stage1Score / stage1Questions.length) * 100);
     
-    // ✅ Get final rankings
+    // ✅ Get final rankings (for display only, doesn't block progression)
     const participantsSnapshot = await db.collection('tournaments').doc(currentTournament)
         .collection('participants')
         .where('stage', '==', 1)
@@ -977,7 +442,7 @@ async function completeStage1() {
                     Accuracy: ${percentage}%
                 </p>
                 <p style="font-size: 1.3rem; color: #667eea; font-weight: bold; margin: 10px 0;">
-                    🏅 Your Rank: #${myRank} of ${allPlayers.length}
+                    🏅 Current Rank: #${myRank} of ${allPlayers.length}
                 </p>
                 <p style="font-size: 1.1rem; color: #667eea;">
                     🛡️ Handicaps Remaining: ${stage1Handicaps}
@@ -985,7 +450,7 @@ async function completeStage1() {
             </div>
             
             <div style="background: #f9f9f9; padding: 20px; border-radius: 10px; margin: 20px 0; max-height: 300px; overflow-y: auto;">
-                <h3 style="color: #0d3b66; margin-bottom: 15px;">🏆 Final Rankings</h3>
+                <h3 style="color: #0d3b66; margin-bottom: 15px;">🏆 Live Rankings</h3>
                 ${allPlayers.slice(0, 10).map((player, index) => `
                     <div style="display: flex; justify-content: space-between; padding: 10px; margin-bottom: 5px; background: ${player.id === currentUser.uid ? '#e3f2fd' : 'white'}; border-radius: 5px;">
                         <span style="font-weight: ${index < 3 ? 'bold' : 'normal'};">
@@ -1000,27 +465,19 @@ async function completeStage1() {
                 `).join('')}
             </div>
             
-            ${percentage >= 60 ? `
-                <div style="background: #d4edda; padding: 20px; border-radius: 10px; margin: 20px 0;">
-                    <h3 style="color: #155724; margin-bottom: 10px;">✅ Qualified for Stage 2!</h3>
-                    <p style="color: #155724;">
-                        You'll carry ${stage1Handicaps} handicap(s) into the next round.
-                    </p>
-                </div>
-                <button class="practice-btn" onclick="proceedToStage2()" style="font-size: 1.2rem; padding: 15px 40px;">
-                    ➡️ Proceed to Stage 2
-                </button>
-            ` : `
-                <div style="background: #f8d7da; padding: 20px; border-radius: 10px; margin: 20px 0;">
-                    <h3 style="color: #721c24; margin-bottom: 10px;">❌ Did Not Qualify</h3>
-                    <p style="color: #721c24;">
-                        You need at least 60% accuracy to advance.
-                    </p>
-                </div>
-                <button class="practice-btn" onclick="exitTournament()" style="font-size: 1.2rem; padding: 15px 40px;">
-                    🏠 Return to Lobby
-                </button>
-            `}
+            <!-- ✅ ALWAYS SHOW PROCEED BUTTON (NO QUALIFICATION CHECK) -->
+            <div style="background: #e3f2fd; padding: 20px; border-radius: 10px; margin: 20px 0;">
+                <h3 style="color: #0d3b66; margin-bottom: 10px;">✅ Ready for Stage 2!</h3>
+                <p style="color: #0d3b66;">
+                    You'll carry ${stage1Handicaps} handicap(s) into the next round.
+                </p>
+                <p style="color: #666; font-size: 0.9rem; margin-top: 10px;">
+                    Note: Rankings are live and may change as other players complete Stage 1
+                </p>
+            </div>
+            <button class="practice-btn" onclick="proceedToStage2()" style="font-size: 1.2rem; padding: 15px 40px;">
+                ➡️ Proceed to Stage 2
+            </button>
         </div>
     `;
 }
@@ -1635,8 +1092,18 @@ function submitStage2Answer() {
     }
 }
 
-function completeStage2() {
+async function completeStage2() {
     clearInterval(stage2Timer);
+    
+    // ✅ Mark as completed in Firestore
+    await db.collection('tournaments').doc(currentTournament)
+        .collection('participants').doc(currentUser.uid).update({
+            status: 'stage2-completed',
+            stage2Score: stage2Score,
+            stage2Total: stage2Words.length,
+            stage2Percentage: Math.round((stage2Score / stage2Words.length) * 100),
+            stage2CompletedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
     
     const container = document.getElementById('tournament-stage2');
     const percentage = Math.round((stage2Score / stage2Words.length) * 100);
@@ -1657,27 +1124,16 @@ function completeStage2() {
                 🛡️ Handicaps Remaining: ${stage2HandicapsRemaining}
             </p>
             
-            ${percentage >= 60 ? `
-                <div style="background: #d4edda; padding: 20px; border-radius: 10px; margin: 20px 0;">
-                    <h3 style="color: #155724; margin-bottom: 10px;">✅ Qualified for Stage 3!</h3>
-                    <p style="color: #155724;">
-                        You'll carry ${stage2HandicapsRemaining} handicap(s) into Stage 3.
-                    </p>
-                </div>
-                <button class="practice-btn" onclick="proceedToStage3()" style="font-size: 1.2rem; padding: 15px 40px;">
-                    ➡️ Proceed to Stage 3
-                </button>
-            ` : `
-                <div style="background: #f8d7da; padding: 20px; border-radius: 10px; margin: 20px 0;">
-                    <h3 style="color: #721c24; margin-bottom: 10px;">❌ Did Not Qualify</h3>
-                    <p style="color: #721c24;">
-                        You need at least 60% accuracy to advance to Stage 3.
-                    </p>
-                </div>
-                <button class="practice-btn" onclick="exitTournament()" style="font-size: 1.2rem; padding: 15px 40px;">
-                    🏠 Return to Lobby
-                </button>
-            `}
+            <!-- ✅ ALWAYS SHOW PROCEED BUTTON -->
+            <div style="background: #d4edda; padding: 20px; border-radius: 10px; margin: 20px 0;">
+                <h3 style="color: #155724; margin-bottom: 10px;">✅ Ready for Stage 3!</h3>
+                <p style="color: #155724;">
+                    You'll carry ${stage2HandicapsRemaining} handicap(s) into Stage 3.
+                </p>
+            </div>
+            <button class="practice-btn" onclick="proceedToStage3()" style="font-size: 1.2rem; padding: 15px 40px;">
+                ➡️ Proceed to Stage 3
+            </button>
         </div>
     `;
 }
@@ -2114,7 +1570,7 @@ async function completeStage3() {
                 stage3Total: stage3Words.length,
                 stage3Percentage: percentage,
                 stage3CompletedAt: firebase.firestore.FieldValue.serverTimestamp(),
-                status: percentage >= 60 ? 'qualified-stage4' : 'eliminated',
+                status: 'qualified-stage4', // Everyone qualifies, admin picks top 10 later
                 handicaps: stage3HandicapsRemaining
             }, { merge: true });
         
@@ -2129,10 +1585,28 @@ async function completeStage3() {
     
     const container = document.getElementById('tournament-stage3');
     
+    // ✅ Get all Stage 3 completions for rankings
+    const participantsSnapshot = await db.collection('tournaments').doc(currentTournament)
+        .collection('participants')
+        .where('status', '==', 'qualified-stage4')
+        .get();
+    
+    const allCompletions = [];
+    participantsSnapshot.forEach(doc => {
+        allCompletions.push({ id: doc.id, ...doc.data() });
+    });
+    
+    // Sort by percentage
+    allCompletions.sort((a, b) => b.stage3Percentage - a.stage3Percentage);
+    
+    const myRank = allCompletions.findIndex(p => p.id === currentUser.uid) + 1;
+    const totalParticipants = allCompletions.length;
+    const willMakeTop10 = myRank <= 10;
+    
     container.innerHTML = `
         <div class="quiz-question-card" style="text-align: center; padding: 40px;">
             <div style="font-size: 4rem; margin-bottom: 20px;">
-                ${percentage >= 80 ? '🏆' : percentage >= 60 ? '⭐' : '📚'}
+                ${willMakeTop10 ? '🏆' : '⭐'}
             </div>
             <h2 style="color: #0d3b66; margin-bottom: 20px;">Stage 3 Complete!</h2>
             <div style="font-size: 2rem; font-weight: bold; color: #0d3b66; margin: 20px 0;">
@@ -2145,44 +1619,64 @@ async function completeStage3() {
                 🛡️ Handicaps Remaining: ${stage3HandicapsRemaining}
             </p>
             
-            ${percentage >= 60 ? `
-                <div style="background: #d4edda; padding: 20px; border-radius: 10px; margin: 20px 0;">
-                    <h3 style="color: #155724; margin-bottom: 10px;">✅ Qualified for Stage 4!</h3>
-                    <p style="color: #155724;">
-                        Congratulations! You've reached the Live Spell Master rounds.
-                    </p>
-                    <p style="color: #155724; font-weight: bold; margin-top: 15px;">
-                        🎥 The admin has been notified. You will receive a notification when Stage 4 room is ready.
-                    </p>
+            <!-- ✅ SHOW CURRENT RANKINGS -->
+            <div style="background: #f9f9f9; padding: 20px; border-radius: 10px; margin: 20px 0;">
+                <h3 style="color: #0d3b66; margin-bottom: 15px;">📊 Current Stage 3 Rankings</h3>
+                <p style="color: #666; margin-bottom: 15px;">
+                    Your Rank: <strong style="color: ${willMakeTop10 ? '#28a745' : '#dc3545'};">#${myRank}</strong> of ${totalParticipants} participants
+                </p>
+                <div style="max-height: 300px; overflow-y: auto; margin-top: 15px;">
+                    ${allCompletions.slice(0, 15).map((p, index) => `
+                        <div style="display: flex; justify-content: space-between; padding: 10px; margin-bottom: 5px; background: ${p.id === currentUser.uid ? '#e3f2fd' : index < 10 ? '#e8f5e9' : 'white'}; border-radius: 5px; border-left: 4px solid ${index < 10 ? '#28a745' : '#dc3545'};">
+                            <span style="font-weight: ${index < 3 ? 'bold' : 'normal'};">
+                                ${index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`}
+                                ${p.name || 'Player'}
+                                ${p.id === currentUser.uid ? ' (You)' : ''}
+                                ${index < 10 ? ' ✅' : ' ⏸️'}
+                            </span>
+                            <span style="font-weight: bold; color: #28a745;">
+                                ${p.stage3Percentage}%
+                            </span>
+                        </div>
+                    `).join('')}
                 </div>
-                
-                <div id="stage4-join-section" style="margin: 20px 0;">
-                    <div class="loading">⏳ Waiting for admin to create Stage 4 room...</div>
-                </div>
-                
-                <button class="practice-btn" onclick="exitTournament()" style="font-size: 1rem; padding: 12px 30px; background: #6c757d; margin-top: 20px;">
-                    🏠 Return to Lobby
-                </button>
-            ` : `
-                <div style="background: #f8d7da; padding: 20px; border-radius: 10px; margin: 20px 0;">
-                    <h3 style="color: #721c24; margin-bottom: 10px;">❌ Did Not Qualify</h3>
-                    <p style="color: #721c24;">
-                        You need at least 60% accuracy to advance to the Live Rounds.
-                    </p>
-                </div>
-                <button class="practice-btn" onclick="exitTournament()" style="font-size: 1.2rem; padding: 15px 40px;">
-                    🏠 Return to Lobby
-                </button>
-            `}
+                <p style="color: #666; font-size: 0.9rem; margin-top: 15px;">
+                    ${willMakeTop10 ? 
+                        '✅ You\'re currently in TOP 10 position!' : 
+                        '⏸️ You need to be in TOP 10 to advance to Stage 4'
+                    }
+                </p>
+            </div>
+            
+            <!-- ✅ WAITING FOR ADMIN TO CREATE STAGE 4 -->
+            <div style="background: ${willMakeTop10 ? '#d4edda' : '#fff3cd'}; padding: 20px; border-radius: 10px; margin: 20px 0;">
+                <h3 style="color: ${willMakeTop10 ? '#155724' : '#856404'}; margin-bottom: 10px;">
+                    ${willMakeTop10 ? '✅ Eligible for Stage 4!' : '⚠️ Standby Status'}
+                </h3>
+                <p style="color: ${willMakeTop10 ? '#155724' : '#856404'};">
+                    ${willMakeTop10 ? 
+                        'Great job! Once all participants complete Stage 3, the admin will create Stage 4 room for the TOP 10 players.' :
+                        'Your ranking may improve as more players complete Stage 3. Admin will select TOP 10 for Stage 4.'
+                    }
+                </p>
+                <p style="color: ${willMakeTop10 ? '#155724' : '#856404'}; font-weight: bold; margin-top: 15px;">
+                    🎥 The admin has been notified. You will receive a notification when Stage 4 room is ready.
+                </p>
+            </div>
+            
+            <div id="stage4-join-section" style="margin: 20px 0;">
+                <div class="loading">⏳ Waiting for admin to create Stage 4 room...</div>
+            </div>
+            
+            <button class="practice-btn" onclick="exitTournament()" style="font-size: 1rem; padding: 12px 30px; background: #6c757d; margin-top: 20px;">
+                🏠 Return to Lobby
+            </button>
         </div>
     `;
     
     // ✅ LISTEN FOR STAGE 4 ROOM CREATION
-    if (percentage >= 60) {
-        listenForStage4Room();
-    }
+    listenForStage4Room();
 }
-
 
 // ===== NOTIFY ADMIN OF STAGE 3 COMPLETIONS =====
 async function notifyAdminStage3Complete() {
@@ -3454,11 +2948,21 @@ try {
 }
 }
 function keepParticipantStage5(userId) {
-const msg = document.createElement('div');
-msg.style.cssText =         position: fixed; top: 20px; right: 20px;         background: #28a745; color: white;         padding: 15px 25px; border-radius: 8px;         font-weight: bold; z-index: 10001;    ;
-msg.textContent = '✅ Participant kept in Stage 5';
-document.body.appendChild(msg);
-setTimeout(() => msg.remove(), 2000);
+    const msg = document.createElement('div');
+    msg.style.cssText = `
+        position: fixed; 
+        top: 20px; 
+        right: 20px;         
+        background: #28a745; 
+        color: white;         
+        padding: 15px 25px; 
+        border-radius: 8px;         
+        font-weight: bold; 
+        z-index: 10001;
+    `;
+    msg.textContent = '✅ Participant kept in Stage 5';
+    document.body.appendChild(msg);
+    setTimeout(() => msg.remove(), 2000);
 }
 // ===== PARTICIPANT: JOIN STAGE 5 =====
 async function joinStage5Room() {
