@@ -20690,25 +20690,29 @@ async function loadStudentClassView() {
             </div>
             
             <!-- Live Session Active UI (Hidden until joined) -->
-            <div id="student-live-session-active" style="display: none; background: white; padding: 25px; border-radius: 15px; border: 3px solid #28a745; margin-bottom: 30px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                    <h3 style="color: #28a745; margin: 0;">🎥 In Live Session</h3>
-                    <div style="display: flex; gap: 10px;">
-                        <button id="student-toggle-mic-btn" onclick="toggleMicrophone()" class="practice-btn" style="background: #28a745; padding: 10px 20px;">
-                            🎤 Mute
-                        </button>
-                        <button onclick="endLiveSession()" class="practice-btn" style="background: #dc3545; padding: 10px 20px;">
-                            ❌ Leave Session
-                        </button>
+            <div id="student-live-session-active" style="display: none;">
+                <div style="background: white; padding: 20px; border-radius: 10px; border: 2px solid #28a745; margin-bottom: 30px;">
+                    <div style="margin-bottom: 20px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                            <h3 style="color: #28a745; margin: 0; flex-shrink: 0;">🎥 In Live Session</h3>
+                            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                                <button id="student-toggle-mic-btn" class="practice-btn" onclick="toggleMicrophone()" style="background: #28a745; white-space: nowrap; padding: 10px 20px;">
+                                    🎤 Mute
+                                </button>
+                                <button class="practice-btn" onclick="endLiveSession()" style="background: #dc3545; white-space: nowrap; padding: 10px 20px;">
+                                    ❌ Leave Session
+                                </button>
+                            </div>
+                        </div>
                     </div>
+                    
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 10px;">
+                        <h4 style="color: #0d3b66; margin-bottom: 15px;">👥 Participants</h4>
+                        <div id="student-session-participants-list"></div>
+                    </div>
+                    
+                    <div id="remote-audio-container" style="display: none;"></div>
                 </div>
-                
-                <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
-                    <h4 style="color: #0d3b66; margin-bottom: 15px;">👥 Participants</h4>
-                    <div id="student-session-participants-list"></div>
-                </div>
-                
-                <div id="remote-audio-container" style="display: none;"></div>
             </div>
         ` : '';
         
@@ -20817,7 +20821,7 @@ async function loadStudentClassView() {
         `;
     }
 }
-        
+
 // ===== COACH CLASS VIEW =====
 async function loadCoachClassView() {
     try {
@@ -20828,17 +20832,17 @@ async function loadCoachClassView() {
             .get();
         
         if (classQuery.empty) {
-           // Create class for coach
-const classRef = await db.collection('classes').add({
-    coachId: currentUser.uid,
-    coachName: currentUser.displayName || 'Coach',
-    coachEmail: currentUser.email,
-    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-    studentCount: 0,
-    liveSessionActive: false,
-    liveSessionId: null,
-    sessionCount: 0  // ✅ ADD THIS LINE
-});
+            // Create class for coach
+            const classRef = await db.collection('classes').add({
+                coachId: currentUser.uid,
+                coachName: currentUser.displayName || 'Coach',
+                coachEmail: currentUser.email,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                studentCount: 0,
+                liveSessionActive: false,
+                liveSessionId: null,
+                sessionCount: 0
+            });
             
             // Update user with classId
             await db.collection('users').doc(currentUser.uid).update({
@@ -20889,7 +20893,6 @@ const classRef = await db.collection('classes').add({
         alert('Failed to load class management: ' + error.message);
     }
 }
-
 async function loadClassStudents() {
     try {
         const studentsSnapshot = await db.collection('users')
