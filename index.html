@@ -4579,6 +4579,102 @@
         </div>
     </div>
 </div>
+
+
+    <!-- Class Section -->
+<div id="class-section" class="content-section">
+    <div class="word-database">
+        <div class="database-header">
+            <h2 id="class-section-title">MY CLASS</h2>
+        </div>
+        
+        <!-- Student View -->
+        <div id="student-class-view" style="display: none;">
+            <div id="student-class-info" class="loading">Loading class information...</div>
+        </div>
+        
+        <!-- Coach View -->
+        <div id="coach-class-view" style="display: none;">
+            <div class="dashboard-section">
+                <h2 class="section-title">📚 CLASS MANAGEMENT</h2>
+                
+                <!-- Class Stats -->
+                <div class="dashboard-grid" id="coach-class-stats">
+                    <div class="dashboard-card">
+                        <div class="card-icon">👥</div>
+                        <div class="stat-number" id="class-student-count">0</div>
+                        <div class="card-label">Students</div>
+                    </div>
+                    <div class="dashboard-card">
+                        <div class="card-icon">📢</div>
+                        <div class="stat-number" id="class-announcement-count">0</div>
+                        <div class="card-label">Announcements</div>
+                    </div>
+                    <div class="dashboard-card">
+                        <div class="card-icon">🎥</div>
+                        <div class="stat-number" id="class-session-count">0</div>
+                        <div class="card-label">Sessions</div>
+                    </div>
+                </div>
+                
+                <!-- Announcements Section -->
+                <div style="margin-top: 30px;">
+                    <h3 style="color: #0d3b66; margin-bottom: 15px;">📢 Announcements</h3>
+                    <button class="practice-btn" onclick="showAddAnnouncementModal()" style="margin-bottom: 20px;">
+                        ➕ Add Announcement
+                    </button>
+                    <div id="coach-announcements-list"></div>
+                </div>
+                
+                <!-- Students List -->
+                <div style="margin-top: 30px;">
+                    <h3 style="color: #0d3b66; margin-bottom: 15px;">👥 Class Students</h3>
+                    <div id="coach-students-list"></div>
+                </div>
+                
+                <!-- Live Session Controls -->
+                <div style="margin-top: 30px;">
+                    <h3 style="color: #0d3b66; margin-bottom: 15px;">🎥 Live Session</h3>
+                    <button class="practice-btn" id="start-session-btn" onclick="startLiveSession()" style="background: #28a745;">
+                        🎥 Start Live Session
+                    </button>
+                    <div id="live-session-container" style="display: none;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Announcement Modal -->
+<div class="auth-modal" id="announcementModal">
+    <div class="auth-content" style="max-width: 600px;">
+        <div class="auth-header">
+            <h2>📢 Add Announcement</h2>
+            <button class="modal-close" onclick="closeAnnouncementModal()">×</button>
+        </div>
+        <div class="auth-body">
+            <form id="announcement-form" onsubmit="handleAddAnnouncement(event)">
+                <div class="form-group">
+                    <label>Title *</label>
+                    <input type="text" id="announcement-title" required maxlength="100">
+                </div>
+                
+                <div class="form-group">
+                    <label>Message *</label>
+                    <textarea id="announcement-message" required rows="5" style="width: 100%; padding: 12px; border: 2px solid #0d3b66; border-radius: 5px; font-family: Georgia, serif; resize: vertical;"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label>Next Class Date (Optional)</label>
+                    <input type="datetime-local" id="announcement-class-date" style="width: 100%; padding: 12px; border: 2px solid #0d3b66; border-radius: 5px; font-family: Georgia, serif;">
+                </div>
+                
+                <button type="submit" class="auth-submit">📢 Post Announcement</button>
+                <div id="announcement-error" class="feedback error" style="display:none; margin-top:15px;"></div>
+            </form>
+        </div>
+    </div>
+</div>
     <script>
         // ===== FIREBASE CONFIGURATION =====
         const firebaseConfig = {
