@@ -20882,10 +20882,16 @@ async function loadCoachClassView() {
         // Update stats
         updateCoachClassStats();
         
-        // Check if there's an active session and restore it
-        if (myClass.liveSessionActive) {
-            // Show that session is active but don't auto-join
-            console.log('ℹ️ Active session detected');
+        // ✅ CHECK IF SESSION IS ACTIVE AND ALLOW COACH TO REJOIN
+        if (myClass.liveSessionActive && myClass.liveSessionId) {
+            console.log('ℹ️ Active session detected - showing rejoin option');
+            
+            // Update button text to show rejoin option
+            const startBtn = document.getElementById('start-session-btn');
+            if (startBtn) {
+                startBtn.textContent = '🔄 Rejoin Live Session';
+                startBtn.style.background = '#17a2b8'; // Blue color for rejoin
+            }
         }
         
     } catch (error) {
@@ -20893,6 +20899,8 @@ async function loadCoachClassView() {
         alert('Failed to load class management: ' + error.message);
     }
 }
+
+        
 async function loadClassStudents() {
     try {
         const studentsSnapshot = await db.collection('users')
@@ -21106,6 +21114,9 @@ async function startLiveSession() {
     }
     
     try {
+        // ✅ CHECK IF SESSION IS ALREADY ACTIVE (REJOIN SCENARIO)
+        const isRejoin = myClass.liveSessionActive && myClass.liveSessionId;
+        
         // Get microphone permission
         localAudioStream = await navigator.mediaDevices.getUserMedia({ 
             audio: {
@@ -21117,31 +21128,34 @@ async function startLiveSession() {
         
         console.log('✅ Microphone access granted');
         
-        // Create session in Firestore
-        liveSessionId = myClass.id; // Use class ID as session ID
+        if (!isRejoin) {
+            // Starting new session
+            liveSessionId = myClass.id;
+            
+            const currentSessionCount = myClass.sessionCount || 0;
+            
+            await db.collection('classes').doc(myClass.id).update({
+                liveSessionActive: true,
+                liveSessionId: liveSessionId,
+                liveSessionStartedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                liveSessionHost: currentUser.uid,
+                sessionCount: currentSessionCount + 1
+            });
+            
+            console.log('✅ New session started:', {
+                liveSessionActive: true,
+                liveSessionId: liveSessionId,
+                sessionCount: currentSessionCount + 1
+            });
+            
+            myClass.sessionCount = currentSessionCount + 1;
+        } else {
+            // Rejoining existing session
+            liveSessionId = myClass.liveSessionId;
+            console.log('🔄 Rejoining existing session:', liveSessionId);
+        }
         
-        // ✅ FIXED: Increment session count
-        const currentSessionCount = myClass.sessionCount || 0;
-        
-        // ✅ FIXED: Set BOTH flags to true to indicate active session AND increment session count
-        await db.collection('classes').doc(myClass.id).update({
-            liveSessionActive: true,
-            liveSessionId: liveSessionId,
-            liveSessionStartedAt: firebase.firestore.FieldValue.serverTimestamp(),
-            liveSessionHost: currentUser.uid,
-            sessionCount: currentSessionCount + 1  // ✅ INCREMENT SESSION COUNT
-        });
-        
-        console.log('✅ Session started in Firestore:', {
-            liveSessionActive: true,
-            liveSessionId: liveSessionId,
-            sessionCount: currentSessionCount + 1
-        });
-        
-        // Update local myClass object
-        myClass.sessionCount = currentSessionCount + 1;
-        
-        // Add coach as first participant
+        // Add/update coach as participant
         await db.collection('classes')
             .doc(myClass.id)
             .collection('sessionParticipants')
@@ -21165,13 +21179,14 @@ async function startLiveSession() {
         if (startBtn) startBtn.style.display = 'none';
         if (liveSessionContainer) liveSessionContainer.style.display = 'block';
         
-        // ✅ UPDATE SESSION COUNT IN UI
+        // Update session count in UI
         updateCoachClassStats();
         
         // Listen for participants joining
         listenForSessionParticipants();
         
-        alert('✅ Live session started! Students can now join.');
+        const message = isRejoin ? '✅ Rejoined live session!' : '✅ Live session started! Students can now join.';
+        alert(message);
         
     } catch (error) {
         console.error('Error starting live session:', error);
@@ -21188,16 +21203,6 @@ async function startLiveSession() {
         if (localAudioStream) {
             localAudioStream.getTracks().forEach(track => track.stop());
             localAudioStream = null;
-        }
-        
-        // ✅ Cleanup Firestore if session creation failed
-        try {
-            await db.collection('classes').doc(myClass.id).update({
-                liveSessionActive: false,
-                liveSessionId: null
-            });
-        } catch (cleanupError) {
-            console.error('Error cleaning up failed session:', cleanupError);
         }
     }
 }
@@ -21993,16 +21998,31 @@ async function endLiveSession() {
             if (liveSessionContainer) liveSessionContainer.style.display = 'none';
             if (startBtn) startBtn.style.display = 'block';
         } else {
-            const liveSessionContainer = document.getElementById('student-live-session-active');
-            const joinBtn = document.getElementById('join-session-btn');
+            // ✅ STUDENT: Show join button again if session is still active
+            const userDoc = await db.collection('users').doc(currentUser.uid).get();
+            const userData = userDoc.data();
             
-            if (liveSessionContainer) liveSessionContainer.style.display = 'none';
-            if (joinBtn) joinBtn.style.display = 'block';
+            if (userData.classId) {
+                const classDoc = await db.collection('classes').doc(userData.classId).get();
+                const classData = classDoc.data();
+                
+                // If session is still active, show join button
+                if (classData && classData.liveSessionActive && classData.liveSessionId) {
+                    const liveSessionContainer = document.getElementById('student-live-session-active');
+                    const joinContainer = document.getElementById('live-session-join-container');
+                    
+                    if (liveSessionContainer) liveSessionContainer.style.display = 'none';
+                    if (joinContainer) joinContainer.style.display = 'block';
+                } else {
+                    // Session ended, reload view
+                    await loadStudentClassView();
+                }
+            }
         }
         
         sessionParticipants.clear();
         liveSessionActive = false;
-        liveSessionId = null;
+        isMicMuted = false;
         
         const message = isCoachUser ? '✅ Live session ended' : '✅ Left live session';
         alert(message);
@@ -22012,7 +22032,6 @@ async function endLiveSession() {
         alert('Error ending session: ' + error.message);
     }
 }
-
 // ===== CHECK FOR ACTIVE SESSION (FOR STUDENTS) =====
 async function checkForActiveSession() {
     if (!currentUser) return;
