@@ -20466,7 +20466,386 @@ document.addEventListener('click', function(event) {
         closeStudentDetailModal();
     }
 });
-      
+
+
+  // ===== CLASS LOADING FUNCTION =====
+async function loadMyClass() {
+    if (!currentUser) {
+        alert('Please sign in to access your class');
+        showAuthModal();
+        return;
+    }
+
+    try {
+        const userDoc = await db.collection('users').doc(currentUser.uid).get();
+        const userData = userDoc.data();
+
+        if (!userData || (!userData.userType === 'student' && userData.userType !== 'coach')) {
+            alert('Only students and coaches can access classes');
+            navigateTo('home');
+            return;
+        }
+
+        // Show appropriate view based on user type
+        const studentView = document.getElementById('student-class-view');
+        const coachView = document.getElementById('coach-class-view');
+        
+        if (userData.userType === 'student') {
+            studentView.style.display = 'block';
+            coachView.style.display = 'none';
+            await loadStudentClassView();
+        } else if (userData.userType === 'coach') {
+            studentView.style.display = 'none';
+            coachView.style.display = 'block';
+            await loadCoachClassView();
+        }
+
+    } catch (error) {
+        console.error('Error loading class:', error);
+        alert('Failed to load class information');
+    }
+}
+
+// ===== STUDENT CLASS VIEW =====
+async function loadStudentClassView() {
+    const container = document.getElementById('student-class-info');
+    
+    try {
+        container.innerHTML = '<div class="loading">Loading your class...</div>';
+        
+        // Check if student has a class
+        const userDoc = await db.collection('users').doc(currentUser.uid).get();
+        const userData = userDoc.data();
+        
+        if (!userData.classId) {
+            container.innerHTML = `
+                <div style="text-align: center; padding: 40px;">
+                    <div style="font-size: 3rem; margin-bottom: 20px;">📚</div>
+                    <h3>You're not in a class yet</h3>
+                    <p style="color: #666; margin: 20px 0;">
+                        Browse available coaches and book one to join their class!
+                    </p>
+                    <button class="practice-btn" onclick="navigateTo('coaches')">
+                        Browse Coaches
+                    </button>
+                </div>
+            `;
+            return;
+        }
+        
+        // Load class info
+        const classDoc = await db.collection('classes').doc(userData.classId).get();
+        
+        if (!classDoc.exists) {
+            container.innerHTML = `
+                <div class="feedback error">
+                    Class not found. Please contact your coach.
+                </div>
+            `;
+            return;
+        }
+        
+        const classData = classDoc.data();
+        
+        // Load coach info
+        const coachDoc = await db.collection('users').doc(classData.coachId).get();
+        const coachData = coachDoc.data();
+        
+        // Load announcements
+        const announcementsSnapshot = await db.collection('classes')
+            .doc(userData.classId)
+            .collection('announcements')
+            .orderBy('createdAt', 'desc')
+            .limit(5)
+            .get();
+        
+        const announcements = [];
+        announcementsSnapshot.forEach(doc => {
+            announcements.push({ id: doc.id, ...doc.data() });
+        });
+        
+        // Display class info
+        container.innerHTML = `
+            <div class="dashboard-section">
+                <h3 style="color: #0d3b66; margin-bottom: 20px;">👨‍🏫 Your Coach</h3>
+                <div style="background: white; padding: 20px; border-radius: 10px; border: 2px solid #0d3b66; margin-bottom: 30px;">
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <div class="coach-avatar" style="width: 60px; height: 60px; ${coachData.photoURL ? `background-image: url('${coachData.photoURL}'); background-size: cover;` : ''}">
+                            ${!coachData.photoURL ? (coachData.name || 'C').charAt(0).toUpperCase() : ''}
+                        </div>
+                        <div>
+                            <h3 style="margin: 0; color: #0d3b66;">${coachData.name || 'Coach'}</h3>
+                            <p style="margin: 5px 0 0 0; color: #666;">${coachData.email}</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <h3 style="color: #0d3b66; margin-bottom: 20px;">📢 Recent Announcements</h3>
+                ${announcements.length > 0 ? `
+                    <div style="display: flex; flex-direction: column; gap: 15px;">
+                        ${announcements.map(ann => `
+                            <div style="background: white; padding: 20px; border-radius: 10px; border-left: 4px solid #0d3b66;">
+                                <h4 style="margin: 0 0 10px 0; color: #0d3b66;">${ann.title}</h4>
+                                <p style="margin: 0; color: #666; white-space: pre-wrap;">${ann.message}</p>
+                                ${ann.nextClassDate ? `
+                                    <p style="margin: 10px 0 0 0; color: #28a745; font-weight: bold;">
+                                        🎥 Next Class: ${new Date(ann.nextClassDate).toLocaleString()}
+                                    </p>
+                                ` : ''}
+                                <p style="margin: 10px 0 0 0; color: #999; font-size: 0.9rem;">
+                                    ${ann.createdAt ? ann.createdAt.toDate().toLocaleString() : 'Recently'}
+                                </p>
+                            </div>
+                        `).join('')}
+                    </div>
+                ` : `
+                    <div style="text-align: center; padding: 40px; background: #f8f9fa; border-radius: 10px;">
+                        <p style="color: #666;">No announcements yet</p>
+                    </div>
+                `}
+            </div>
+        `;
+        
+    } catch (error) {
+        console.error('Error loading student class view:', error);
+        container.innerHTML = `
+            <div class="feedback error">
+                Failed to load class information: ${error.message}
+            </div>
+        `;
+    }
+}
+
+// ===== COACH CLASS VIEW =====
+async function loadCoachClassView() {
+    try {
+        // Get coach's class
+        const classQuery = await db.collection('classes')
+            .where('coachId', '==', currentUser.uid)
+            .limit(1)
+            .get();
+        
+        if (classQuery.empty) {
+            // Create class for coach
+            const classRef = await db.collection('classes').add({
+                coachId: currentUser.uid,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                studentCount: 0
+            });
+            
+            // Update user with classId
+            await db.collection('users').doc(currentUser.uid).update({
+                classId: classRef.id
+            });
+            
+            myClass = {
+                id: classRef.id,
+                coachId: currentUser.uid,
+                studentCount: 0
+            };
+        } else {
+            const classDoc = classQuery.docs[0];
+            myClass = { id: classDoc.id, ...classDoc.data() };
+        }
+        
+        // Load students
+        await loadClassStudents();
+        
+        // Load announcements
+        await loadClassAnnouncements();
+        
+        // Update stats
+        updateCoachClassStats();
+        
+    } catch (error) {
+        console.error('Error loading coach class view:', error);
+        alert('Failed to load class management');
+    }
+}
+
+async function loadClassStudents() {
+    try {
+        const studentsSnapshot = await db.collection('users')
+            .where('classId', '==', myClass.id)
+            .get();
+        
+        classStudents = [];
+        studentsSnapshot.forEach(doc => {
+            classStudents.push({ id: doc.id, ...doc.data() });
+        });
+        
+        displayClassStudents();
+    } catch (error) {
+        console.error('Error loading class students:', error);
+    }
+}
+
+async function loadClassAnnouncements() {
+    try {
+        const announcementsSnapshot = await db.collection('classes')
+            .doc(myClass.id)
+            .collection('announcements')
+            .orderBy('createdAt', 'desc')
+            .get();
+        
+        classAnnouncements = [];
+        announcementsSnapshot.forEach(doc => {
+            classAnnouncements.push({ id: doc.id, ...doc.data() });
+        });
+        
+        displayClassAnnouncements();
+    } catch (error) {
+        console.error('Error loading announcements:', error);
+    }
+}
+
+function displayClassStudents() {
+    const container = document.getElementById('coach-students-list');
+    
+    if (classStudents.length === 0) {
+        container.innerHTML = `
+            <div style="text-align: center; padding: 40px; background: #f8f9fa; border-radius: 10px;">
+                <p style="color: #666;">No students in your class yet</p>
+                <button class="practice-btn" onclick="navigateTo('students')" style="margin-top: 15px;">
+                    Browse Students
+                </button>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = `
+        <div style="display: grid; gap: 15px;">
+            ${classStudents.map(student => `
+                <div style="background: white; padding: 15px; border-radius: 10px; border: 2px solid #0d3b66; display: flex; align-items: center; gap: 15px;">
+                    <div class="coach-avatar" style="width: 50px; height: 50px; ${student.photoURL ? `background-image: url('${student.photoURL}'); background-size: cover;` : ''}">
+                        ${!student.photoURL ? (student.name || 'S').charAt(0).toUpperCase() : ''}
+                    </div>
+                    <div style="flex: 1;">
+                        <h4 style="margin: 0; color: #0d3b66;">${student.name || 'Student'}</h4>
+                        <p style="margin: 5px 0 0 0; color: #666; font-size: 0.9rem;">${student.email}</p>
+                    </div>
+                </div>
+            `).join('')}
+        </div>
+    `;
+}
+
+function displayClassAnnouncements() {
+    const container = document.getElementById('coach-announcements-list');
+    
+    if (classAnnouncements.length === 0) {
+        container.innerHTML = `
+            <div style="text-align: center; padding: 40px; background: #f8f9fa; border-radius: 10px;">
+                <p style="color: #666;">No announcements yet</p>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = `
+        <div style="display: grid; gap: 15px;">
+            ${classAnnouncements.map(ann => `
+                <div style="background: white; padding: 20px; border-radius: 10px; border-left: 4px solid #0d3b66;">
+                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
+                        <h4 style="margin: 0; color: #0d3b66;">${ann.title}</h4>
+                        <button onclick="deleteAnnouncement('${ann.id}')" style="background: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer;">
+                            🗑️
+                        </button>
+                    </div>
+                    <p style="margin: 10px 0; color: #666; white-space: pre-wrap;">${ann.message}</p>
+                    ${ann.nextClassDate ? `
+                        <p style="margin: 10px 0 0 0; color: #28a745; font-weight: bold;">
+                            🎥 Next Class: ${new Date(ann.nextClassDate).toLocaleString()}
+                        </p>
+                    ` : ''}
+                    <p style="margin: 10px 0 0 0; color: #999; font-size: 0.9rem;">
+                        ${ann.createdAt ? ann.createdAt.toDate().toLocaleString() : 'Recently'}
+                    </p>
+                </div>
+            `).join('')}
+        </div>
+    `;
+}
+
+function updateCoachClassStats() {
+    document.getElementById('class-student-count').textContent = classStudents.length;
+    document.getElementById('class-announcement-count').textContent = classAnnouncements.length;
+    document.getElementById('class-session-count').textContent = '0'; // Implement later
+}
+
+function showAddAnnouncementModal() {
+    document.getElementById('announcementModal').classList.add('active');
+}
+
+function closeAnnouncementModal() {
+    document.getElementById('announcementModal').classList.remove('active');
+    document.getElementById('announcement-form').reset();
+    document.getElementById('announcement-error').style.display = 'none';
+}
+
+async function handleAddAnnouncement(event) {
+    event.preventDefault();
+    
+    const title = document.getElementById('announcement-title').value.trim();
+    const message = document.getElementById('announcement-message').value.trim();
+    const classDate = document.getElementById('announcement-class-date').value;
+    const errorDiv = document.getElementById('announcement-error');
+    
+    if (!title || !message) {
+        errorDiv.textContent = 'Please fill in all required fields';
+        errorDiv.style.display = 'block';
+        return;
+    }
+    
+    try {
+        await db.collection('classes')
+            .doc(myClass.id)
+            .collection('announcements')
+            .add({
+                title,
+                message,
+                nextClassDate: classDate || null,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        
+        closeAnnouncementModal();
+        await loadClassAnnouncements();
+        updateCoachClassStats();
+        
+        alert('✅ Announcement posted successfully!');
+    } catch (error) {
+        console.error('Error posting announcement:', error);
+        errorDiv.textContent = 'Failed to post announcement: ' + error.message;
+        errorDiv.style.display = 'block';
+    }
+}
+
+async function deleteAnnouncement(announcementId) {
+    if (!confirm('Are you sure you want to delete this announcement?')) {
+        return;
+    }
+    
+    try {
+        await db.collection('classes')
+            .doc(myClass.id)
+            .collection('announcements')
+            .doc(announcementId)
+            .delete();
+        
+        await loadClassAnnouncements();
+        updateCoachClassStats();
+        
+        alert('✅ Announcement deleted');
+    } catch (error) {
+        console.error('Error deleting announcement:', error);
+        alert('Failed to delete announcement');
+    }
+}
+
+function startLiveSession() {
+    alert('Live sessions coming soon!');
+}      
     </script>
 </body>
 </html>
