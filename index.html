@@ -4912,6 +4912,13 @@ const STAGE3_CUTOFF_TIME = 15 * 60 * 1000; // 15 minutes to complete Stage 3
 const STAGE3_ELIMINATION_DELAY = 2 * 60 * 1000; // Wait 2 minutes after first completion before eliminating
 let stage3FirstCompletionTime = null;
 
+
+   // ===== CLASS SYSTEM VARIABLES =====
+let myClass = null;
+let classStudents = [];
+let classAnnouncements = [];
+let liveSessionActive = false;
+let liveSessionParticipants = [];     
         
      // ===== INITIALIZE =====
 document.addEventListener('DOMContentLoaded', function() {
