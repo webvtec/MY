@@ -567,7 +567,8 @@ async function navigateTo(section, skipSidebarClose = false) {
 
 
 
-  // ===== COACHES DISPLAY FUNCTIONS =====
+
+    // ===== COACHES DISPLAY FUNCTIONS =====
 async function loadAndDisplayCoaches() {
     const container = document.getElementById('coaches-container');
     
@@ -720,7 +721,7 @@ async function showCoachDetailById(coachId) {
 }
 
 // Display coach detail modal
-function showCoachDetail(coach) {
+async function showCoachDetail(coach) {
     console.log('Displaying coach modal:', coach.name);
     const modal = document.getElementById('coachDetailModal');
     
@@ -775,10 +776,43 @@ function showCoachDetail(coach) {
         ageRow.style.display = 'none';
     }
     
+    // ✅ ADD BOOK COACH BUTTON FOR STUDENTS
+    const coachDetailBody = document.querySelector('.coach-detail-body');
+    
+    // Remove any existing book button first
+    const existingBookBtn = coachDetailBody.querySelector('.book-coach-container');
+    if (existingBookBtn) {
+        existingBookBtn.remove();
+    }
+    
+    if (currentUser) {
+        try {
+            const userDoc = await db.collection('users').doc(currentUser.uid).get();
+            const userData = userDoc.data();
+            
+            if (userData && userData.userType === 'student') {
+                const bookBtnContainer = document.createElement('div');
+                bookBtnContainer.className = 'book-coach-container';
+                bookBtnContainer.style.cssText = 'margin-top: 20px; text-align: center;';
+                
+                bookBtnContainer.innerHTML = `
+                    <button class="practice-btn" onclick="bookCoach('${coach.id}', '${coach.name}')" 
+                            style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); font-size: 1.1rem; padding: 15px 30px;">
+                        📚 Book This Coach
+                    </button>
+                `;
+                
+                coachDetailBody.appendChild(bookBtnContainer);
+            }
+        } catch (error) {
+            console.error('Error checking user type for booking:', error);
+        }
+    }
+    
     // Show modal
     modal.classList.add('active');
     console.log('Modal displayed');
-}
+}     
 
 // Close coach detail modal
 function closeCoachDetailModal() {
@@ -940,7 +974,7 @@ async function showStudentDetailById(studentId) {
 }
 
 // Display student detail modal
-function showStudentDetail(student) {
+async function showStudentDetail(student) {
     console.log('Displaying student modal:', student.name);
     const modal = document.getElementById('studentDetailModal');
     
@@ -992,11 +1026,44 @@ function showStudentDetail(student) {
         document.getElementById('modal-student-joined').textContent = 'Recently';
     }
     
+    // ✅ ADD RECRUIT BUTTON FOR COACHES
+    const studentDetailBody = document.querySelector('.student-detail-body');
+    
+    // Remove any existing recruit button first
+    const existingRecruitBtn = studentDetailBody.querySelector('.recruit-student-container');
+    if (existingRecruitBtn) {
+        existingRecruitBtn.remove();
+    }
+    
+    if (currentUser) {
+        try {
+            const userDoc = await db.collection('users').doc(currentUser.uid).get();
+            const userData = userDoc.data();
+            
+            if (userData && userData.userType === 'coach') {
+                const recruitBtnContainer = document.createElement('div');
+                recruitBtnContainer.className = 'recruit-student-container';
+                recruitBtnContainer.style.cssText = 'margin-top: 20px; text-align: center;';
+                
+                recruitBtnContainer.innerHTML = `
+                    <button class="practice-btn" onclick="recruitStudent('${student.id}', '${student.name}')" 
+                            style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); font-size: 1.1rem; padding: 15px 30px;">
+                        ➕ Recruit to My Class
+                    </button>
+                `;
+                
+                studentDetailBody.appendChild(recruitBtnContainer);
+            }
+        } catch (error) {
+            console.error('Error checking user type for recruiting:', error);
+        }
+    }
+    
     // Show modal
     modal.classList.add('active');
     console.log('Modal displayed');
 }
-
+        
 // Close student detail modal
 function closeStudentDetailModal() {
     document.getElementById('studentDetailModal').classList.remove('active');
@@ -1009,7 +1076,7 @@ document.addEventListener('click', function(event) {
         closeStudentDetailModal();
     }
 });
-
-</script>
-</html>
+      
+    </script>
 </body>
+</html>
