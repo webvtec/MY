@@ -20679,9 +20679,9 @@ async function loadStudentClassView() {
             announcements.push({ id: doc.id, ...doc.data() });
         });
         
-        // Check if there's an active live session
-        const liveSessionHtml = classData.liveSessionActive ? `
-            <div style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); padding: 25px; border-radius: 15px; text-align: center; margin-bottom: 30px; box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);">
+        // ✅ FIXED: Only show live session if it's truly active AND has a sessionId
+        const liveSessionHtml = (classData.liveSessionActive === true && classData.liveSessionId) ? `
+            <div id="live-session-join-container" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); padding: 25px; border-radius: 15px; text-align: center; margin-bottom: 30px; box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);">
                 <h3 style="color: white; margin-bottom: 15px; font-size: 1.5rem;">🎥 Live Session Active!</h3>
                 <p style="color: rgba(255,255,255,0.95); margin-bottom: 20px;">Your coach has started a live session. Join now to participate!</p>
                 <button id="join-session-btn" class="practice-btn" onclick="joinLiveSession()" style="background: white; color: #28a745; font-size: 1.2rem; font-weight: bold; padding: 15px 40px;">
@@ -20776,24 +20776,34 @@ async function loadStudentClassView() {
         // Set up live session listener for real-time updates
         liveSessionId = userData.classId;
         
-        // Listen for session status changes
+        // ✅ FIXED: Listen for session status changes with proper validation
         db.collection('classes').doc(userData.classId).onSnapshot(doc => {
             if (doc.exists) {
                 const data = doc.data();
-                const joinBtn = document.getElementById('join-session-btn');
-                const activeSession = document.getElementById('student-live-session-active');
+                
+                // ✅ Check if session is TRULY active (both flags must be true)
+                const sessionIsActive = data.liveSessionActive === true && data.liveSessionId != null;
+                
+                const joinContainer = document.getElementById('live-session-join-container');
+                const activeSessionUI = document.getElementById('student-live-session-active');
                 
                 // If session just started and we're not in it yet
-                if (data.liveSessionActive && joinBtn && !liveSessionActive) {
-                    // Session is active, show join button (already in HTML)
-                    console.log('✅ Live session is active');
+                if (sessionIsActive && !liveSessionActive) {
+                    // Show join button if it doesn't exist
+                    if (!joinContainer) {
+                        // Reload the view to show the join button
+                        loadStudentClassView();
+                    }
                 }
                 
-                // If session ended while we were in it
-                if (!data.liveSessionActive && liveSessionActive) {
-                    alert('📢 The live session has ended');
-                    endLiveSession();
-                    loadStudentClassView(); // Reload to remove session UI
+                // If session ended while we were in it or viewing
+                if (!sessionIsActive && (liveSessionActive || joinContainer)) {
+                    if (liveSessionActive) {
+                        alert('📢 The live session has ended');
+                        endLiveSession();
+                    }
+                    // Reload to remove session UI
+                    loadStudentClassView();
                 }
             }
         });
@@ -20807,7 +20817,6 @@ async function loadStudentClassView() {
         `;
     }
 }
-
         
 // ===== COACH CLASS VIEW =====
 async function loadCoachClassView() {
@@ -21108,11 +21117,17 @@ async function startLiveSession() {
         // Create session in Firestore
         liveSessionId = myClass.id; // Use class ID as session ID
         
+        // ✅ FIXED: Set BOTH flags to true to indicate active session
         await db.collection('classes').doc(myClass.id).update({
             liveSessionActive: true,
             liveSessionId: liveSessionId,
             liveSessionStartedAt: firebase.firestore.FieldValue.serverTimestamp(),
             liveSessionHost: currentUser.uid
+        });
+        
+        console.log('✅ Session started in Firestore:', {
+            liveSessionActive: true,
+            liveSessionId: liveSessionId
         });
         
         // Add coach as first participant
@@ -21155,13 +21170,23 @@ async function startLiveSession() {
             alert('Failed to start session: ' + error.message);
         }
         
+        // Cleanup on error
         if (localAudioStream) {
             localAudioStream.getTracks().forEach(track => track.stop());
             localAudioStream = null;
         }
+        
+        // ✅ Cleanup Firestore if session creation failed
+        try {
+            await db.collection('classes').doc(myClass.id).update({
+                liveSessionActive: false,
+                liveSessionId: null
+            });
+        } catch (cleanupError) {
+            console.error('Error cleaning up failed session:', cleanupError);
+        }
     }
 }
-
         
 // ===== JOIN LIVE SESSION (STUDENT) =====
 async function joinLiveSession() {
