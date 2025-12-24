@@ -711,8 +711,7 @@ async function navigateTo(section, skipSidebarClose = false) {
 
 
 
-
-      // ===== COACHES DISPLAY FUNCTIONS =====
+   // ===== COACHES DISPLAY FUNCTIONS =====
 async function loadAndDisplayCoaches() {
     const container = document.getElementById('coaches-container');
     
@@ -1365,8 +1364,43 @@ async function loadStudentClassView() {
             announcements.push({ id: doc.id, ...doc.data() });
         });
         
+        // ✅ FIXED: Only show live session if it's truly active AND has a sessionId
+        const liveSessionHtml = (classData.liveSessionActive === true && classData.liveSessionId) ? `
+            <div id="live-session-join-container" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); padding: 25px; border-radius: 15px; text-align: center; margin-bottom: 30px; box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);">
+                <h3 style="color: white; margin-bottom: 15px; font-size: 1.5rem;">🎥 Live Session Active!</h3>
+                <p style="color: rgba(255,255,255,0.95); margin-bottom: 20px;">Your coach has started a live session. Join now to participate!</p>
+                <button id="join-session-btn" class="practice-btn" onclick="joinLiveSession()" style="background: white; color: #28a745; font-size: 1.2rem; font-weight: bold; padding: 15px 40px;">
+                    🎤 Join Live Session
+                </button>
+            </div>
+            
+            <!-- Live Session Active UI (Hidden until joined) -->
+            <div id="student-live-session-active" style="display: none; background: white; padding: 25px; border-radius: 15px; border: 3px solid #28a745; margin-bottom: 30px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h3 style="color: #28a745; margin: 0;">🎥 In Live Session</h3>
+                    <div style="display: flex; gap: 10px;">
+                        <button id="student-toggle-mic-btn" onclick="toggleMicrophone()" class="practice-btn" style="background: #28a745; padding: 10px 20px;">
+                            🎤 Mute
+                        </button>
+                        <button onclick="endLiveSession()" class="practice-btn" style="background: #dc3545; padding: 10px 20px;">
+                            ❌ Leave Session
+                        </button>
+                    </div>
+                </div>
+                
+                <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                    <h4 style="color: #0d3b66; margin-bottom: 15px;">👥 Participants</h4>
+                    <div id="student-session-participants-list"></div>
+                </div>
+                
+                <div id="remote-audio-container" style="display: none;"></div>
+            </div>
+        ` : '';
+        
         // Display class info
         container.innerHTML = `
+            ${liveSessionHtml}
+            
             <div class="dashboard-section">
                 <h3 style="color: #0d3b66; margin-bottom: 20px;">👨‍🏫 Your Coach</h3>
                 <div style="background: white; padding: 20px; border-radius: 10px; border: 2px solid #0d3b66; margin-bottom: 30px;">
@@ -1384,20 +1418,37 @@ async function loadStudentClassView() {
                 <h3 style="color: #0d3b66; margin-bottom: 20px;">📢 Recent Announcements</h3>
                 ${announcements.length > 0 ? `
                     <div style="display: flex; flex-direction: column; gap: 15px;">
-                        ${announcements.map(ann => `
-                            <div style="background: white; padding: 20px; border-radius: 10px; border-left: 4px solid #0d3b66;">
-                                <h4 style="margin: 0 0 10px 0; color: #0d3b66;">${ann.title}</h4>
-                                <p style="margin: 0; color: #666; white-space: pre-wrap;">${ann.message}</p>
-                                ${ann.nextClassDate ? `
+                        ${announcements.map(ann => {
+                            let nextClassHtml = '';
+                            if (ann.nextClassDate) {
+                                const classDate = new Date(ann.nextClassDate);
+                                const options = { 
+                                    year: 'numeric', 
+                                    month: 'long', 
+                                    day: 'numeric', 
+                                    hour: 'numeric', 
+                                    minute: '2-digit',
+                                    hour12: true 
+                                };
+                                const formattedDate = classDate.toLocaleString('en-US', options).toUpperCase();
+                                nextClassHtml = `
                                     <p style="margin: 10px 0 0 0; color: #28a745; font-weight: bold;">
-                                        🎥 Next Class: ${new Date(ann.nextClassDate).toLocaleString()}
+                                        🎥 Next Class: ${formattedDate}
                                     </p>
-                                ` : ''}
-                                <p style="margin: 10px 0 0 0; color: #999; font-size: 0.9rem;">
-                                    ${ann.createdAt ? ann.createdAt.toDate().toLocaleString() : 'Recently'}
-                                </p>
-                            </div>
-                        `).join('')}
+                                `;
+                            }
+                            
+                            return `
+                                <div style="background: white; padding: 20px; border-radius: 10px; border-left: 4px solid #0d3b66;">
+                                    <h4 style="margin: 0 0 10px 0; color: #0d3b66;">${ann.title}</h4>
+                                    <p style="margin: 0; color: #666; white-space: pre-wrap;">${ann.message}</p>
+                                    ${nextClassHtml}
+                                    <p style="margin: 10px 0 0 0; color: #999; font-size: 0.9rem;">
+                                        ${ann.createdAt ? ann.createdAt.toDate().toLocaleString() : 'Recently'}
+                                    </p>
+                                </div>
+                            `;
+                        }).join('')}
                     </div>
                 ` : `
                     <div style="text-align: center; padding: 40px; background: #f8f9fa; border-radius: 10px;">
@@ -1406,6 +1457,41 @@ async function loadStudentClassView() {
                 `}
             </div>
         `;
+        
+        // Set up live session listener for real-time updates
+        liveSessionId = userData.classId;
+        
+        // ✅ FIXED: Listen for session status changes with proper validation
+        db.collection('classes').doc(userData.classId).onSnapshot(doc => {
+            if (doc.exists) {
+                const data = doc.data();
+                
+                // ✅ Check if session is TRULY active (both flags must be true)
+                const sessionIsActive = data.liveSessionActive === true && data.liveSessionId != null;
+                
+                const joinContainer = document.getElementById('live-session-join-container');
+                const activeSessionUI = document.getElementById('student-live-session-active');
+                
+                // If session just started and we're not in it yet
+                if (sessionIsActive && !liveSessionActive) {
+                    // Show join button if it doesn't exist
+                    if (!joinContainer) {
+                        // Reload the view to show the join button
+                        loadStudentClassView();
+                    }
+                }
+                
+                // If session ended while we were in it or viewing
+                if (!sessionIsActive && (liveSessionActive || joinContainer)) {
+                    if (liveSessionActive) {
+                        alert('📢 The live session has ended');
+                        endLiveSession();
+                    }
+                    // Reload to remove session UI
+                    loadStudentClassView();
+                }
+            }
+        });
         
     } catch (error) {
         console.error('Error loading student class view:', error);
@@ -1416,8 +1502,7 @@ async function loadStudentClassView() {
         `;
     }
 }
-
-// ===== COACH CLASS VIEW =====
+        
 // ===== COACH CLASS VIEW =====
 async function loadCoachClassView() {
     try {
@@ -1493,6 +1578,7 @@ async function loadClassStudents() {
     try {
         const studentsSnapshot = await db.collection('users')
             .where('classId', '==', myClass.id)
+            .where('userType', '==', 'student') // ✅ Only get students, not coaches
             .get();
         
         classStudents = [];
@@ -1571,25 +1657,42 @@ function displayClassAnnouncements() {
     
     container.innerHTML = `
         <div style="display: grid; gap: 15px;">
-            ${classAnnouncements.map(ann => `
-                <div style="background: white; padding: 20px; border-radius: 10px; border-left: 4px solid #0d3b66;">
-                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
-                        <h4 style="margin: 0; color: #0d3b66;">${ann.title}</h4>
-                        <button onclick="deleteAnnouncement('${ann.id}')" style="background: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer;">
-                            🗑️
-                        </button>
-                    </div>
-                    <p style="margin: 10px 0; color: #666; white-space: pre-wrap;">${ann.message}</p>
-                    ${ann.nextClassDate ? `
+            ${classAnnouncements.map(ann => {
+                let nextClassHtml = '';
+                if (ann.nextClassDate) {
+                    const classDate = new Date(ann.nextClassDate);
+                    const options = { 
+                        year: 'numeric', 
+                        month: 'long', 
+                        day: 'numeric', 
+                        hour: 'numeric', 
+                        minute: '2-digit',
+                        hour12: true 
+                    };
+                    const formattedDate = classDate.toLocaleString('en-US', options).toUpperCase();
+                    nextClassHtml = `
                         <p style="margin: 10px 0 0 0; color: #28a745; font-weight: bold;">
-                            🎥 Next Class: ${new Date(ann.nextClassDate).toLocaleString()}
+                            🎥 Next Class: ${formattedDate}
                         </p>
-                    ` : ''}
-                    <p style="margin: 10px 0 0 0; color: #999; font-size: 0.9rem;">
-                        ${ann.createdAt ? ann.createdAt.toDate().toLocaleString() : 'Recently'}
-                    </p>
-                </div>
-            `).join('')}
+                    `;
+                }
+                
+                return `
+                    <div style="background: white; padding: 20px; border-radius: 10px; border-left: 4px solid #0d3b66;">
+                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
+                            <h4 style="margin: 0; color: #0d3b66;">${ann.title}</h4>
+                            <button onclick="deleteAnnouncement('${ann.id}')" style="background: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer;">
+                                🗑️
+                            </button>
+                        </div>
+                        <p style="margin: 10px 0; color: #666; white-space: pre-wrap;">${ann.message}</p>
+                        ${nextClassHtml}
+                        <p style="margin: 10px 0 0 0; color: #999; font-size: 0.9rem;">
+                            ${ann.createdAt ? ann.createdAt.toDate().toLocaleString() : 'Recently'}
+                        </p>
+                    </div>
+                `;
+            }).join('')}
         </div>
     `;
 }
@@ -1699,11 +1802,17 @@ async function startLiveSession() {
         // Create session in Firestore
         liveSessionId = myClass.id; // Use class ID as session ID
         
+        // ✅ FIXED: Set BOTH flags to true to indicate active session
         await db.collection('classes').doc(myClass.id).update({
             liveSessionActive: true,
             liveSessionId: liveSessionId,
             liveSessionStartedAt: firebase.firestore.FieldValue.serverTimestamp(),
             liveSessionHost: currentUser.uid
+        });
+        
+        console.log('✅ Session started in Firestore:', {
+            liveSessionActive: true,
+            liveSessionId: liveSessionId
         });
         
         // Add coach as first participant
@@ -1746,13 +1855,23 @@ async function startLiveSession() {
             alert('Failed to start session: ' + error.message);
         }
         
+        // Cleanup on error
         if (localAudioStream) {
             localAudioStream.getTracks().forEach(track => track.stop());
             localAudioStream = null;
         }
+        
+        // ✅ Cleanup Firestore if session creation failed
+        try {
+            await db.collection('classes').doc(myClass.id).update({
+                liveSessionActive: false,
+                liveSessionId: null
+            });
+        } catch (cleanupError) {
+            console.error('Error cleaning up failed session:', cleanupError);
+        }
     }
 }
-
         
 // ===== JOIN LIVE SESSION (STUDENT) =====
 async function joinLiveSession() {
@@ -1762,6 +1881,8 @@ async function joinLiveSession() {
     }
     
     try {
+        console.log('🎤 Requesting microphone access...');
+        
         // Get microphone permission
         localAudioStream = await navigator.mediaDevices.getUserMedia({ 
             audio: {
@@ -1779,8 +1900,29 @@ async function joinLiveSession() {
         
         if (!userData.classId) {
             alert('You are not enrolled in a class');
+            if (localAudioStream) {
+                localAudioStream.getTracks().forEach(track => track.stop());
+                localAudioStream = null;
+            }
             return;
         }
+        
+        liveSessionId = userData.classId;
+        
+        // ✅ FIXED: Check if session is actually active before joining
+        const classDoc = await db.collection('classes').doc(userData.classId).get();
+        const classData = classDoc.data();
+        
+        if (!classData.liveSessionActive || !classData.liveSessionId) {
+            alert('❌ This session is no longer active');
+            if (localAudioStream) {
+                localAudioStream.getTracks().forEach(track => track.stop());
+                localAudioStream = null;
+            }
+            return;
+        }
+        
+        console.log('✅ Session is active, joining...');
         
         // Add to session participants
         await db.collection('classes')
@@ -1796,25 +1938,60 @@ async function joinLiveSession() {
                 micMuted: false
             });
         
-        liveSessionActive = true;
-        liveSessionId = userData.classId;
+        console.log('✅ Added to session participants');
         
-        // Show live session UI
-        document.getElementById('join-session-btn').style.display = 'none';
-        document.getElementById('live-session-active').style.display = 'block';
+        liveSessionActive = true;
+        
+        // ✅ FIXED: Hide join button and show active session UI
+        const joinContainer = document.getElementById('live-session-join-container');
+        const activeSessionUI = document.getElementById('student-live-session-active');
+        
+        if (joinContainer) joinContainer.style.display = 'none';
+        if (activeSessionUI) activeSessionUI.style.display = 'block';
         
         // Listen for participants
         listenForSessionParticipants();
         
-        console.log('✅ Joined live session');
+        console.log('✅ Joined live session successfully');
         
     } catch (error) {
         console.error('Error joining session:', error);
-        alert('Failed to join session. Please check microphone permissions.');
         
+        let errorMessage = 'Failed to join session. ';
+        
+        if (error.name === 'NotAllowedError') {
+            errorMessage += 'Microphone access was denied. Please allow microphone access in your browser settings and try again.';
+        } else if (error.name === 'NotFoundError') {
+            errorMessage += 'No microphone found. Please connect a microphone and try again.';
+        } else if (error.message) {
+            errorMessage += error.message;
+        } else {
+            errorMessage += 'Please check your microphone permissions and try again.';
+        }
+        
+        alert(errorMessage);
+        
+        // Cleanup on error
         if (localAudioStream) {
             localAudioStream.getTracks().forEach(track => track.stop());
             localAudioStream = null;
+        }
+        
+        liveSessionActive = false;
+        
+        // ✅ Remove from participants if we added ourselves
+        try {
+            const userDoc = await db.collection('users').doc(currentUser.uid).get();
+            const userData = userDoc.data();
+            if (userData.classId) {
+                await db.collection('classes')
+                    .doc(userData.classId)
+                    .collection('sessionParticipants')
+                    .doc(currentUser.uid)
+                    .delete();
+            }
+        } catch (cleanupError) {
+            console.error('Error cleaning up after failed join:', cleanupError);
         }
     }
 }
@@ -1861,15 +2038,20 @@ function listenForSessionParticipants() {
 }
 
 // ===== CREATE PEER CONNECTION =====
-async function createPeerConnection(userId, participant) {
+async function createPeerConnection(userId, participant, isInitiator = true) {
     try {
+        console.log('🔗 Creating peer connection with:', participant.name, 'isInitiator:', isInitiator);
+        
         const peerConnection = new RTCPeerConnection(iceServers);
         
         // Add local audio stream to connection
         if (localAudioStream) {
             localAudioStream.getTracks().forEach(track => {
+                console.log('📤 Adding local audio track to peer connection');
                 peerConnection.addTrack(track, localAudioStream);
             });
+        } else {
+            console.warn('⚠️ No local audio stream available');
         }
         
         // Handle incoming audio stream
@@ -1885,36 +2067,124 @@ async function createPeerConnection(userId, participant) {
                 audioElement = document.createElement('audio');
                 audioElement.id = `audio_${userId}`;
                 audioElement.autoplay = true;
-                document.getElementById('remote-audio-container').appendChild(audioElement);
+                audioElement.volume = 1.0;
+                
+                const coachContainer = document.getElementById('coach-remote-audio-container');
+                const studentContainer = document.getElementById('remote-audio-container');
+                
+                if (coachContainer) {
+                    coachContainer.appendChild(audioElement);
+                } else if (studentContainer) {
+                    studentContainer.appendChild(audioElement);
+                } else {
+                    document.body.appendChild(audioElement);
+                }
+                
+                console.log('✅ Audio element created and added for:', participant.name);
             }
             
             audioElement.srcObject = remoteStream;
+            audioElement.play().catch(err => {
+                console.error('❌ Error playing audio:', err);
+            });
         };
         
         // Handle ICE candidates
         peerConnection.onicecandidate = (event) => {
             if (event.candidate) {
-                // Send ICE candidate to Firestore
+                console.log('🧊 Sending ICE candidate to:', participant.name);
                 sendIceCandidate(userId, event.candidate);
             }
         };
         
         peerConnection.onconnectionstatechange = () => {
             console.log(`Connection state with ${participant.name}:`, peerConnection.connectionState);
+            
+            if (peerConnection.connectionState === 'connected') {
+                console.log('✅ Successfully connected to:', participant.name);
+            } else if (peerConnection.connectionState === 'failed') {
+                console.error('❌ Connection failed with:', participant.name);
+                // Attempt to restart ICE
+                peerConnection.restartIce();
+            }
         };
         
         peerConnections.set(userId, peerConnection);
         
-        // Create and send offer
-        const offer = await peerConnection.createOffer();
-        await peerConnection.setLocalDescription(offer);
+        // ✅ ONLY create offer if we're the initiator
+        if (isInitiator) {
+            const offer = await peerConnection.createOffer({
+                offerToReceiveAudio: true
+            });
+            await peerConnection.setLocalDescription(offer);
+            await sendOffer(userId, offer);
+            console.log('✅ Offer sent to:', participant.name);
+        }
         
-        await sendOffer(userId, offer);
-        
-        console.log('✅ Peer connection created for:', participant.name);
+        return peerConnection;
         
     } catch (error) {
         console.error('Error creating peer connection:', error);
+        throw error;
+    }
+}
+
+// ===== HANDLE INCOMING OFFER =====
+async function handleIncomingOffer(userId, offer) {
+    try {
+        console.log('📨 Received offer from:', userId);
+        
+        // Get or create peer connection (as NON-initiator)
+        let peerConnection = peerConnections.get(userId);
+        if (!peerConnection) {
+            // Get participant info
+            const participantData = await getParticipantData(userId);
+            peerConnection = await createPeerConnection(userId, participantData, false);
+        }
+        
+        // Check current signaling state
+        if (peerConnection.signalingState === 'have-remote-offer') {
+            console.warn('⚠️ Already have remote offer, ignoring duplicate');
+            return;
+        }
+        
+        // Set remote description
+        await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+        
+        // Create and send answer
+        const answer = await peerConnection.createAnswer();
+        await peerConnection.setLocalDescription(answer);
+        
+        await sendAnswer(userId, answer);
+        console.log('✅ Answer sent to:', userId);
+        
+    } catch (error) {
+        console.error('Error handling incoming offer:', error);
+    }
+}
+
+// ===== HANDLE INCOMING ANSWER =====
+async function handleIncomingAnswer(userId, answer) {
+    try {
+        console.log('📨 Received answer from:', userId);
+        
+        const peerConnection = peerConnections.get(userId);
+        if (!peerConnection) {
+            console.error('❌ No peer connection found for:', userId);
+            return;
+        }
+        
+        // Check if we're in the correct state
+        if (peerConnection.signalingState !== 'have-local-offer') {
+            console.warn('⚠️ Not in correct state to receive answer, current state:', peerConnection.signalingState);
+            return;
+        }
+        
+        await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+        console.log('✅ Answer processed from:', userId);
+        
+    } catch (error) {
+        console.error('Error handling incoming answer:', error);
     }
 }
 
@@ -1993,9 +2263,13 @@ async function sendOffer(toUserId, offer) {
 
 async function handleOffer(fromUserId, offer) {
     try {
+        console.log('📨 Handling offer from user:', fromUserId);
+        
         let peerConnection = peerConnections.get(fromUserId);
         
         if (!peerConnection) {
+            console.log('🆕 Creating new peer connection for incoming offer');
+            
             // Get participant info
             const classId = myClass ? myClass.id : liveSessionId;
             const participantDoc = await db.collection('classes')
@@ -2004,7 +2278,10 @@ async function handleOffer(fromUserId, offer) {
                 .doc(fromUserId)
                 .get();
             
-            if (!participantDoc.exists) return;
+            if (!participantDoc.exists) {
+                console.error('❌ Participant not found:', fromUserId);
+                return;
+            }
             
             const participant = participantDoc.data();
             
@@ -2014,6 +2291,7 @@ async function handleOffer(fromUserId, offer) {
             // Add local audio
             if (localAudioStream) {
                 localAudioStream.getTracks().forEach(track => {
+                    console.log('📤 Adding local audio track (answer)');
                     peerConnection.addTrack(track, localAudioStream);
                 });
             }
@@ -2029,9 +2307,29 @@ async function handleOffer(fromUserId, offer) {
                     audioElement = document.createElement('audio');
                     audioElement.id = `audio_${fromUserId}`;
                     audioElement.autoplay = true;
-                    document.getElementById('remote-audio-container').appendChild(audioElement);
+                    audioElement.volume = 1.0;
+                    
+                    // Add to appropriate container
+                    const coachContainer = document.getElementById('coach-remote-audio-container');
+                    const studentContainer = document.getElementById('remote-audio-container');
+                    
+                    if (coachContainer) {
+                        coachContainer.appendChild(audioElement);
+                    } else if (studentContainer) {
+                        studentContainer.appendChild(audioElement);
+                    } else {
+                        document.body.appendChild(audioElement);
+                    }
+                    
+                    console.log('✅ Audio element created (answer)');
                 }
+                
                 audioElement.srcObject = remoteStream;
+                audioElement.play().then(() => {
+                    console.log('✅ Audio playing (answer)');
+                }).catch(err => {
+                    console.error('❌ Error playing audio (answer):', err);
+                });
             };
             
             peerConnection.onicecandidate = (event) => {
@@ -2040,21 +2338,28 @@ async function handleOffer(fromUserId, offer) {
                 }
             };
             
+            peerConnection.onconnectionstatechange = () => {
+                console.log(`Connection state with ${participant.name}:`, peerConnection.connectionState);
+            };
+            
             peerConnections.set(fromUserId, peerConnection);
         }
         
         await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+        console.log('✅ Remote description set');
         
-        const answer = await peerConnection.createAnswer();
+        const answer = await peerConnection.createAnswer({
+            offerToReceiveAudio: true // ✅ Explicitly request to receive audio
+        });
         await peerConnection.setLocalDescription(answer);
         
         await sendAnswer(fromUserId, answer);
+        console.log('✅ Answer sent');
         
     } catch (error) {
         console.error('Error handling offer:', error);
     }
 }
-
 async function sendAnswer(toUserId, answer) {
     const classId = myClass ? myClass.id : liveSessionId;
     
