@@ -4974,9 +4974,6 @@ let stage3FirstCompletionTime = null;
 let myClass = null;
 let classStudents = [];
 let classAnnouncements = [];
-let liveSessionActive = false;
-let liveSessionParticipants = [];     
-
 
 // ===== LIVE SESSION VARIABLES =====
 let liveSessionActive = false;
@@ -4988,6 +4985,7 @@ let peerConnections = new Map(); // userId -> RTCPeerConnection
 let remoteStreams = new Map(); // userId -> MediaStream
 let isMicMuted = false;
 let sessionParticipants = new Map(); // userId -> {name, email, photoURL}
+let isCoach = false; // Track if current user is coach
         
         
      // ===== INITIALIZE =====
