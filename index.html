@@ -4870,37 +4870,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 
-    // Add this after the myProfileBtn logic:
-
-    // ✅ ADD MY CLASS BUTTON
-    const myClassBtn = document.getElementById('myClassBtn');
-    if (!myClassBtn) {
-        const classBtn = document.createElement('button');
-        classBtn.id = 'myClassBtn';
-        classBtn.className = 'my-profile-btn';
-        classBtn.style.cssText = 'display: none; margin-top: 10px;';
-        classBtn.onclick = () => {
-            navigateTo('class');
-            loadMyClass();
-        };
-        
-        const sidebarUserInfo = document.getElementById('sidebarUserInfo');
-        sidebarUserInfo.appendChild(classBtn);
-    }
-    
-    try {
-        const userDoc = await db.collection('users').doc(user.uid).get();
-        const userData = userDoc.data();
-        
-        if (userData && (userData.userType === 'student' || userData.userType === 'coach')) {
-            document.getElementById('myClassBtn').innerHTML = '📚 MY CLASS';
-            document.getElementById('myClassBtn').style.display = 'block';
-        }
-    } catch (error) {
-        console.error('Error checking class status:', error);
-    }
-    
-auth.onAuthStateChanged(async user => {
+   auth.onAuthStateChanged(async user => {
     if (user) {
         currentUser = user;
         
@@ -4945,6 +4915,31 @@ auth.onAuthStateChanged(async user => {
         
         // ✅ CHECK ADMIN STATUS HERE (CRITICAL - RIGHT AFTER USER DATA IS LOADED)
         await checkAdminStatus();
+        
+        // ✅ ADD MY CLASS BUTTON
+        const myClassBtn = document.getElementById('myClassBtn');
+        if (!myClassBtn) {
+            const classBtn = document.createElement('button');
+            classBtn.id = 'myClassBtn';
+            classBtn.className = 'my-profile-btn';
+            classBtn.style.cssText = 'display: none; margin-top: 10px;';
+            classBtn.onclick = () => {
+                navigateTo('class');
+                loadMyClass();
+            };
+            
+            const sidebarUserInfo = document.getElementById('sidebarUserInfo');
+            sidebarUserInfo.appendChild(classBtn);
+        }
+        
+        try {
+            if (userData && (userData.userType === 'student' || userData.userType === 'coach')) {
+                document.getElementById('myClassBtn').innerHTML = '📚 MY CLASS';
+                document.getElementById('myClassBtn').style.display = 'block';
+            }
+        } catch (error) {
+            console.error('Error checking class status:', error);
+        }
         
         // ✅ CHECK USER TYPE AND HANDLE ACCORDINGLY
         if (userData.userType === 'parent') {
@@ -4993,19 +4988,19 @@ auth.onAuthStateChanged(async user => {
                 loadUserDashboard();
             }
         }
-   } else {
-    currentUser = null;
-    isAdmin = false;
-    
-    // ✅ Clean up tournament listeners
-    if (tournamentListeners) {
-        tournamentListeners.forEach(unsubscribe => unsubscribe());
-        tournamentListeners = [];
+    } else {
+        currentUser = null;
+        isAdmin = false;
+        
+        // ✅ Clean up tournament listeners
+        if (tournamentListeners) {
+            tournamentListeners.forEach(unsubscribe => unsubscribe());
+            tournamentListeners = [];
+        }
+        
+        updateUIForGuestUser();
+        updateAdminUI();
     }
-    
-    updateUIForGuestUser();
-    updateAdminUI();
-}
 });
     });
         
