@@ -21363,12 +21363,12 @@ function listenForSessionParticipants() {
     listenForSignaling();
 }
 
-// ===== CREATE PEER CONNECTION ===== 
+
+// ===== CREATE PEER CONNECTION =====
 async function createPeerConnection(userId, participant, isInitiator = true) {
     try {
         console.log('🔗 Creating peer connection with:', participant.name, 'isInitiator:', isInitiator);
         
-        // Close existing connection if any
         if (peerConnections.has(userId)) {
             console.log('⚠️ Closing existing connection');
             peerConnections.get(userId).close();
@@ -21377,7 +21377,6 @@ async function createPeerConnection(userId, participant, isInitiator = true) {
         
         const peerConnection = new RTCPeerConnection(iceServers);
         
-        // Add local audio stream to connection
         if (localAudioStream) {
             localAudioStream.getTracks().forEach(track => {
                 console.log('📤 Adding local audio track to peer connection');
@@ -21385,36 +21384,30 @@ async function createPeerConnection(userId, participant, isInitiator = true) {
             });
         }
         
-        // Handle incoming audio stream
         peerConnection.ontrack = (event) => {
             console.log('📥 Received audio stream from:', participant.name);
             
             const remoteStream = event.streams[0];
             remoteStreams.set(userId, remoteStream);
             
-            // Remove old audio element if exists
             const oldAudio = document.getElementById(`audio_${userId}`);
             if (oldAudio) oldAudio.remove();
             
-            // Create new audio element
             const audioElement = document.createElement('audio');
             audioElement.id = `audio_${userId}`;
             audioElement.autoplay = true;
-            audioElement.playsInline = true; // Important for mobile
+            audioElement.playsInline = true;
             audioElement.volume = 1.0;
             audioElement.srcObject = remoteStream;
             
-            // Add to DOM
             const container = document.getElementById('remote-audio-container') || document.body;
             container.appendChild(audioElement);
             
-            // Force play
             audioElement.play()
                 .then(() => console.log('✅ Audio playing for:', participant.name))
                 .catch(err => console.error('❌ Error playing audio:', err));
         };
         
-        // Handle ICE candidates
         peerConnection.onicecandidate = (event) => {
             if (event.candidate) {
                 console.log('🧊 Sending ICE candidate to:', participant.name);
@@ -21437,7 +21430,6 @@ async function createPeerConnection(userId, participant, isInitiator = true) {
         
         peerConnections.set(userId, peerConnection);
         
-        // Only create offer if we're the initiator
         if (isInitiator) {
             const offer = await peerConnection.createOffer({
                 offerToReceiveAudio: true,
@@ -21456,15 +21448,12 @@ async function createPeerConnection(userId, participant, isInitiator = true) {
     }
 }
 
-/ ===== HANDLE INCOMING OFFER =====
 async function handleOffer(fromUserId, offer) {
     try {
         console.log('📨 Handling offer from user:', fromUserId);
         
-        // Get existing connection or null
         let peerConnection = peerConnections.get(fromUserId);
         
-        // If connection exists and is in wrong state, close it
         if (peerConnection && peerConnection.signalingState !== 'stable') {
             console.log('⚠️ Closing connection in wrong state');
             peerConnection.close();
@@ -21472,7 +21461,6 @@ async function handleOffer(fromUserId, offer) {
             peerConnections.delete(fromUserId);
         }
         
-        // Get participant info
         const classId = myClass ? myClass.id : liveSessionId;
         const participantDoc = await db.collection('classes')
             .doc(classId)
@@ -21487,10 +21475,8 @@ async function handleOffer(fromUserId, offer) {
         
         const participant = participantDoc.data();
         
-        // Create new peer connection
         peerConnection = new RTCPeerConnection(iceServers);
         
-        // Add local audio
         if (localAudioStream) {
             localAudioStream.getTracks().forEach(track => {
                 console.log('📤 Adding local audio track (offer response)');
@@ -21498,13 +21484,11 @@ async function handleOffer(fromUserId, offer) {
             });
         }
         
-        // Handle remote audio
         peerConnection.ontrack = (event) => {
             console.log('📥 Received audio from:', participant.name);
             const remoteStream = event.streams[0];
             remoteStreams.set(fromUserId, remoteStream);
             
-            // Remove old audio element
             const oldAudio = document.getElementById(`audio_${fromUserId}`);
             if (oldAudio) oldAudio.remove();
             
@@ -21535,7 +21519,6 @@ async function handleOffer(fromUserId, offer) {
         
         peerConnections.set(fromUserId, peerConnection);
         
-        // Set remote description and create answer
         await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
         console.log('✅ Remote description set');
         
@@ -21553,7 +21536,6 @@ async function handleOffer(fromUserId, offer) {
     }
 }
 
-// ===== HANDLE INCOMING ANSWER =====
 async function handleAnswer(fromUserId, answer) {
     try {
         console.log('📨 Handling answer from user:', fromUserId);
@@ -21565,7 +21547,6 @@ async function handleAnswer(fromUserId, answer) {
             return;
         }
         
-        // Check signaling state
         const currentState = peerConnection.signalingState;
         console.log('Current signaling state:', currentState);
         
@@ -21587,7 +21568,6 @@ async function handleAnswer(fromUserId, answer) {
     }
 }
 
-// ===== GET PARTICIPANT DATA HELPER =====
 async function getParticipantData(userId) {
     const classId = myClass ? myClass.id : liveSessionId;
     const participantDoc = await db.collection('classes')
@@ -21601,7 +21581,6 @@ async function getParticipantData(userId) {
     }
     return { userId, name: 'Unknown', email: '' };
 }
-
         
 // ===== WEBRTC SIGNALING =====
 function listenForSignaling() {
