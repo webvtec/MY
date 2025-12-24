@@ -712,7 +712,7 @@ async function navigateTo(section, skipSidebarClose = false) {
 
 
 
-    // ===== COACHES DISPLAY FUNCTIONS =====
+      // ===== COACHES DISPLAY FUNCTIONS =====
 async function loadAndDisplayCoaches() {
     const container = document.getElementById('coaches-container');
     
@@ -937,11 +937,11 @@ async function showCoachDetail(coach) {
         }
     }
     
-    // ✅ ADD BOOK COACH BUTTON FOR STUDENTS
-    const coachDetailBody = modal.querySelector('.coach-detail-body');
+    // ✅ ADD BOOK COACH BUTTON FOR STUDENTS - Use correct class name
+    const coachDetailBody = modal.querySelector('.coach-detail-content');
     
     if (!coachDetailBody) {
-        console.error('Coach detail body not found!');
+        console.error('Coach detail content not found!');
         modal.classList.add('active');
         return;
     }
@@ -960,7 +960,7 @@ async function showCoachDetail(coach) {
             if (userData && userData.userType === 'student') {
                 const bookBtnContainer = document.createElement('div');
                 bookBtnContainer.className = 'book-coach-container';
-                bookBtnContainer.style.cssText = 'margin-top: 20px; text-align: center;';
+                bookBtnContainer.style.cssText = 'margin-top: 20px; text-align: center; padding: 20px;';
                 
                 bookBtnContainer.innerHTML = `
                     <button class="practice-btn" onclick="bookCoach('${coach.id}', '${coach.name.replace(/'/g, "\\'")}')" 
@@ -981,7 +981,6 @@ async function showCoachDetail(coach) {
     console.log('Modal displayed');
 }
 
-     
 // Close coach detail modal
 function closeCoachDetailModal() {
     document.getElementById('coachDetailModal').classList.remove('active');
@@ -1212,11 +1211,11 @@ async function showStudentDetail(student) {
         }
     }
     
-    // ✅ ADD RECRUIT BUTTON FOR COACHES
-    const studentDetailBody = modal.querySelector('.student-detail-body');
+    // ✅ ADD RECRUIT BUTTON FOR COACHES - Use correct class name
+    const studentDetailBody = modal.querySelector('.coach-detail-content');
     
     if (!studentDetailBody) {
-        console.error('Student detail body not found!');
+        console.error('Student detail content not found!');
         modal.classList.add('active');
         return;
     }
@@ -1235,7 +1234,7 @@ async function showStudentDetail(student) {
             if (userData && userData.userType === 'coach') {
                 const recruitBtnContainer = document.createElement('div');
                 recruitBtnContainer.className = 'recruit-student-container';
-                recruitBtnContainer.style.cssText = 'margin-top: 20px; text-align: center;';
+                recruitBtnContainer.style.cssText = 'margin-top: 20px; text-align: center; padding: 20px;';
                 
                 recruitBtnContainer.innerHTML = `
                     <button class="practice-btn" onclick="recruitStudent('${student.id}', '${student.name.replace(/'/g, "\\'")}')" 
@@ -2328,8 +2327,7 @@ async function checkForActiveSession() {
     }
 }  
 
-
-// ===== BOOK COACH (STUDENT) =====
+   // ===== BOOK COACH (STUDENT) =====
 async function bookCoach(coachId, coachName) {
     if (!currentUser) {
         alert('Please sign in to book a coach');
