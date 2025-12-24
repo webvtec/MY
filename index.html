@@ -20536,23 +20536,11 @@ async function showStudentDetail(student) {
         }
     }
     
-    // ✅ ADD RECRUIT BUTTON FOR COACHES
-    // Try multiple possible selectors for the modal body
-    let studentDetailBody = modal.querySelector('.student-detail-body');
-    if (!studentDetailBody) {
-        studentDetailBody = modal.querySelector('.auth-body');
-    }
-    if (!studentDetailBody) {
-        studentDetailBody = modal.querySelector('.modal-body');
-    }
-    if (!studentDetailBody) {
-        // If still not found, try to find any container inside the modal
-        studentDetailBody = modal.querySelector('.auth-content > div:last-child');
-    }
+    // ✅ ADD RECRUIT BUTTON FOR COACHES - Use correct class name
+    const studentDetailBody = modal.querySelector('.coach-detail-content');
     
     if (!studentDetailBody) {
-        console.error('Student detail body not found! Available classes:', modal.className);
-        console.log('Modal HTML:', modal.innerHTML.substring(0, 200));
+        console.error('Student detail content not found!');
         modal.classList.add('active');
         return;
     }
@@ -20571,7 +20559,7 @@ async function showStudentDetail(student) {
             if (userData && userData.userType === 'coach') {
                 const recruitBtnContainer = document.createElement('div');
                 recruitBtnContainer.className = 'recruit-student-container';
-                recruitBtnContainer.style.cssText = 'margin-top: 20px; text-align: center;';
+                recruitBtnContainer.style.cssText = 'margin-top: 20px; text-align: center; padding: 20px;';
                 
                 recruitBtnContainer.innerHTML = `
                     <button class="practice-btn" onclick="recruitStudent('${student.id}', '${student.name.replace(/'/g, "\\'")}')" 
