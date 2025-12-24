@@ -4581,7 +4581,7 @@
 </div>
 
 
-    <!-- Class Section -->
+  <!-- Class Section -->
 <div id="class-section" class="content-section">
     <div class="word-database">
         <div class="database-header">
@@ -4591,6 +4591,34 @@
         <!-- Student View -->
         <div id="student-class-view" style="display: none;">
             <div id="student-class-info" class="loading">Loading class information...</div>
+            
+            <!-- Live Session Container for Students -->
+            <div id="student-live-session-active" style="display: none;">
+                <div style="background: white; padding: 20px; border-radius: 10px; border: 2px solid #28a745; margin-top: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h3 style="color: #28a745; margin: 0;">🎥 Live Session Active</h3>
+                        <button class="practice-btn" onclick="endLiveSession()" style="background: #dc3545;">
+                            Leave Session
+                        </button>
+                    </div>
+                    
+                    <!-- Audio Controls -->
+                    <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                        <button id="student-toggle-mic-btn" class="practice-btn" onclick="toggleMicrophone()" style="background: #28a745;">
+                            🎤 Mute
+                        </button>
+                    </div>
+                    
+                    <!-- Participants List -->
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 10px;">
+                        <h4 style="color: #0d3b66; margin-bottom: 15px;">👥 Participants</h4>
+                        <div id="student-session-participants-list"></div>
+                    </div>
+                    
+                    <!-- Hidden audio elements container -->
+                    <div id="student-remote-audio-container" style="display: none;"></div>
+                </div>
+            </div>
         </div>
         
         <!-- Coach View -->
@@ -4638,7 +4666,34 @@
                     <button class="practice-btn" id="start-session-btn" onclick="startLiveSession()" style="background: #28a745;">
                         🎥 Start Live Session
                     </button>
-                    <div id="live-session-container" style="display: none;"></div>
+                    
+                    <!-- Live Session Active Container for Coach -->
+                    <div id="coach-live-session-active" style="display: none;">
+                        <div style="background: white; padding: 20px; border-radius: 10px; border: 2px solid #28a745; margin-top: 20px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                                <h3 style="color: #28a745; margin: 0;">🎥 Live Session Active</h3>
+                                <button class="practice-btn" onclick="endLiveSession()" style="background: #dc3545;">
+                                    End Session
+                                </button>
+                            </div>
+                            
+                            <!-- Audio Controls -->
+                            <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                                <button id="coach-toggle-mic-btn" class="practice-btn" onclick="toggleMicrophone()" style="background: #28a745;">
+                                    🎤 Mute
+                                </button>
+                            </div>
+                            
+                            <!-- Participants List -->
+                            <div style="background: #f8f9fa; padding: 15px; border-radius: 10px;">
+                                <h4 style="color: #0d3b66; margin-bottom: 15px;">👥 Participants (<span id="participant-count">0</span>)</h4>
+                                <div id="coach-session-participants-list"></div>
+                            </div>
+                            
+                            <!-- Hidden audio elements container -->
+                            <div id="coach-remote-audio-container" style="display: none;"></div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -4675,6 +4730,8 @@
         </div>
     </div>
 </div>
+
+    
     <script>
         // ===== FIREBASE CONFIGURATION =====
         const firebaseConfig = {
