@@ -20685,9 +20685,10 @@ async function loadStudentClassView() {
 }
 
 // ===== COACH CLASS VIEW =====
+// ===== COACH CLASS VIEW =====
 async function loadCoachClassView() {
     try {
-        // Get coach's class
+        // Get or create coach's class
         const classQuery = await db.collection('classes')
             .where('coachId', '==', currentUser.uid)
             .limit(1)
@@ -20697,8 +20698,12 @@ async function loadCoachClassView() {
             // Create class for coach
             const classRef = await db.collection('classes').add({
                 coachId: currentUser.uid,
+                coachName: currentUser.displayName || 'Coach',
+                coachEmail: currentUser.email,
                 createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                studentCount: 0
+                studentCount: 0,
+                liveSessionActive: false,
+                liveSessionId: null
             });
             
             // Update user with classId
@@ -20709,12 +20714,26 @@ async function loadCoachClassView() {
             myClass = {
                 id: classRef.id,
                 coachId: currentUser.uid,
-                studentCount: 0
+                coachName: currentUser.displayName || 'Coach',
+                coachEmail: currentUser.email,
+                studentCount: 0,
+                liveSessionActive: false,
+                liveSessionId: null
             };
         } else {
             const classDoc = classQuery.docs[0];
             myClass = { id: classDoc.id, ...classDoc.data() };
+            
+            // Update user with classId if not set
+            const userDoc = await db.collection('users').doc(currentUser.uid).get();
+            if (!userDoc.data().classId) {
+                await db.collection('users').doc(currentUser.uid).update({
+                    classId: myClass.id
+                });
+            }
         }
+        
+        isCoach = true; // Set coach flag
         
         // Load students
         await loadClassStudents();
@@ -20725,9 +20744,15 @@ async function loadCoachClassView() {
         // Update stats
         updateCoachClassStats();
         
+        // Check if there's an active session and restore it
+        if (myClass.liveSessionActive) {
+            // Show that session is active but don't auto-join
+            console.log('ℹ️ Active session detected');
+        }
+        
     } catch (error) {
         console.error('Error loading coach class view:', error);
-        alert('Failed to load class management');
+        alert('Failed to load class management: ' + error.message);
     }
 }
 
@@ -20939,7 +20964,7 @@ async function startLiveSession() {
         console.log('✅ Microphone access granted');
         
         // Create session in Firestore
-        liveSessionId = `session_${Date.now()}`;
+        liveSessionId = myClass.id; // Use class ID as session ID
         
         await db.collection('classes').doc(myClass.id).update({
             liveSessionActive: true,
@@ -20963,10 +20988,14 @@ async function startLiveSession() {
             });
         
         liveSessionActive = true;
+        isCoach = true;
         
-        // Show live session UI
-        document.getElementById('start-session-btn').style.display = 'none';
-        document.getElementById('live-session-active').style.display = 'block';
+        // Show live session UI for COACH
+        const startBtn = document.getElementById('start-session-btn');
+        const liveSessionContainer = document.getElementById('coach-live-session-active');
+        
+        if (startBtn) startBtn.style.display = 'none';
+        if (liveSessionContainer) liveSessionContainer.style.display = 'block';
         
         // Listen for participants joining
         listenForSessionParticipants();
@@ -20975,7 +21004,14 @@ async function startLiveSession() {
         
     } catch (error) {
         console.error('Error starting live session:', error);
-        alert('Failed to start session. Please check microphone permissions.');
+        
+        if (error.name === 'NotAllowedError') {
+            alert('❌ Microphone access denied. Please allow microphone access and try again.');
+        } else if (error.name === 'NotFoundError') {
+            alert('❌ No microphone found. Please connect a microphone and try again.');
+        } else {
+            alert('Failed to start session: ' + error.message);
+        }
         
         if (localAudioStream) {
             localAudioStream.getTracks().forEach(track => track.stop());
@@ -20984,6 +21020,7 @@ async function startLiveSession() {
     }
 }
 
+        
 // ===== JOIN LIVE SESSION (STUDENT) =====
 async function joinLiveSession() {
     if (!currentUser) {
@@ -21347,32 +21384,51 @@ async function toggleMicrophone() {
         audioTrack.enabled = !audioTrack.enabled;
         isMicMuted = !audioTrack.enabled;
         
-        const btn = document.getElementById('toggle-mic-btn');
-        if (isMicMuted) {
-            btn.textContent = '🔇 Unmute';
-            btn.style.background = '#dc3545';
-        } else {
-            btn.textContent = '🎤 Mute';
-            btn.style.background = '#28a745';
+        // Update button based on user type
+        const btnId = isCoach ? 'coach-toggle-mic-btn' : 'student-toggle-mic-btn';
+        const btn = document.getElementById(btnId);
+        
+        if (btn) {
+            if (isMicMuted) {
+                btn.textContent = '🔇 Unmute';
+                btn.style.background = '#dc3545';
+            } else {
+                btn.textContent = '🎤 Mute';
+                btn.style.background = '#28a745';
+            }
         }
         
         // Update in Firestore
         const classId = myClass ? myClass.id : liveSessionId;
-        await db.collection('classes')
-            .doc(classId)
-            .collection('sessionParticipants')
-            .doc(currentUser.uid)
-            .update({ micMuted: isMicMuted });
+        if (classId) {
+            await db.collection('classes')
+                .doc(classId)
+                .collection('sessionParticipants')
+                .doc(currentUser.uid)
+                .update({ micMuted: isMicMuted });
+        }
     }
 }
 
 // ===== UPDATE PARTICIPANTS LIST =====
 function updateParticipantsList() {
-    const container = document.getElementById('session-participants-list');
+    const containerId = isCoach ? 'coach-session-participants-list' : 'student-session-participants-list';
+    const container = document.getElementById(containerId);
+    
+    if (!container) {
+        console.error('Participants container not found:', containerId);
+        return;
+    }
     
     if (sessionParticipants.size === 0) {
         container.innerHTML = '<p style="color: #666;">No participants yet</p>';
         return;
+    }
+    
+    // Update participant count for coach
+    if (isCoach) {
+        const countEl = document.getElementById('participant-count');
+        if (countEl) countEl.textContent = sessionParticipants.size;
     }
     
     container.innerHTML = Array.from(sessionParticipants.values())
@@ -21396,6 +21452,7 @@ function updateParticipantsList() {
         }).join('');
 }
 
+        
 // ===== CLOSE PEER CONNECTION =====
 function closePeerConnection(userId) {
     const peerConnection = peerConnections.get(userId);
@@ -21414,7 +21471,12 @@ function closePeerConnection(userId) {
 
 // ===== END LIVE SESSION =====
 async function endLiveSession() {
-    if (!confirm('Are you sure you want to end the live session?')) {
+    const isCoachUser = isCoach;
+    const confirmMessage = isCoachUser 
+        ? 'Are you sure you want to end the live session for everyone?' 
+        : 'Are you sure you want to leave the live session?';
+    
+    if (!confirm(confirmMessage)) {
         return;
     }
     
@@ -21434,14 +21496,16 @@ async function endLiveSession() {
         
         // Remove from participants
         const classId = myClass ? myClass.id : liveSessionId;
-        await db.collection('classes')
-            .doc(classId)
-            .collection('sessionParticipants')
-            .doc(currentUser.uid)
-            .delete();
+        if (classId) {
+            await db.collection('classes')
+                .doc(classId)
+                .collection('sessionParticipants')
+                .doc(currentUser.uid)
+                .delete();
+        }
         
         // If coach, end session for everyone
-        if (myClass) {
+        if (isCoachUser && myClass) {
             await db.collection('classes').doc(myClass.id).update({
                 liveSessionActive: false,
                 liveSessionId: null
@@ -21453,7 +21517,11 @@ async function endLiveSession() {
                 .collection('sessionParticipants')
                 .get();
             
-            participantsSnapshot.forEach(doc => doc.ref.delete());
+            const batch = db.batch();
+            participantsSnapshot.forEach(doc => {
+                batch.delete(doc.ref);
+            });
+            await batch.commit();
         }
         
         // Cleanup listeners
@@ -21462,18 +21530,27 @@ async function endLiveSession() {
             liveSessionListener = null;
         }
         
-        // Reset UI
-        document.getElementById('live-session-active').style.display = 'none';
-        document.getElementById('start-session-btn').style.display = 'block';
-        if (document.getElementById('join-session-btn')) {
-            document.getElementById('join-session-btn').style.display = 'block';
+        // Reset UI based on user type
+        if (isCoachUser) {
+            const startBtn = document.getElementById('start-session-btn');
+            const liveSessionContainer = document.getElementById('coach-live-session-active');
+            
+            if (liveSessionContainer) liveSessionContainer.style.display = 'none';
+            if (startBtn) startBtn.style.display = 'block';
+        } else {
+            const liveSessionContainer = document.getElementById('student-live-session-active');
+            const joinBtn = document.getElementById('join-session-btn');
+            
+            if (liveSessionContainer) liveSessionContainer.style.display = 'none';
+            if (joinBtn) joinBtn.style.display = 'block';
         }
         
         sessionParticipants.clear();
         liveSessionActive = false;
         liveSessionId = null;
         
-        alert('✅ Live session ended');
+        const message = isCoachUser ? '✅ Live session ended' : '✅ Left live session';
+        alert(message);
         
     } catch (error) {
         console.error('Error ending session:', error);
