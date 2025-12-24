@@ -869,59 +869,82 @@ async function showCoachDetail(coach) {
     console.log('Displaying coach modal:', coach.name);
     const modal = document.getElementById('coachDetailModal');
     
+    if (!modal) {
+        console.error('Coach modal not found!');
+        return;
+    }
+    
     // Update avatar with photo
     const avatar = document.getElementById('modal-coach-avatar');
-    if (coach.photoURL) {
-        console.log('🖼️ Setting photo URL:', coach.photoURL);
-        avatar.style.backgroundImage = `url('${coach.photoURL}')`;
-        avatar.style.backgroundSize = 'cover';
-        avatar.style.backgroundPosition = 'center';
-        avatar.textContent = '';
-    } else {
-        console.log('🔤 No photo URL, using initial');
-        avatar.style.backgroundImage = 'none';
-        avatar.textContent = (coach.name || 'C').charAt(0).toUpperCase();
+    if (avatar) {
+        if (coach.photoURL) {
+            console.log('🖼️ Setting photo URL:', coach.photoURL);
+            avatar.style.backgroundImage = `url('${coach.photoURL}')`;
+            avatar.style.backgroundSize = 'cover';
+            avatar.style.backgroundPosition = 'center';
+            avatar.textContent = '';
+        } else {
+            console.log('🔤 No photo URL, using initial');
+            avatar.style.backgroundImage = 'none';
+            avatar.textContent = (coach.name || 'C').charAt(0).toUpperCase();
+        }
     }
     
     // Update name
-    document.getElementById('modal-coach-name').textContent = coach.name || 'Unknown Coach';
+    const nameEl = document.getElementById('modal-coach-name');
+    if (nameEl) nameEl.textContent = coach.name || 'Unknown Coach';
     
     // Update status badge
     const statusBadge = document.getElementById('modal-coach-status');
-    if (coach.idVerified) {
-        statusBadge.className = 'status-badge verified';
-        statusBadge.textContent = 'Verified';
-    } else {
-        statusBadge.className = 'status-badge pending';
-        statusBadge.textContent = '⏳ Pending Verification';
+    if (statusBadge) {
+        if (coach.idVerified) {
+            statusBadge.className = 'status-badge verified';
+            statusBadge.textContent = '✅ Verified';
+        } else {
+            statusBadge.className = 'status-badge pending';
+            statusBadge.textContent = '⏳ Pending Verification';
+        }
     }
     
     // Update email
-    document.getElementById('modal-coach-email').textContent = coach.email || 'N/A';
+    const emailEl = document.getElementById('modal-coach-email');
+    if (emailEl) emailEl.textContent = coach.email || 'N/A';
     
     // Update organization
-    document.getElementById('modal-coach-organization').textContent = coach.organization || 'Independent';
+    const orgEl = document.getElementById('modal-coach-organization');
+    if (orgEl) orgEl.textContent = coach.organization || 'Independent';
     
     // Update joined date
-    if (coach.createdAt) {
-        const joinDate = coach.createdAt.toDate();
-        document.getElementById('modal-coach-joined').textContent = 
-            joinDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-    } else {
-        document.getElementById('modal-coach-joined').textContent = 'Recently';
+    const joinedEl = document.getElementById('modal-coach-joined');
+    if (joinedEl) {
+        if (coach.createdAt) {
+            const joinDate = coach.createdAt.toDate();
+            joinedEl.textContent = joinDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+        } else {
+            joinedEl.textContent = 'Recently';
+        }
     }
     
     // Show/hide age if available
     const ageRow = document.getElementById('modal-coach-age-row');
-    if (coach.verifiedAge) {
-        ageRow.style.display = 'flex';
-        document.getElementById('modal-coach-age').textContent = coach.verifiedAge + ' years old';
-    } else {
-        ageRow.style.display = 'none';
+    if (ageRow) {
+        if (coach.verifiedAge) {
+            ageRow.style.display = 'flex';
+            const ageEl = document.getElementById('modal-coach-age');
+            if (ageEl) ageEl.textContent = coach.verifiedAge + ' years old';
+        } else {
+            ageRow.style.display = 'none';
+        }
     }
     
     // ✅ ADD BOOK COACH BUTTON FOR STUDENTS
-    const coachDetailBody = document.querySelector('.coach-detail-body');
+    const coachDetailBody = modal.querySelector('.coach-detail-body');
+    
+    if (!coachDetailBody) {
+        console.error('Coach detail body not found!');
+        modal.classList.add('active');
+        return;
+    }
     
     // Remove any existing book button first
     const existingBookBtn = coachDetailBody.querySelector('.book-coach-container');
@@ -940,7 +963,7 @@ async function showCoachDetail(coach) {
                 bookBtnContainer.style.cssText = 'margin-top: 20px; text-align: center;';
                 
                 bookBtnContainer.innerHTML = `
-                    <button class="practice-btn" onclick="bookCoach('${coach.id}', '${coach.name}')" 
+                    <button class="practice-btn" onclick="bookCoach('${coach.id}', '${coach.name.replace(/'/g, "\\'")}')" 
                             style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); font-size: 1.1rem; padding: 15px 30px;">
                         📚 Book This Coach
                     </button>
@@ -956,8 +979,9 @@ async function showCoachDetail(coach) {
     // Show modal
     modal.classList.add('active');
     console.log('Modal displayed');
-}     
+}
 
+     
 // Close coach detail modal
 function closeCoachDetailModal() {
     document.getElementById('coachDetailModal').classList.remove('active');
@@ -1122,56 +1146,80 @@ async function showStudentDetail(student) {
     console.log('Displaying student modal:', student.name);
     const modal = document.getElementById('studentDetailModal');
     
+    if (!modal) {
+        console.error('Student modal not found!');
+        return;
+    }
+    
     // Generate Student ID
     const studentId = `WB-2025-${student.id.slice(-4).toUpperCase()}`;
     
     // Update avatar with photo
     const avatar = document.getElementById('modal-student-avatar');
-    if (student.photoURL) {
-        console.log('🖼️ Setting photo URL:', student.photoURL);
-        avatar.style.backgroundImage = `url('${student.photoURL}')`;
-        avatar.style.backgroundSize = 'cover';
-        avatar.style.backgroundPosition = 'center';
-        avatar.textContent = '';
-    } else {
-        console.log('🔤 No photo URL, using initial');
-        avatar.style.backgroundImage = 'none';
-        avatar.textContent = (student.name || 'S').charAt(0).toUpperCase();
+    if (avatar) {
+        if (student.photoURL) {
+            console.log('🖼️ Setting photo URL:', student.photoURL);
+            avatar.style.backgroundImage = `url('${student.photoURL}')`;
+            avatar.style.backgroundSize = 'cover';
+            avatar.style.backgroundPosition = 'center';
+            avatar.textContent = '';
+        } else {
+            console.log('🔤 No photo URL, using initial');
+            avatar.style.backgroundImage = 'none';
+            avatar.textContent = (student.name || 'S').charAt(0).toUpperCase();
+        }
     }
     
     // Update name
-    document.getElementById('modal-student-name').textContent = student.name || 'Student';
+    const nameEl = document.getElementById('modal-student-name');
+    if (nameEl) nameEl.textContent = student.name || 'Student';
     
     // Update Student ID (both places)
-    document.getElementById('modal-student-id').textContent = studentId;
-    document.getElementById('modal-student-id-display').textContent = studentId;
+    const idEl = document.getElementById('modal-student-id');
+    if (idEl) idEl.textContent = studentId;
+    
+    const idDisplayEl = document.getElementById('modal-student-id-display');
+    if (idDisplayEl) idDisplayEl.textContent = studentId;
     
     // Update email
-    document.getElementById('modal-student-email').textContent = student.email || 'N/A';
+    const emailEl = document.getElementById('modal-student-email');
+    if (emailEl) emailEl.textContent = student.email || 'N/A';
     
     // Update age
     const ageRow = document.getElementById('modal-student-age-row');
-    if (student.age) {
-        ageRow.style.display = 'flex';
-        document.getElementById('modal-student-age').textContent = student.age + ' years old';
-    } else {
-        ageRow.style.display = 'none';
+    if (ageRow) {
+        if (student.age) {
+            ageRow.style.display = 'flex';
+            const ageEl = document.getElementById('modal-student-age');
+            if (ageEl) ageEl.textContent = student.age + ' years old';
+        } else {
+            ageRow.style.display = 'none';
+        }
     }
     
     // Update country
-    document.getElementById('modal-student-country').textContent = student.country || 'N/A';
+    const countryEl = document.getElementById('modal-student-country');
+    if (countryEl) countryEl.textContent = student.country || 'N/A';
     
     // Update joined date
-    if (student.createdAt) {
-        const joinDate = student.createdAt.toDate();
-        document.getElementById('modal-student-joined').textContent = 
-            joinDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-    } else {
-        document.getElementById('modal-student-joined').textContent = 'Recently';
+    const joinedEl = document.getElementById('modal-student-joined');
+    if (joinedEl) {
+        if (student.createdAt) {
+            const joinDate = student.createdAt.toDate();
+            joinedEl.textContent = joinDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+        } else {
+            joinedEl.textContent = 'Recently';
+        }
     }
     
     // ✅ ADD RECRUIT BUTTON FOR COACHES
-    const studentDetailBody = document.querySelector('.student-detail-body');
+    const studentDetailBody = modal.querySelector('.student-detail-body');
+    
+    if (!studentDetailBody) {
+        console.error('Student detail body not found!');
+        modal.classList.add('active');
+        return;
+    }
     
     // Remove any existing recruit button first
     const existingRecruitBtn = studentDetailBody.querySelector('.recruit-student-container');
@@ -1190,7 +1238,7 @@ async function showStudentDetail(student) {
                 recruitBtnContainer.style.cssText = 'margin-top: 20px; text-align: center;';
                 
                 recruitBtnContainer.innerHTML = `
-                    <button class="practice-btn" onclick="recruitStudent('${student.id}', '${student.name}')" 
+                    <button class="practice-btn" onclick="recruitStudent('${student.id}', '${student.name.replace(/'/g, "\\'")}')" 
                             style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); font-size: 1.1rem; padding: 15px 30px;">
                         ➕ Recruit to My Class
                     </button>
@@ -2279,6 +2327,146 @@ async function checkForActiveSession() {
         console.error('Error checking for active session:', error);
     }
 }  
+
+
+// ===== BOOK COACH (STUDENT) =====
+async function bookCoach(coachId, coachName) {
+    if (!currentUser) {
+        alert('Please sign in to book a coach');
+        return;
+    }
+    
+    if (!confirm(`Book ${coachName} as your coach?\n\nThis will add you to their class.`)) {
+        return;
+    }
+    
+    try {
+        // Get coach's class
+        const classQuery = await db.collection('classes')
+            .where('coachId', '==', coachId)
+            .limit(1)
+            .get();
+        
+        if (classQuery.empty) {
+            alert('❌ Coach class not found. Please try again later.');
+            return;
+        }
+        
+        const classDoc = classQuery.docs[0];
+        const classId = classDoc.id;
+        
+        // Check if student already has a coach
+        const userDoc = await db.collection('users').doc(currentUser.uid).get();
+        const userData = userDoc.data();
+        
+        if (userData.classId && userData.classId !== classId) {
+            if (!confirm('You are already in another class. Switch to this coach?')) {
+                return;
+            }
+            
+            // Remove from old class count
+            try {
+                const oldClassDoc = await db.collection('classes').doc(userData.classId).get();
+                if (oldClassDoc.exists) {
+                    const oldCount = oldClassDoc.data().studentCount || 0;
+                    await db.collection('classes').doc(userData.classId).update({
+                        studentCount: Math.max(0, oldCount - 1)
+                    });
+                }
+            } catch (error) {
+                console.error('Error updating old class count:', error);
+            }
+        }
+        
+        // Update student with classId
+        await db.collection('users').doc(currentUser.uid).update({
+            classId: classId,
+            coachId: coachId
+        });
+        
+        // Update class student count
+        const currentCount = classDoc.data().studentCount || 0;
+        await db.collection('classes').doc(classId).update({
+            studentCount: currentCount + 1
+        });
+        
+        alert(`✅ Successfully booked ${coachName}!\n\nYou can now access your class from the "MY CLASS" button.`);
+        closeCoachDetailModal();
+        
+        // Show MY CLASS button
+        const myClassBtn = document.getElementById('myClassBtn');
+        if (myClassBtn) {
+            myClassBtn.style.display = 'block';
+        }
+        
+    } catch (error) {
+        console.error('Error booking coach:', error);
+        alert('Failed to book coach: ' + error.message);
+    }
+}
+
+// ===== RECRUIT STUDENT (COACH) =====
+async function recruitStudent(studentId, studentName) {
+    if (!currentUser || !myClass) {
+        alert('Please ensure you have a class set up first');
+        return;
+    }
+    
+    if (!confirm(`Recruit ${studentName} to your class?`)) {
+        return;
+    }
+    
+    try {
+        // Check if student already has a coach
+        const studentDoc = await db.collection('users').doc(studentId).get();
+        const studentData = studentDoc.data();
+        
+        if (studentData.classId && studentData.classId !== myClass.id) {
+            if (!confirm(`${studentName} is already in another class. Recruit anyway?`)) {
+                return;
+            }
+            
+            // Remove from old class count
+            try {
+                const oldClassDoc = await db.collection('classes').doc(studentData.classId).get();
+                if (oldClassDoc.exists) {
+                    const oldCount = oldClassDoc.data().studentCount || 0;
+                    await db.collection('classes').doc(studentData.classId).update({
+                        studentCount: Math.max(0, oldCount - 1)
+                    });
+                }
+            } catch (error) {
+                console.error('Error updating old class count:', error);
+            }
+        }
+        
+        // Add student to coach's class
+        await db.collection('users').doc(studentId).update({
+            classId: myClass.id,
+            coachId: currentUser.uid
+        });
+        
+        // Update class student count
+        const currentCount = myClass.studentCount || 0;
+        await db.collection('classes').doc(myClass.id).update({
+            studentCount: currentCount + 1
+        });
+        
+        // Update myClass object
+        myClass.studentCount = currentCount + 1;
+        
+        alert(`✅ Successfully recruited ${studentName} to your class!`);
+        closeStudentDetailModal();
+        
+        // Reload class students
+        await loadClassStudents();
+        updateCoachClassStats();
+        
+    } catch (error) {
+        console.error('Error recruiting student:', error);
+        alert('Failed to recruit student: ' + error.message);
+    }
+}     
     </script>
 </body>
 </html>
