@@ -20251,22 +20251,11 @@ async function showCoachDetail(coach) {
         }
     }
     
-    // ✅ ADD BOOK COACH BUTTON FOR STUDENTS
-    // Try multiple possible selectors for the modal body
-    let coachDetailBody = modal.querySelector('.coach-detail-body');
-    if (!coachDetailBody) {
-        coachDetailBody = modal.querySelector('.auth-body');
-    }
-    if (!coachDetailBody) {
-        coachDetailBody = modal.querySelector('.modal-body');
-    }
-    if (!coachDetailBody) {
-        // If still not found, try to find any container inside the modal
-        coachDetailBody = modal.querySelector('.auth-content > div:last-child');
-    }
+    // ✅ ADD BOOK COACH BUTTON FOR STUDENTS - Use correct class name
+    const coachDetailBody = modal.querySelector('.coach-detail-content');
     
     if (!coachDetailBody) {
-        console.error('Coach detail body not found!');
+        console.error('Coach detail content not found!');
         modal.classList.add('active');
         return;
     }
@@ -20285,7 +20274,7 @@ async function showCoachDetail(coach) {
             if (userData && userData.userType === 'student') {
                 const bookBtnContainer = document.createElement('div');
                 bookBtnContainer.className = 'book-coach-container';
-                bookBtnContainer.style.cssText = 'margin-top: 20px; text-align: center;';
+                bookBtnContainer.style.cssText = 'margin-top: 20px; text-align: center; padding: 20px;';
                 
                 bookBtnContainer.innerHTML = `
                     <button class="practice-btn" onclick="bookCoach('${coach.id}', '${coach.name.replace(/'/g, "\\'")}')" 
