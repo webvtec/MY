@@ -21353,9 +21353,9 @@ function listenForSessionParticipants() {
 }
 
 // ===== CREATE PEER CONNECTION =====
-async function createPeerConnection(userId, participant) {
+async function createPeerConnection(userId, participant, isInitiator = true) {
     try {
-        console.log('🔗 Creating peer connection with:', participant.name);
+        console.log('🔗 Creating peer connection with:', participant.name, 'isInitiator:', isInitiator);
         
         const peerConnection = new RTCPeerConnection(iceServers);
         
@@ -21382,9 +21382,8 @@ async function createPeerConnection(userId, participant) {
                 audioElement = document.createElement('audio');
                 audioElement.id = `audio_${userId}`;
                 audioElement.autoplay = true;
-                audioElement.volume = 1.0; // ✅ Full volume
+                audioElement.volume = 1.0;
                 
-                // ✅ Add to both possible containers (coach and student)
                 const coachContainer = document.getElementById('coach-remote-audio-container');
                 const studentContainer = document.getElementById('remote-audio-container');
                 
@@ -21393,7 +21392,6 @@ async function createPeerConnection(userId, participant) {
                 } else if (studentContainer) {
                     studentContainer.appendChild(audioElement);
                 } else {
-                    // Fallback: append to body
                     document.body.appendChild(audioElement);
                 }
                 
@@ -21401,11 +21399,7 @@ async function createPeerConnection(userId, participant) {
             }
             
             audioElement.srcObject = remoteStream;
-            
-            // ✅ Ensure audio plays (some browsers require user interaction)
-            audioElement.play().then(() => {
-                console.log('✅ Audio playing from:', participant.name);
-            }).catch(err => {
+            audioElement.play().catch(err => {
                 console.error('❌ Error playing audio:', err);
             });
         };
@@ -21425,27 +21419,87 @@ async function createPeerConnection(userId, participant) {
                 console.log('✅ Successfully connected to:', participant.name);
             } else if (peerConnection.connectionState === 'failed') {
                 console.error('❌ Connection failed with:', participant.name);
+                // Attempt to restart ICE
+                peerConnection.restartIce();
             }
-        };
-        
-        peerConnection.oniceconnectionstatechange = () => {
-            console.log(`ICE connection state with ${participant.name}:`, peerConnection.iceConnectionState);
         };
         
         peerConnections.set(userId, peerConnection);
         
-        // Create and send offer
-        const offer = await peerConnection.createOffer({
-            offerToReceiveAudio: true // ✅ Explicitly request to receive audio
-        });
-        await peerConnection.setLocalDescription(offer);
+        // ✅ ONLY create offer if we're the initiator
+        if (isInitiator) {
+            const offer = await peerConnection.createOffer({
+                offerToReceiveAudio: true
+            });
+            await peerConnection.setLocalDescription(offer);
+            await sendOffer(userId, offer);
+            console.log('✅ Offer sent to:', participant.name);
+        }
         
-        await sendOffer(userId, offer);
-        
-        console.log('✅ Peer connection created and offer sent to:', participant.name);
+        return peerConnection;
         
     } catch (error) {
         console.error('Error creating peer connection:', error);
+        throw error;
+    }
+}
+
+// ===== HANDLE INCOMING OFFER =====
+async function handleIncomingOffer(userId, offer) {
+    try {
+        console.log('📨 Received offer from:', userId);
+        
+        // Get or create peer connection (as NON-initiator)
+        let peerConnection = peerConnections.get(userId);
+        if (!peerConnection) {
+            // Get participant info
+            const participantData = await getParticipantData(userId);
+            peerConnection = await createPeerConnection(userId, participantData, false);
+        }
+        
+        // Check current signaling state
+        if (peerConnection.signalingState === 'have-remote-offer') {
+            console.warn('⚠️ Already have remote offer, ignoring duplicate');
+            return;
+        }
+        
+        // Set remote description
+        await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+        
+        // Create and send answer
+        const answer = await peerConnection.createAnswer();
+        await peerConnection.setLocalDescription(answer);
+        
+        await sendAnswer(userId, answer);
+        console.log('✅ Answer sent to:', userId);
+        
+    } catch (error) {
+        console.error('Error handling incoming offer:', error);
+    }
+}
+
+// ===== HANDLE INCOMING ANSWER =====
+async function handleIncomingAnswer(userId, answer) {
+    try {
+        console.log('📨 Received answer from:', userId);
+        
+        const peerConnection = peerConnections.get(userId);
+        if (!peerConnection) {
+            console.error('❌ No peer connection found for:', userId);
+            return;
+        }
+        
+        // Check if we're in the correct state
+        if (peerConnection.signalingState !== 'have-local-offer') {
+            console.warn('⚠️ Not in correct state to receive answer, current state:', peerConnection.signalingState);
+            return;
+        }
+        
+        await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+        console.log('✅ Answer processed from:', userId);
+        
+    } catch (error) {
+        console.error('Error handling incoming answer:', error);
     }
 }
 
