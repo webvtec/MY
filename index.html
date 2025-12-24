@@ -4867,6 +4867,38 @@ document.addEventListener('DOMContentLoaded', function() {
             closeQuizLeaderboardPlayerModal();
         }
     });
+
+
+
+    // Add this after the myProfileBtn logic:
+
+    // ✅ ADD MY CLASS BUTTON
+    const myClassBtn = document.getElementById('myClassBtn');
+    if (!myClassBtn) {
+        const classBtn = document.createElement('button');
+        classBtn.id = 'myClassBtn';
+        classBtn.className = 'my-profile-btn';
+        classBtn.style.cssText = 'display: none; margin-top: 10px;';
+        classBtn.onclick = () => {
+            navigateTo('class');
+            loadMyClass();
+        };
+        
+        const sidebarUserInfo = document.getElementById('sidebarUserInfo');
+        sidebarUserInfo.appendChild(classBtn);
+    }
+    
+    try {
+        const userDoc = await db.collection('users').doc(user.uid).get();
+        const userData = userDoc.data();
+        
+        if (userData && (userData.userType === 'student' || userData.userType === 'coach')) {
+            document.getElementById('myClassBtn').innerHTML = '📚 MY CLASS';
+            document.getElementById('myClassBtn').style.display = 'block';
+        }
+    } catch (error) {
+        console.error('Error checking class status:', error);
+    }
     
 auth.onAuthStateChanged(async user => {
     if (user) {
@@ -5119,6 +5151,10 @@ async function navigateTo(section, skipSidebarClose = false) {
     if (section === 'tournaments') {
     await loadTournamentList();
 }
+   // Load class section
+    if (section === 'class' && currentUser) {
+        await loadMyClass();
+} 
 }
         
        function toggleSidebar(forceClose = false) {
@@ -20024,18 +20060,38 @@ function showCoachDetail(coach) {
     }
     
     // Show/hide age if available
-    const ageRow = document.getElementById('modal-coach-age-row');
-    if (coach.verifiedAge) {
-        ageRow.style.display = 'flex';
-        document.getElementById('modal-coach-age').textContent = coach.verifiedAge + ' years old';
-    } else {
-        ageRow.style.display = 'none';
-    }
+   const ageRow = document.getElementById('modal-coach-age-row');
+        if (coach.verifiedAge) {
+            ageRow.style.display = 'flex';
+            document.getElementById('modal-coach-age').textContent = coach.verifiedAge + ' years old';
+        } else {
+            ageRow.style.display = 'none';
+        }
     
     // Show modal
     modal.classList.add('active');
     console.log('Modal displayed');
 }
+
+ // ✅ ADD BOOK COACH BUTTON FOR STUDENTS
+        if (currentUser) {
+            const userDoc = await db.collection('users').doc(currentUser.uid).get();
+            const userData = userDoc.data();
+            
+            if (userData && userData.userType === 'student') {
+                const bookBtnContainer = document.createElement('div');
+                bookBtnContainer.style.cssText = 'margin-top: 20px; text-align: center;';
+                
+                bookBtnContainer.innerHTML = `
+                    <button class="practice-btn" onclick="bookCoach('${coach.id}', '${coach.name}')" 
+                            style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); font-size: 1.1rem; padding: 15px 30px;">
+                        📚 Book This Coach
+                    </button>
+                `;
+                
+                document.querySelector('.coach-detail-body').appendChild(bookBtnContainer);
+            }
+        }       
 
 // Close coach detail modal
 function closeCoachDetailModal() {
@@ -20242,17 +20298,37 @@ function showStudentDetail(student) {
     
     // Update joined date
     if (student.createdAt) {
-        const joinDate = student.createdAt.toDate();
-        document.getElementById('modal-student-joined').textContent = 
-            joinDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-    } else {
-        document.getElementById('modal-student-joined').textContent = 'Recently';
-    }
+            const joinDate = student.createdAt.toDate();
+            document.getElementById('modal-student-joined').textContent = 
+                joinDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+        } else {
+            document.getElementById('modal-student-joined').textContent = 'Recently';
+        }
     
     // Show modal
     modal.classList.add('active');
     console.log('Modal displayed');
 }
+
+  // ✅ ADD RECRUIT BUTTON FOR COACHES
+        if (currentUser) {
+            const userDoc = await db.collection('users').doc(currentUser.uid).get();
+            const userData = userDoc.data();
+            
+            if (userData && userData.userType === 'coach') {
+                const recruitBtnContainer = document.createElement('div');
+                recruitBtnContainer.style.cssText = 'margin-top: 20px; text-align: center;';
+                
+                recruitBtnContainer.innerHTML = `
+                    <button class="practice-btn" onclick="recruitStudent('${student.id}', '${student.name}')" 
+                            style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); font-size: 1.1rem; padding: 15px 30px;">
+                        ➕ Recruit to My Class
+                    </button>
+                `;
+                
+                document.querySelector('.coach-detail-body').appendChild(recruitBtnContainer);
+            }
+        }               
 
 // Close student detail modal
 function closeStudentDetailModal() {
