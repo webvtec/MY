@@ -359,8 +359,19 @@ let stage3FirstCompletionTime = null;
 let myClass = null;
 let classStudents = [];
 let classAnnouncements = [];
+
+// ===== LIVE SESSION VARIABLES =====
 let liveSessionActive = false;
-let liveSessionParticipants = [];     
+let liveSessionId = null;
+let liveSessionListener = null;
+let myPeerConnection = null;
+let localAudioStream = null;
+let peerConnections = new Map(); // userId -> RTCPeerConnection
+let remoteStreams = new Map(); // userId -> MediaStream
+let isMicMuted = false;
+let sessionParticipants = new Map(); // userId -> {name, email, photoURL}
+let isCoach = false; // Track if current user is coach
+        
         
      // ===== INITIALIZE =====
 document.addEventListener('DOMContentLoaded', function() {
