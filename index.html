@@ -20679,8 +20679,43 @@ async function loadStudentClassView() {
             announcements.push({ id: doc.id, ...doc.data() });
         });
         
+        // Check if there's an active live session
+        const liveSessionHtml = classData.liveSessionActive ? `
+            <div style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); padding: 25px; border-radius: 15px; text-align: center; margin-bottom: 30px; box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);">
+                <h3 style="color: white; margin-bottom: 15px; font-size: 1.5rem;">🎥 Live Session Active!</h3>
+                <p style="color: rgba(255,255,255,0.95); margin-bottom: 20px;">Your coach has started a live session. Join now to participate!</p>
+                <button id="join-session-btn" class="practice-btn" onclick="joinLiveSession()" style="background: white; color: #28a745; font-size: 1.2rem; font-weight: bold; padding: 15px 40px;">
+                    🎤 Join Live Session
+                </button>
+            </div>
+            
+            <!-- Live Session Active UI (Hidden until joined) -->
+            <div id="student-live-session-active" style="display: none; background: white; padding: 25px; border-radius: 15px; border: 3px solid #28a745; margin-bottom: 30px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h3 style="color: #28a745; margin: 0;">🎥 In Live Session</h3>
+                    <div style="display: flex; gap: 10px;">
+                        <button id="student-toggle-mic-btn" onclick="toggleMicrophone()" class="practice-btn" style="background: #28a745; padding: 10px 20px;">
+                            🎤 Mute
+                        </button>
+                        <button onclick="endLiveSession()" class="practice-btn" style="background: #dc3545; padding: 10px 20px;">
+                            ❌ Leave Session
+                        </button>
+                    </div>
+                </div>
+                
+                <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                    <h4 style="color: #0d3b66; margin-bottom: 15px;">👥 Participants</h4>
+                    <div id="student-session-participants-list"></div>
+                </div>
+                
+                <div id="remote-audio-container" style="display: none;"></div>
+            </div>
+        ` : '';
+        
         // Display class info
         container.innerHTML = `
+            ${liveSessionHtml}
+            
             <div class="dashboard-section">
                 <h3 style="color: #0d3b66; margin-bottom: 20px;">👨‍🏫 Your Coach</h3>
                 <div style="background: white; padding: 20px; border-radius: 10px; border: 2px solid #0d3b66; margin-bottom: 30px;">
@@ -20698,20 +20733,37 @@ async function loadStudentClassView() {
                 <h3 style="color: #0d3b66; margin-bottom: 20px;">📢 Recent Announcements</h3>
                 ${announcements.length > 0 ? `
                     <div style="display: flex; flex-direction: column; gap: 15px;">
-                        ${announcements.map(ann => `
-                            <div style="background: white; padding: 20px; border-radius: 10px; border-left: 4px solid #0d3b66;">
-                                <h4 style="margin: 0 0 10px 0; color: #0d3b66;">${ann.title}</h4>
-                                <p style="margin: 0; color: #666; white-space: pre-wrap;">${ann.message}</p>
-                                ${ann.nextClassDate ? `
+                        ${announcements.map(ann => {
+                            let nextClassHtml = '';
+                            if (ann.nextClassDate) {
+                                const classDate = new Date(ann.nextClassDate);
+                                const options = { 
+                                    year: 'numeric', 
+                                    month: 'long', 
+                                    day: 'numeric', 
+                                    hour: 'numeric', 
+                                    minute: '2-digit',
+                                    hour12: true 
+                                };
+                                const formattedDate = classDate.toLocaleString('en-US', options).toUpperCase();
+                                nextClassHtml = `
                                     <p style="margin: 10px 0 0 0; color: #28a745; font-weight: bold;">
-                                        🎥 Next Class: ${new Date(ann.nextClassDate).toLocaleString()}
+                                        🎥 Next Class: ${formattedDate}
                                     </p>
-                                ` : ''}
-                                <p style="margin: 10px 0 0 0; color: #999; font-size: 0.9rem;">
-                                    ${ann.createdAt ? ann.createdAt.toDate().toLocaleString() : 'Recently'}
-                                </p>
-                            </div>
-                        `).join('')}
+                                `;
+                            }
+                            
+                            return `
+                                <div style="background: white; padding: 20px; border-radius: 10px; border-left: 4px solid #0d3b66;">
+                                    <h4 style="margin: 0 0 10px 0; color: #0d3b66;">${ann.title}</h4>
+                                    <p style="margin: 0; color: #666; white-space: pre-wrap;">${ann.message}</p>
+                                    ${nextClassHtml}
+                                    <p style="margin: 10px 0 0 0; color: #999; font-size: 0.9rem;">
+                                        ${ann.createdAt ? ann.createdAt.toDate().toLocaleString() : 'Recently'}
+                                    </p>
+                                </div>
+                            `;
+                        }).join('')}
                     </div>
                 ` : `
                     <div style="text-align: center; padding: 40px; background: #f8f9fa; border-radius: 10px;">
@@ -20720,6 +20772,31 @@ async function loadStudentClassView() {
                 `}
             </div>
         `;
+        
+        // Set up live session listener for real-time updates
+        liveSessionId = userData.classId;
+        
+        // Listen for session status changes
+        db.collection('classes').doc(userData.classId).onSnapshot(doc => {
+            if (doc.exists) {
+                const data = doc.data();
+                const joinBtn = document.getElementById('join-session-btn');
+                const activeSession = document.getElementById('student-live-session-active');
+                
+                // If session just started and we're not in it yet
+                if (data.liveSessionActive && joinBtn && !liveSessionActive) {
+                    // Session is active, show join button (already in HTML)
+                    console.log('✅ Live session is active');
+                }
+                
+                // If session ended while we were in it
+                if (!data.liveSessionActive && liveSessionActive) {
+                    alert('📢 The live session has ended');
+                    endLiveSession();
+                    loadStudentClassView(); // Reload to remove session UI
+                }
+            }
+        });
         
     } catch (error) {
         console.error('Error loading student class view:', error);
@@ -20731,7 +20808,7 @@ async function loadStudentClassView() {
     }
 }
 
-// ===== COACH CLASS VIEW =====
+        
 // ===== COACH CLASS VIEW =====
 async function loadCoachClassView() {
     try {
@@ -20807,6 +20884,7 @@ async function loadClassStudents() {
     try {
         const studentsSnapshot = await db.collection('users')
             .where('classId', '==', myClass.id)
+            .where('userType', '==', 'student') // ✅ Only get students, not coaches
             .get();
         
         classStudents = [];
@@ -20885,25 +20963,42 @@ function displayClassAnnouncements() {
     
     container.innerHTML = `
         <div style="display: grid; gap: 15px;">
-            ${classAnnouncements.map(ann => `
-                <div style="background: white; padding: 20px; border-radius: 10px; border-left: 4px solid #0d3b66;">
-                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
-                        <h4 style="margin: 0; color: #0d3b66;">${ann.title}</h4>
-                        <button onclick="deleteAnnouncement('${ann.id}')" style="background: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer;">
-                            🗑️
-                        </button>
-                    </div>
-                    <p style="margin: 10px 0; color: #666; white-space: pre-wrap;">${ann.message}</p>
-                    ${ann.nextClassDate ? `
+            ${classAnnouncements.map(ann => {
+                let nextClassHtml = '';
+                if (ann.nextClassDate) {
+                    const classDate = new Date(ann.nextClassDate);
+                    const options = { 
+                        year: 'numeric', 
+                        month: 'long', 
+                        day: 'numeric', 
+                        hour: 'numeric', 
+                        minute: '2-digit',
+                        hour12: true 
+                    };
+                    const formattedDate = classDate.toLocaleString('en-US', options).toUpperCase();
+                    nextClassHtml = `
                         <p style="margin: 10px 0 0 0; color: #28a745; font-weight: bold;">
-                            🎥 Next Class: ${new Date(ann.nextClassDate).toLocaleString()}
+                            🎥 Next Class: ${formattedDate}
                         </p>
-                    ` : ''}
-                    <p style="margin: 10px 0 0 0; color: #999; font-size: 0.9rem;">
-                        ${ann.createdAt ? ann.createdAt.toDate().toLocaleString() : 'Recently'}
-                    </p>
-                </div>
-            `).join('')}
+                    `;
+                }
+                
+                return `
+                    <div style="background: white; padding: 20px; border-radius: 10px; border-left: 4px solid #0d3b66;">
+                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
+                            <h4 style="margin: 0; color: #0d3b66;">${ann.title}</h4>
+                            <button onclick="deleteAnnouncement('${ann.id}')" style="background: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer;">
+                                🗑️
+                            </button>
+                        </div>
+                        <p style="margin: 10px 0; color: #666; white-space: pre-wrap;">${ann.message}</p>
+                        ${nextClassHtml}
+                        <p style="margin: 10px 0 0 0; color: #999; font-size: 0.9rem;">
+                            ${ann.createdAt ? ann.createdAt.toDate().toLocaleString() : 'Recently'}
+                        </p>
+                    </div>
+                `;
+            }).join('')}
         </div>
     `;
 }
