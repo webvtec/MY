@@ -20252,7 +20252,18 @@ async function showCoachDetail(coach) {
     }
     
     // ✅ ADD BOOK COACH BUTTON FOR STUDENTS
-    const coachDetailBody = modal.querySelector('.coach-detail-body');
+    // Try multiple possible selectors for the modal body
+    let coachDetailBody = modal.querySelector('.coach-detail-body');
+    if (!coachDetailBody) {
+        coachDetailBody = modal.querySelector('.auth-body');
+    }
+    if (!coachDetailBody) {
+        coachDetailBody = modal.querySelector('.modal-body');
+    }
+    if (!coachDetailBody) {
+        // If still not found, try to find any container inside the modal
+        coachDetailBody = modal.querySelector('.auth-content > div:last-child');
+    }
     
     if (!coachDetailBody) {
         console.error('Coach detail body not found!');
@@ -20526,10 +20537,22 @@ async function showStudentDetail(student) {
     }
     
     // ✅ ADD RECRUIT BUTTON FOR COACHES
-    const studentDetailBody = modal.querySelector('.student-detail-body');
+    // Try multiple possible selectors for the modal body
+    let studentDetailBody = modal.querySelector('.student-detail-body');
+    if (!studentDetailBody) {
+        studentDetailBody = modal.querySelector('.auth-body');
+    }
+    if (!studentDetailBody) {
+        studentDetailBody = modal.querySelector('.modal-body');
+    }
+    if (!studentDetailBody) {
+        // If still not found, try to find any container inside the modal
+        studentDetailBody = modal.querySelector('.auth-content > div:last-child');
+    }
     
     if (!studentDetailBody) {
-        console.error('Student detail body not found!');
+        console.error('Student detail body not found! Available classes:', modal.className);
+        console.log('Modal HTML:', modal.innerHTML.substring(0, 200));
         modal.classList.add('active');
         return;
     }
