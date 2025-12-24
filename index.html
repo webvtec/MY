@@ -20828,16 +20828,17 @@ async function loadCoachClassView() {
             .get();
         
         if (classQuery.empty) {
-            // Create class for coach
-            const classRef = await db.collection('classes').add({
-                coachId: currentUser.uid,
-                coachName: currentUser.displayName || 'Coach',
-                coachEmail: currentUser.email,
-                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                studentCount: 0,
-                liveSessionActive: false,
-                liveSessionId: null
-            });
+           // Create class for coach
+const classRef = await db.collection('classes').add({
+    coachId: currentUser.uid,
+    coachName: currentUser.displayName || 'Coach',
+    coachEmail: currentUser.email,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    studentCount: 0,
+    liveSessionActive: false,
+    liveSessionId: null,
+    sessionCount: 0  // ✅ ADD THIS LINE
+});
             
             // Update user with classId
             await db.collection('users').doc(currentUser.uid).update({
@@ -21015,9 +21016,8 @@ function displayClassAnnouncements() {
 function updateCoachClassStats() {
     document.getElementById('class-student-count').textContent = classStudents.length;
     document.getElementById('class-announcement-count').textContent = classAnnouncements.length;
-    document.getElementById('class-session-count').textContent = '0'; // Implement later
+    document.getElementById('class-session-count').textContent = myClass ? (myClass.sessionCount || 0) : '0';
 }
-
 function showAddAnnouncementModal() {
     document.getElementById('announcementModal').classList.add('active');
 }
@@ -21117,18 +21117,26 @@ async function startLiveSession() {
         // Create session in Firestore
         liveSessionId = myClass.id; // Use class ID as session ID
         
-        // ✅ FIXED: Set BOTH flags to true to indicate active session
+        // ✅ FIXED: Increment session count
+        const currentSessionCount = myClass.sessionCount || 0;
+        
+        // ✅ FIXED: Set BOTH flags to true to indicate active session AND increment session count
         await db.collection('classes').doc(myClass.id).update({
             liveSessionActive: true,
             liveSessionId: liveSessionId,
             liveSessionStartedAt: firebase.firestore.FieldValue.serverTimestamp(),
-            liveSessionHost: currentUser.uid
+            liveSessionHost: currentUser.uid,
+            sessionCount: currentSessionCount + 1  // ✅ INCREMENT SESSION COUNT
         });
         
         console.log('✅ Session started in Firestore:', {
             liveSessionActive: true,
-            liveSessionId: liveSessionId
+            liveSessionId: liveSessionId,
+            sessionCount: currentSessionCount + 1
         });
+        
+        // Update local myClass object
+        myClass.sessionCount = currentSessionCount + 1;
         
         // Add coach as first participant
         await db.collection('classes')
@@ -21153,6 +21161,9 @@ async function startLiveSession() {
         
         if (startBtn) startBtn.style.display = 'none';
         if (liveSessionContainer) liveSessionContainer.style.display = 'block';
+        
+        // ✅ UPDATE SESSION COUNT IN UI
+        updateCoachClassStats();
         
         // Listen for participants joining
         listenForSessionParticipants();
@@ -21489,17 +21500,22 @@ async function handleIncomingAnswer(userId, answer) {
             return;
         }
         
-        // Check if we're in the correct state
-        if (peerConnection.signalingState !== 'have-local-offer') {
-            console.warn('⚠️ Not in correct state to receive answer, current state:', peerConnection.signalingState);
-            return;
-        }
+        // ✅ CHECK SIGNALING STATE
+        const currentState = peerConnection.signalingState;
         
-        await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
-        console.log('✅ Answer processed from:', userId);
+        // Check if we're in the correct state
+        if (currentState === 'have-local-offer') {
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+            console.log('✅ Answer processed from:', userId);
+        } else if (currentState === 'stable') {
+            console.warn('⚠️ Already in stable state, ignoring duplicate answer from:', userId);
+        } else {
+            console.warn('⚠️ Not in correct state to receive answer, current state:', currentState);
+        }
         
     } catch (error) {
         console.error('Error handling incoming answer:', error);
+        // Don't re-throw to prevent breaking the flow
     }
 }
 
@@ -21694,12 +21710,32 @@ async function sendAnswer(toUserId, answer) {
 
 async function handleAnswer(fromUserId, answer) {
     try {
+        console.log('📨 Handling answer from user:', fromUserId);
+        
         const peerConnection = peerConnections.get(fromUserId);
-        if (peerConnection) {
-            await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+        
+        if (!peerConnection) {
+            console.error('❌ No peer connection found for:', fromUserId);
+            return;
         }
+        
+        // ✅ CHECK SIGNALING STATE BEFORE SETTING REMOTE DESCRIPTION
+        const currentState = peerConnection.signalingState;
+        console.log('Current signaling state:', currentState);
+        
+        // Only set remote description if we're in the correct state
+        if (currentState === 'have-local-offer') {
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+            console.log('✅ Answer processed from:', fromUserId);
+        } else if (currentState === 'stable') {
+            console.warn('⚠️ Already in stable state, ignoring duplicate answer');
+        } else {
+            console.warn('⚠️ Unexpected state for answer:', currentState);
+        }
+        
     } catch (error) {
         console.error('Error handling answer:', error);
+        // Don't throw - just log the error to prevent breaking the flow
     }
 }
 
