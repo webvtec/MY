@@ -6331,6 +6331,12 @@ function signOut() {
 
 async function signInWithGoogle() {
     const provider = new firebase.auth.GoogleAuthProvider();
+    
+    // ✅ Force account selection every time
+    provider.setCustomParameters({
+        prompt: 'select_account'
+    });
+    
     try {
         const result = await auth.signInWithPopup(provider);
         const user = result.user;
@@ -6340,46 +6346,101 @@ async function signInWithGoogle() {
         const userDoc = await userRef.get();
         
         if (!userDoc.exists) {
-            // ✅ NOW SAVING photoURL
-            await userRef.set({
-                name: user.displayName,
-                email: user.email,
-                photoURL: user.photoURL || null, // ✅ ADD THIS
-                userType: 'student',
-                profileComplete: false,
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
-            });
+            // ❌ User has not signed up - reject sign in
+            await auth.signOut();
             
-            closeAuthModal();
-            showVerificationModal({
-                name: user.displayName,
-                email: user.email,
-                userType: 'student'
-            });
-        } else {
-            // Existing user - check if profile is complete
-            const userData = userDoc.data();
-            if (!userData.profileComplete) {
-                closeAuthModal();
-                showVerificationModal(userData);
-            } else {
-                closeAuthModal();
-            }
+            document.getElementById('signin-error').textContent = '❌ Account not found. Please sign up first before signing in.';
+            document.getElementById('signin-error').style.display = 'block';
+            
+            // Optional: Auto-switch to sign up tab after 2 seconds
+            setTimeout(() => {
+                const signinTab = document.getElementById('signin-tab');
+                const signupTab = document.getElementById('signup-tab');
+                const signinForm = document.getElementById('signin-form');
+                const signupForm = document.getElementById('signup-form');
+                
+                if (signinTab && signupTab && signinForm && signupForm) {
+                    signinTab.classList.remove('active');
+                    signupTab.classList.add('active');
+                    signinForm.style.display = 'none';
+                    signupForm.style.display = 'block';
+                }
+            }, 2000);
+            
+            return;
         }
+        
+        // ✅ Existing user - check if profile is complete
+        const userData = userDoc.data();
+        
+        // Sync photoURL if it exists in auth but not in Firestore
+        if (user.photoURL && !userData.photoURL) {
+            await userRef.update({
+                photoURL: user.photoURL
+            });
+        }
+        
+        if (!userData.profileComplete) {
+            closeAuthModal();
+            showVerificationModal(userData);
+        } else {
+            closeAuthModal();
+        }
+        
     } catch (error) {
         console.error('Google sign-in error:', error);
-        document.getElementById('signin-error').textContent = error.message;
-        document.getElementById('signin-error').style.display = 'block';
+        
+        // Don't show error for user-cancelled actions
+        if (error.code !== 'auth/popup-closed-by-user' && 
+            error.code !== 'auth/cancelled-popup-request') {
+            document.getElementById('signin-error').textContent = error.message;
+            document.getElementById('signin-error').style.display = 'block';
+        }
     }
 }
         
 async function signUpWithGoogle(userType) {
     const provider = new firebase.auth.GoogleAuthProvider();
+    
+    // ✅ Force account selection every time
+    provider.setCustomParameters({
+        prompt: 'select_account'
+    });
+    
     try {
         const result = await auth.signInWithPopup(provider);
         const user = result.user;
         
         const userRef = db.collection('users').doc(user.uid);
+        const existingDoc = await userRef.get();
+        
+        // ❌ Check if user already exists
+        if (existingDoc.exists) {
+            await auth.signOut();
+            
+            const errorDiv = document.getElementById(`signup-${userType}-error`);
+            if (errorDiv) {
+                errorDiv.textContent = '⚠️ Account already exists. Please sign in instead.';
+                errorDiv.style.display = 'block';
+            }
+            
+            // Auto-switch to sign in tab after 2 seconds
+            setTimeout(() => {
+                const signinTab = document.getElementById('signin-tab');
+                const signupTab = document.getElementById('signup-tab');
+                const signinForm = document.getElementById('signin-form');
+                const signupForm = document.getElementById('signup-form');
+                
+                if (signinTab && signupTab && signinForm && signupForm) {
+                    signupTab.classList.remove('active');
+                    signinTab.classList.add('active');
+                    signupForm.style.display = 'none';
+                    signinForm.style.display = 'block';
+                }
+            }, 2000);
+            
+            return;
+        }
         
         // ✅ Generate student ID if signing up as student
         const userData = {
@@ -6393,6 +6454,8 @@ async function signUpWithGoogle(userType) {
         
         if (userType === 'student') {
             userData.studentId = generateStudentId(user.uid);
+            userData.coins = 0; // ✅ Initialize coins for students
+            userData.subscriptionActive = false; // ✅ Initialize subscription
         }
         
         await userRef.set(userData);
@@ -6403,11 +6466,19 @@ async function signUpWithGoogle(userType) {
             email: user.email,
             userType: userType
         });
+        
     } catch (error) {
         console.error('Google sign-up error:', error);
-        const errorDiv = document.getElementById(`signup-${userType}-error`);
-        errorDiv.textContent = error.message;
-        errorDiv.style.display = 'block';
+        
+        // Don't show error for user-cancelled actions
+        if (error.code !== 'auth/popup-closed-by-user' && 
+            error.code !== 'auth/cancelled-popup-request') {
+            const errorDiv = document.getElementById(`signup-${userType}-error`);
+            if (errorDiv) {
+                errorDiv.textContent = error.message;
+                errorDiv.style.display = 'block';
+            }
+        }
     }
 }
 
