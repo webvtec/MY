@@ -21235,11 +21235,13 @@ async function startLiveSession() {
             } 
         });
         
-        console.log('✅ Microphone access granted');
-        console.log('   Audio tracks:', localAudioStream.getAudioTracks().length);
+        // ✅ START WITH MIC MUTED
         localAudioStream.getAudioTracks().forEach(track => {
-            console.log('   Track:', track.kind, 'enabled:', track.enabled, 'readyState:', track.readyState);
+            track.enabled = false; // Start muted
         });
+        isMicMuted = true;
+        
+        console.log('✅ Microphone access granted (MUTED by default)');
         
         if (!isRejoin) {
             // Starting new session
@@ -21255,12 +21257,7 @@ async function startLiveSession() {
                 sessionCount: currentSessionCount + 1
             });
             
-            console.log('✅ New session started:', {
-                liveSessionActive: true,
-                liveSessionId: liveSessionId,
-                sessionCount: currentSessionCount + 1
-            });
-            
+            console.log('✅ New session started');
             myClass.sessionCount = currentSessionCount + 1;
         } else {
             // Rejoining existing session
@@ -21279,12 +21276,12 @@ async function startLiveSession() {
                 email: currentUser.email,
                 photoURL: currentUser.photoURL || null,
                 joinedAt: firebase.firestore.FieldValue.serverTimestamp(),
-                micMuted: false
+                micMuted: true, // ✅ Start muted
+                coachMuted: false
             });
         
         liveSessionActive = true;
         isCoach = true;
-        isMicMuted = false;
         
         // Show live session UI for COACH
         const startBtn = document.getElementById('start-session-btn');
@@ -21293,11 +21290,11 @@ async function startLiveSession() {
         if (startBtn) startBtn.style.display = 'none';
         if (liveSessionContainer) liveSessionContainer.style.display = 'block';
         
-        // Reset mic button
+        // ✅ Set mic button to muted state
         const micBtn = document.getElementById('coach-toggle-mic-btn');
         if (micBtn) {
-            micBtn.textContent = '🎤 Mute';
-            micBtn.style.background = '#28a745';
+            micBtn.textContent = '🔇 Unmute';
+            micBtn.style.background = '#dc3545';
         }
         
         // Update session count in UI
@@ -21306,7 +21303,7 @@ async function startLiveSession() {
         // Listen for participants joining
         listenForSessionParticipants();
         
-        const message = isRejoin ? '✅ Rejoined live session!' : '✅ Live session started! Students can now join.';
+        const message = isRejoin ? '✅ Rejoined live session! (Mic is muted)' : '✅ Live session started! (Mic is muted - click Unmute to speak)';
         alert(message);
         
         console.log('✅ Session start complete');
@@ -21370,8 +21367,13 @@ async function joinLiveSession() {
             } 
         });
         
-        console.log('✅ Microphone access granted');
-        console.log('   Audio tracks:', localAudioStream.getAudioTracks().length);
+        // ✅ START WITH MIC MUTED
+        localAudioStream.getAudioTracks().forEach(track => {
+            track.enabled = false; // Start muted
+        });
+        isMicMuted = true;
+        
+        console.log('✅ Microphone access granted (MUTED by default)');
         
         // Get user data
         const userDoc = await db.collection('users').doc(currentUser.uid).get();
@@ -21414,13 +21416,13 @@ async function joinLiveSession() {
                 email: userData.email,
                 photoURL: userData.photoURL || null,
                 joinedAt: firebase.firestore.FieldValue.serverTimestamp(),
-                micMuted: false
+                micMuted: true, // ✅ Start muted
+                coachMuted: false
             });
         
         console.log('✅ Added to session participants');
         
         liveSessionActive = true;
-        isMicMuted = false;
         
         // Hide join button and show active session UI
         const joinContainer = document.getElementById('live-session-join-container');
@@ -21429,15 +21431,17 @@ async function joinLiveSession() {
         if (joinContainer) joinContainer.style.display = 'none';
         if (activeSessionUI) activeSessionUI.style.display = 'block';
         
-        // Reset mic button
+        // ✅ Set mic button to muted state
         const micBtn = document.getElementById('student-toggle-mic-btn');
         if (micBtn) {
-            micBtn.textContent = '🎤 Mute';
-            micBtn.style.background = '#28a745';
+            micBtn.textContent = '🔇 Unmute';
+            micBtn.style.background = '#dc3545';
         }
         
         // Listen for participants
         listenForSessionParticipants();
+        
+        alert('✅ Joined live session! (Mic is muted - click Unmute when ready to speak)');
         
         console.log('✅ Joined live session successfully');
         
@@ -21482,6 +21486,8 @@ async function joinLiveSession() {
         }
     }
 }
+
+        
 // ===== LISTEN FOR SESSION PARTICIPANTS =====
 function listenForSessionParticipants() {
     const classId = myClass ? myClass.id : liveSessionId;
@@ -22246,12 +22252,6 @@ async function toggleMicrophone() {
         return;
     }
     
-    // ✅ Check if coach has muted this student
-    if (coachMutedMe && !isCoach) {
-        alert('❌ Your coach has muted you. You cannot unmute yourself.');
-        return;
-    }
-    
     const audioTrack = localAudioStream.getAudioTracks()[0];
     if (!audioTrack) {
         console.error('❌ No audio track found!');
@@ -22288,7 +22288,7 @@ async function toggleMicrophone() {
                 .doc(currentUser.uid)
                 .update({ 
                     micMuted: isMicMuted,
-                    coachMuted: false // ✅ Clear coach mute flag when student toggles themselves
+                    coachMuted: false // ✅ Clear coach mute flag when student unmutes themselves
                 });
         } catch (error) {
             console.error('Error updating mic status in Firestore:', error);
@@ -22297,39 +22297,37 @@ async function toggleMicrophone() {
 }
 
 
-   // ===== MUTE PARTICIPANT (COACH ONLY) =====
-async function muteParticipant(userId, participantName, currentlyMuted) {
+  // ===== MUTE PARTICIPANT (COACH ONLY) =====
+async function muteParticipant(userId, participantName) {
     if (!isCoach) {
         alert('Only coaches can mute participants');
         return;
     }
     
-    const action = currentlyMuted ? 'unmute' : 'mute';
-    
-    if (!confirm(`${action.toUpperCase()} ${participantName}?`)) {
+    if (!confirm(`MUTE ${participantName}?\n\nNote: Only the student can unmute themselves.`)) {
         return;
     }
     
     try {
         const classId = myClass.id;
         
-        // Update in Firestore
+        // Update in Firestore - force mute
         await db.collection('classes')
             .doc(classId)
             .collection('sessionParticipants')
             .doc(userId)
             .update({ 
-                micMuted: !currentlyMuted,
-                coachMuted: !currentlyMuted // ✅ Track that coach did this
+                micMuted: true,
+                coachMuted: true // Track that coach did this
             });
         
-        console.log(`✅ ${action}d ${participantName}`);
+        console.log(`✅ Muted ${participantName}`);
         
         // Update local map
         const participant = sessionParticipants.get(userId);
         if (participant) {
-            participant.micMuted = !currentlyMuted;
-            participant.coachMuted = !currentlyMuted;
+            participant.micMuted = true;
+            participant.coachMuted = true;
             sessionParticipants.set(userId, participant);
         }
         
@@ -22337,10 +22335,10 @@ async function muteParticipant(userId, participantName, currentlyMuted) {
         updateParticipantsList();
         
     } catch (error) {
-        console.error(`Error ${action}ing participant:`, error);
-        alert(`Failed to ${action} participant: ${error.message}`);
+        console.error('Error muting participant:', error);
+        alert('Failed to mute participant: ' + error.message);
     }
-}          
+}
         
 // ===== UPDATE PARTICIPANTS LIST =====
 function updateParticipantsList() {
@@ -22372,12 +22370,12 @@ function updateParticipantsList() {
             const micStatus = participant.micMuted ? '🔇' : '🎤';
             const isCurrentUser = participant.userId === currentUser.uid;
             
-            // ✅ Coach controls for each participant
+            // ✅ Coach can ONLY mute (not unmute) other participants
             const coachControls = isCoach && !isCurrentUser ? `
                 <button 
-                    onclick="muteParticipant('${participant.userId}', '${participant.name.replace(/'/g, "\\'")}', ${participant.micMuted || false})"
+                    onclick="muteParticipant('${participant.userId}', '${participant.name.replace(/'/g, "\\'")}')"
                     style="
-                        background: ${participant.micMuted ? '#28a745' : '#dc3545'};
+                        background: #dc3545;
                         color: white;
                         border: none;
                         padding: 8px 15px;
@@ -22390,9 +22388,13 @@ function updateParticipantsList() {
                     onmouseover="this.style.opacity='0.8'"
                     onmouseout="this.style.opacity='1'"
                 >
-                    ${participant.micMuted ? '🔊 Unmute' : '🔇 Mute'}
+                    🔇 Mute
                 </button>
             ` : '';
+            
+            // ✅ Show if coach has muted them
+            const coachMutedLabel = participant.coachMuted ? 
+                '<span style="color: #dc3545; font-size: 0.8rem; font-weight: bold;">(Coach Muted)</span>' : '';
             
             return `
                 <div style="display: flex; align-items: center; gap: 10px; padding: 10px; background: white; border-radius: 8px; margin-bottom: 10px;">
@@ -22400,7 +22402,7 @@ function updateParticipantsList() {
                     <div style="flex: 1;">
                         <div style="font-weight: bold; color: #0d3b66;">
                             ${participant.name}${isCurrentUser ? ' (You)' : ''}
-                            ${participant.coachMuted ? ' <span style="color: #dc3545; font-size: 0.8rem;">(Muted by Coach)</span>' : ''}
+                            ${coachMutedLabel}
                         </div>
                         <div style="font-size: 0.9rem; color: #666;">${participant.email}</div>
                     </div>
