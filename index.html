@@ -4986,7 +4986,10 @@ let remoteStreams = new Map(); // userId -> MediaStream
 let isMicMuted = false;
 let sessionParticipants = new Map(); // userId -> {name, email, photoURL}
 let isCoach = false; // Track if current user is coach
-        
+
+
+// ===== ICE CANDIDATE QUEUE =====
+const pendingIceCandidates = new Map(); // userId -> [candidates]
         
      // ===== INITIALIZE =====
 document.addEventListener('DOMContentLoaded', function() {
@@ -21690,6 +21693,12 @@ async function handleOffer(fromUserId, offer) {
             peerConnections.delete(fromUserId);
         }
         
+        // âœ… Clear any queued candidates for this user
+        if (pendingIceCandidates.has(fromUserId)) {
+            console.log('🗑️ Clearing old queued ICE candidates');
+            pendingIceCandidates.delete(fromUserId);
+        }
+        
         // Get participant info
         const classId = myClass ? myClass.id : liveSessionId;
         const participantDoc = await db.collection('classes')
@@ -21773,6 +21782,32 @@ async function handleOffer(fromUserId, offer) {
         
         peerConnection.onconnectionstatechange = () => {
             console.log(`Connection state with ${participant.name}:`, peerConnection.connectionState);
+            
+            if (peerConnection.connectionState === 'failed' || peerConnection.connectionState === 'disconnected') {
+                console.warn(`⚠️ Connection ${peerConnection.connectionState} with ${participant.name}`);
+                
+                // âœ… Auto-reconnect after a brief delay
+                setTimeout(() => {
+                    const stillExists = sessionParticipants.has(fromUserId);
+                    const currentPc = peerConnections.get(fromUserId);
+                    
+                    if (stillExists && currentPc === peerConnection) {
+                        console.log('🔄 Attempting to reconnect with:', participant.name);
+                        
+                        // Close old connection
+                        peerConnection.close();
+                        peerConnections.delete(fromUserId);
+                        
+                        // âœ… Only coach should initiate reconnection
+                        if (isCoach) {
+                            console.log('👑 Coach initiating reconnection');
+                            createPeerConnection(fromUserId, participant, true);
+                        } else {
+                            console.log('👨‍🎓 Student waiting for coach to reconnect');
+                        }
+                    }
+                }, 2000); // Wait 2 seconds before reconnecting
+            }
         };
         
         peerConnections.set(fromUserId, peerConnection);
@@ -21791,12 +21826,28 @@ async function handleOffer(fromUserId, offer) {
         await sendAnswer(fromUserId, answer);
         console.log('✅ Answer sent to:', participant.name);
         
+        // âœ… Process any queued ICE candidates now that remote description is set
+        if (pendingIceCandidates.has(fromUserId)) {
+            const queued = pendingIceCandidates.get(fromUserId);
+            console.log(`📋 Processing ${queued.length} queued ICE candidates after offer`);
+            
+            for (const candidate of queued) {
+                try {
+                    await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+                    console.log('✅ Queued ICE candidate added');
+                } catch (err) {
+                    console.error('❌ Error adding queued candidate:', err);
+                }
+            }
+            
+            pendingIceCandidates.delete(fromUserId);
+        }
+        
     } catch (error) {
         console.error('❌ Error handling offer:', error);
     }
 }
-
-
+// ===== HANDLE ANSWER =====
 async function handleAnswer(fromUserId, answer) {
     try {
         console.log('📨 Handling answer from user:', fromUserId);
@@ -21809,22 +21860,41 @@ async function handleAnswer(fromUserId, answer) {
         }
         
         const currentState = peerConnection.signalingState;
-        console.log('Current signaling state:', currentState);
+        console.log('   Current signaling state:', currentState);
         
-        // ✅ FIXED: Only set remote description if we're in the correct state
+        // âœ… Only process answer if we're waiting for one
         if (currentState === 'have-local-offer') {
             await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
             console.log('✅ Answer processed from:', fromUserId);
+            
+            // âœ… Process any queued ICE candidates now that remote description is set
+            if (pendingIceCandidates.has(fromUserId)) {
+                const queued = pendingIceCandidates.get(fromUserId);
+                console.log(`📋 Processing ${queued.length} queued ICE candidates after answer`);
+                
+                for (const candidate of queued) {
+                    try {
+                        await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+                        console.log('✅ Queued ICE candidate added');
+                    } catch (err) {
+                        console.error('❌ Error adding queued candidate:', err);
+                    }
+                }
+                
+                pendingIceCandidates.delete(fromUserId);
+            }
         } else if (currentState === 'stable') {
-            console.log('✅ Already connected, ignoring duplicate answer');
+            console.log('✅ Already connected, ignoring answer');
         } else {
-            console.warn('⚠️ Unexpected state for answer:', currentState);
+            console.warn('⚠️ Unexpected state:', currentState);
         }
         
     } catch (error) {
-        console.error('Error handling answer:', error);
+        console.error('❌ Error handling answer:', error);
     }
 }
+
+        
 async function getParticipantData(userId) {
     const classId = myClass ? myClass.id : liveSessionId;
     const participantDoc = await db.collection('classes')
@@ -22117,17 +22187,45 @@ async function sendIceCandidate(toUserId, candidate) {
 async function handleIceCandidate(fromUserId, candidate) {
     try {
         const peerConnection = peerConnections.get(fromUserId);
-        if (peerConnection && peerConnection.remoteDescription) {
+        
+        if (!peerConnection) {
+            console.warn('⚠️ No peer connection found for:', fromUserId, '- ignoring ICE candidate');
+            return;
+        }
+        
+        // âœ… Check if remote description is set
+        if (peerConnection.remoteDescription && peerConnection.remoteDescription.type) {
             await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
             console.log('✅ ICE candidate added from:', fromUserId);
+            
+            // âœ… Process any queued candidates
+            if (pendingIceCandidates.has(fromUserId)) {
+                const queued = pendingIceCandidates.get(fromUserId);
+                console.log(`📋 Processing ${queued.length} queued ICE candidates`);
+                
+                for (const queuedCandidate of queued) {
+                    try {
+                        await peerConnection.addIceCandidate(new RTCIceCandidate(queuedCandidate));
+                        console.log('✅ Queued ICE candidate added');
+                    } catch (err) {
+                        console.error('❌ Error adding queued candidate:', err);
+                    }
+                }
+                
+                pendingIceCandidates.delete(fromUserId);
+            }
         } else {
-            console.warn('⚠️ Cannot add ICE candidate yet, remote description not set');
+            // âœ… Queue the candidate for later
+            console.log('📥 Queueing ICE candidate (remote description not ready)');
+            if (!pendingIceCandidates.has(fromUserId)) {
+                pendingIceCandidates.set(fromUserId, []);
+            }
+            pendingIceCandidates.get(fromUserId).push(candidate);
         }
     } catch (error) {
         console.error('❌ Error handling ICE candidate:', error);
     }
 }
-
 // ===== TOGGLE MICROPHONE =====
 async function toggleMicrophone() {
     if (!localAudioStream) {
@@ -22228,8 +22326,16 @@ function closePeerConnection(userId) {
         peerConnections.delete(userId);
     }
     
+    // âœ… Clear queued ICE candidates
+    if (pendingIceCandidates.has(userId)) {
+        console.log('🗑️ Clearing queued ICE candidates for:', userId);
+        pendingIceCandidates.delete(userId);
+    }
+    
     const audioElement = document.getElementById(`audio_${userId}`);
     if (audioElement) {
+        audioElement.pause();
+        audioElement.srcObject = null;
         audioElement.remove();
     }
     
@@ -22279,6 +22385,10 @@ async function endLiveSession() {
             }
         });
         peerConnections.clear();
+        
+        // ✅ Clear all queued ICE candidates
+        pendingIceCandidates.clear();
+        console.log('🗑️ Cleared all queued ICE candidates');
         
         // ✅ Clear remote streams
         remoteStreams.clear();
