@@ -22,6 +22,602 @@
 </div>
 
 
+    <script>
+        // ===== FIREBASE CONFIGURATION =====
+        const firebaseConfig = {
+            apiKey: "AIzaSyCDdnDKsCUaCK4L95G57AC9-BjCqJiIywA",
+            authDomain: "wordbiz-coaching-academy.firebaseapp.com",
+            projectId: "wordbiz-coaching-academy",
+            storageBucket: "wordbiz-coaching-academy.firebasestorage.app",
+            messagingSenderId: "829294789081",
+            appId: "1:829294789081:web:501ae4d3d6f3694a40d9c8"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const auth = firebase.auth();
+
+        // ===== CLOUD FUNCTION URL =====
+        const CLOUD_FUNCTION_URL = 'https://getworddefinition-998744778737.us-central1.run.app';
+
+
+        
+// ===== PAYPAL CONFIGURATION =====
+const PAYPAL_HANDLER_URL = 'https://verificationpaypalpayment-998744778737.us-central1.run.app';
+const REOPEN_ACCOUNT_COST = 6.50;
+const REOPEN_DAYS = 30;
+
+let paypalButtonRendered = false;
+let sponsorPaypalRendered = false;
+let currentChildData = null;
+
+        
+
+        let paypalSDKLoaded = false;
+
+async function loadPayPalSDK() {
+    if (paypalSDKLoaded) {
+        return Promise.resolve();
+    }
+    
+    try {
+        // Get client ID from Firebase function
+        const response = await fetch(`${PAYPAL_HANDLER_URL}?action=getClientId`);
+        const data = await response.json();
+        
+        if (!data.success || !data.clientId) {
+            throw new Error('Failed to get PayPal client ID');
+        }
+        
+        return new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = `https://www.paypal.com/sdk/js?client-id=${data.clientId}&currency=USD&locale=en_US`;
+            script.async = true;
+            
+            script.onload = () => {
+                paypalSDKLoaded = true;
+                console.log('✅ PayPal SDK loaded');
+                resolve();
+            };
+            
+            script.onerror = () => {
+                reject(new Error('Failed to load PayPal SDK'));
+            };
+            
+            document.head.appendChild(script);
+        });
+    } catch (error) {
+        console.error('Error loading PayPal SDK:', error);
+        throw error;
+    }
+}
+        
+        // ===== GLOBAL VARIABLES =====
+let allWords = [];
+let currentLetter = '';
+let currentWord = null;
+let isListening = false;
+let recognition = null;
+let currentUser = null;
+let currentQuiz = null;
+let currentQuestionIndex = 0;
+let quizScore = 0;
+let userFavorites = [];
+let userIncorrect = [];
+let userSpellingFavorites = [];
+let userSpellingIncorrect = [];
+let quizStartTime = null;
+let quizAnswerTimes = [];
+let quizDifficulty = 'medium'; // track difficulty
+let questionStartTime = null;
+
+// ===== LIVE SPELLING GLOBALS =====
+let challengeListener = null;
+let myChallengeListener = null;
+let shownPopupIds = new Set();
+let declinedChallengeIds = new Set(); // ✅ NEW: Track declined challenges
+let presenceInitialized = false; // ✅ NEW: Prevent duplicate presence initialization
+
+
+// ===== PARENT ID VERIFICATION VARIABLES =====
+let parentIDFile = null;
+let parentIDBase64 = null;
+let childIDFile = null;
+let childIDBase64 = null;
+let parentIDVerified = false;
+let childIDVerified = false;
+
+// ===== LEVEL-BASED WORD LOADING =====
+let currentLevel = '';
+let levelWords = {
+    foundation: [],
+    challenge: [],
+    advanced: [],
+    championship: []
+};
+
+// Google Docs URLs for each level - REPLACE WITH YOUR ACTUAL GOOGLE DOCS IDs
+const LEVEL_DOCS = {
+    foundation: 'https://docs.google.com/document/d/1cgq8FfGXHfFtzeroC1BU5CpNz8Y7Y8qk7f0lduoFdz4/export?format=txt',
+    challenge: 'https://docs.google.com/document/d/1sJLFvQZ2eOBOhZLEf4LhnDZCFJy8vn6sa_HV8JpK_Us/export?format=txt',
+    advanced: 'https://docs.google.com/document/d/1w2lG7hLHixwn-KtNTEUgHU0txtN7_bhGIPrnvdKnPtc/export?format=txt',
+    championship: 'https://docs.google.com/document/d/1ATXYyC7nQOYZ5yyDXow0v0o1efCpXLd3r0GCloCVUrY/export?format=txt'
+};
+
+// ===== SPELLING PRACTICE FUNCTIONS =====
+let spellingWords = [];
+let currentSpellingIndex = 0;
+let spellingScore = 0;
+let currentSpellingWord = '';
+let spellingMistakes = [];
+let selectedGameLevel = '';
+
+// ===== UNSCRAMBLE FUNCTIONS =====
+let unscrambleWords = [];
+let currentUnscrambleIndex = 0;
+let unscrambleScore = 0;
+let currentUnscrambleWord = '';
+let currentLetterOrder = [];
+let hintsUsed = 0;
+let draggedElement = null;
+
+// ===== ID VERIFICATION VARIABLES =====
+let uploadedIDFile = null;
+let uploadedIDBase64 = null;
+let isCoachVerification = false;
+let idVerificationPassed = false;
+
+// ===== LIVE SPELLING VARIABLES =====
+let onlineUsersRef = null;
+let challengesRef = null;
+let activeChallenge = null;
+let challengeWords = [];
+let currentChallengeIndex = 0;
+let myScore = 0;
+let opponentScore = 0;
+let presenceRef = null;
+
+
+// ===== LIVE QUIZ VARIABLES =====
+let quizOnlineUsersRef = null;
+let quizChallengesRef = null;
+let activeQuizChallenge = null;
+let quizChallengeWords = [];
+let currentQuizChallengeIndex = 0;
+let myQuizScore = 0;
+let opponentQuizScore = 0;
+let quizChallengeListener = null;
+let myQuizChallengeListener = null;
+let shownQuizPopupIds = new Set();
+
+// ✅ Challenge timeout constants
+const CHALLENGE_TIMEOUT = 5 * 60 * 1000; // 5 minutes max per challenge
+const TURN_TIMEOUT = 60 * 1000; // 60 seconds per turn
+const OFFLINE_CHECK_INTERVAL = 10 * 1000; // Check every 10 seconds
+
+let challengeTimeoutTimer = null;
+let turnTimeoutTimer = null;
+let offlineCheckTimer = null;
+
+
+let userCoins = 0;
+const COINS_PER_WIN = 5;
+const MAX_COINS = 1000;
+
+
+// ===== TOURNAMENT VARIABLES =====
+let currentTournament = null;
+let tournamentStage = 0;
+let stage1Questions = [];
+let stage1CurrentIndex = 0;
+let stage1Score = 0;
+let stage1Errors = 0;
+let stage1Handicaps = 2;
+let stage1TimeLeft = 600; // 10 minutes in seconds
+let stage1Timer = null;
+
+// ===== STAGE 2: AI AUDIO SPELLING =====
+let stage2Words = [];
+let stage2CurrentIndex = 0;
+let stage2Score = 0;
+let stage2Errors = 0;
+let stage2TimeLeft = 900; // 15 minutes
+let stage2Timer = null;
+let stage2HandicapsRemaining = 1; // Base 1 + carried from Stage 1
+
+// ===== TOURNAMENT STAGE 3 FUNCTIONS =====
+let stage3Words = [];
+let stage3CurrentIndex = 0;
+let stage3Score = 0;
+let stage3Errors = 0;
+let stage3TimeLeft = 900; // 15 minutes
+let stage3Timer = null;
+let stage3HandicapsRemaining = 0;
+let stage3CurrentLetterOrder = [];
+let stage3DraggedElement = null;
+
+// ===== LIVE STAGES 4-7 VARIABLES =====
+let stage4RoomId = null;
+let stage5RoomId = null;
+let stage6RoomId = null;
+let stage7RoomId = null;
+let currentStageRoom = null;
+let stageRoomListener = null;
+
+
+// ===== LIVE ROOM VARIABLES =====
+let localStream = null;
+let liveRoomParticipants = new Map(); // userId -> {name, email, schoolId, stream, audioEnabled, videoEnabled}
+let liveRoomListener = null;
+let myAudioEnabled = true;
+let myVideoEnabled = true;
+
+
+// ===== AUTO-ELIMINATION VARIABLES =====
+let stage3CompletionChecker = null;
+const STAGE3_CUTOFF_TIME = 15 * 60 * 1000; // 15 minutes to complete Stage 3
+const STAGE3_ELIMINATION_DELAY = 2 * 60 * 1000; // Wait 2 minutes after first completion before eliminating
+let stage3FirstCompletionTime = null;
+
+
+   // ===== CLASS SYSTEM VARIABLES =====
+let myClass = null;
+let classStudents = [];
+let classAnnouncements = [];
+
+
+// ===== LIVE SESSION VARIABLES =====
+let liveSessionActive = false;
+let liveSessionId = null;
+let liveSessionListener = null;
+let myPeerConnection = null;
+let localAudioStream = null;
+let peerConnections = new Map(); // userId -> RTCPeerConnection
+let remoteStreams = new Map(); // userId -> MediaStream
+let isMicMuted = false;
+let sessionParticipants = new Map(); // userId -> {name, email, photoURL}
+let isCoach = false; // Track if current user is coach
+let coachMutedMe = false; // ✅ NEW: Track if coach has muted this student
+
+        
+// ===== ICE CANDIDATE QUEUE =====
+const pendingIceCandidates = new Map(); // userId -> [candidates]
+        
+     // ===== INITIALIZE =====
+document.addEventListener('DOMContentLoaded', function() {
+    initializeAlphabet();
+    initializeSpeechRecognition();
+    
+    // ✅ Cleanup old challenges on page load
+    cleanupOldChallenges();
+    
+    // ✅ ADD SCROLL LISTENER FOR COIN DISPLAY
+    window.addEventListener('scroll', function() {
+        const coinDisplay = document.getElementById('coinDisplay');
+        if (coinDisplay && coinDisplay.classList.contains('show')) {
+            if (window.scrollY > 50) {
+                coinDisplay.classList.add('scrolled');
+            } else {
+                coinDisplay.classList.remove('scrolled');
+            }
+        }
+    });
+    
+    document.getElementById('searchInput').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') searchWord();
+    });
+    
+  // âœ… ADD MODAL CLOSE HANDLERS
+    document.addEventListener('click', function(event) {
+        // Close coach detail modal
+        const coachModal = document.getElementById('coachDetailModal');
+        if (event.target === coachModal) {
+            closeCoachDetailModal();
+        }
+        
+        // Close student detail modal
+        const studentModal = document.getElementById('studentDetailModal');
+        if (event.target === studentModal) {
+            closeStudentDetailModal();
+        }
+        
+        // Close leaderboard player modal
+        const leaderboardModal = document.getElementById('leaderboardPlayerModal');
+        if (event.target === leaderboardModal) {
+            closeLeaderboardPlayerModal();
+        }
+        
+        // Close quiz leaderboard player modal
+        const quizLeaderboardModal = document.getElementById('quizLeaderboardPlayerModal');
+        if (event.target === quizLeaderboardModal) {
+            closeQuizLeaderboardPlayerModal();
+        }
+    });
+
+
+
+   auth.onAuthStateChanged(async user => {
+    if (user) {
+        currentUser = user;
+        
+        console.log('👤 User signed in:', user.email);
+        console.log('🖼️ Auth photoURL:', user.photoURL);
+        
+        const userRef = db.collection('users').doc(user.uid);
+        const userDoc = await userRef.get();
+        
+        if (!userDoc.exists) {
+            await auth.signOut();
+            alert('Account error. Please sign up again.');
+            return;
+        }
+        
+        const userData = userDoc.data();
+        console.log('📄 Firestore photoURL:', userData.photoURL);
+        
+        if (user.photoURL && !userData.photoURL) {
+            console.log('📄 Syncing photoURL to Firestore...');
+            await userRef.update({
+                photoURL: user.photoURL
+            });
+            console.log('✅ PhotoURL synced!');
+        }
+        
+        // ✅ INITIALIZE SPELLING STATS IF NOT EXISTS
+        if (!userData.spellingStats) {
+            console.log('📄 Initializing spelling stats...');
+            await userRef.update({
+                spellingStats: {
+                    totalChallenges: 0,
+                    wins: 0,
+                    losses: 0,
+                    totalScore: 0,
+                    winStreak: 0,
+                    bestStreak: 0
+                }
+            });
+            console.log('✅ Spelling stats initialized!');
+        }
+        
+        // ✅ CHECK ADMIN STATUS HERE (CRITICAL - RIGHT AFTER USER DATA IS LOADED)
+        await checkAdminStatus();
+        
+        // ✅ ADD MY CLASS BUTTON
+        const myClassBtn = document.getElementById('myClassBtn');
+        if (!myClassBtn) {
+            const classBtn = document.createElement('button');
+            classBtn.id = 'myClassBtn';
+            classBtn.className = 'my-profile-btn';
+            classBtn.style.cssText = 'display: none; margin-top: 10px;';
+            classBtn.onclick = () => {
+                navigateTo('class');
+                loadMyClass();
+            };
+            
+            const sidebarUserInfo = document.getElementById('sidebarUserInfo');
+            sidebarUserInfo.appendChild(classBtn);
+        }
+        
+        try {
+            if (userData && (userData.userType === 'student' || userData.userType === 'coach')) {
+                document.getElementById('myClassBtn').innerHTML = '📚 MY CLASS';
+                document.getElementById('myClassBtn').style.display = 'block';
+            }
+        } catch (error) {
+            console.error('Error checking class status:', error);
+        }
+        
+        // ✅ CHECK USER TYPE AND HANDLE ACCORDINGLY
+        if (userData.userType === 'parent') {
+            // Parent user - no profile completion needed
+            if (!userData.profileComplete) {
+                await userRef.update({ profileComplete: true });
+            }
+            updateUIForAuthenticatedUser(user);
+            
+            // Navigate to parent dashboard
+            navigateTo('parent-dashboard');
+            return;
+        }
+        
+        // STUDENT/COACH HANDLING
+        if (!userData.profileComplete) {
+            showVerificationModal(userData);
+            return;
+        }
+        
+        updateUIForAuthenticatedUser(user);
+        
+        // ✅ LOAD USER COINS (for students only)
+        if (userData.userType === 'student') {
+            await loadUserCoins(user.uid);
+            await checkSubscriptionStatus();
+        }
+        
+        await cleanupInvalidFavorites();
+        
+        await Promise.all([
+            loadUserFavorites(user.uid),
+            loadUserIncorrect(user.uid),
+            loadUserSpellingFavorites(user.uid),
+            loadUserSpellingIncorrect(user.uid)
+        ]);
+        
+        // ✅ Initialize presence immediately on login (only for students/coaches)
+        if (userData.userType !== 'parent') {
+            await initializeOnlinePresence();
+        }
+        
+        // Load appropriate dashboard
+        if (userData.userType === 'student') {
+            if (document.getElementById('student-dashboard-section').classList.contains('active')) {
+                loadUserDashboard();
+            }
+        }
+    } else {
+        currentUser = null;
+        isAdmin = false;
+        
+        // ✅ Clean up tournament listeners
+        if (tournamentListeners) {
+            tournamentListeners.forEach(unsubscribe => unsubscribe());
+            tournamentListeners = [];
+        }
+        
+        updateUIForGuestUser();
+        updateAdminUI();
+    }
+});
+    });
+        
+        
+    
+// ===== NAVIGATION =====
+async function navigateTo(section, skipSidebarClose = false) {
+    // ✅ CHECK SUBSCRIPTION FOR STUDENTS BEFORE ALLOWING NAVIGATION
+    if (currentUser && !subscriptionActive && section !== 'student-dashboard' && section !== 'parent-dashboard' && section !== 'about') {
+        try {
+            const userDoc = await db.collection('users').doc(currentUser.uid).get();
+            const userData = userDoc.data();
+            
+            // ✅ ADD: Only check if user data is fully loaded
+            if (userData && userData.profileComplete && userData.userType === 'student') {
+                showSubscriptionModal();
+                return;
+            }
+        } catch (error) {
+            console.error('Error checking subscription in navigation:', error);
+            // Allow navigation on error
+        }
+    }
+    
+    // Check if user needs to be logged in
+    if ((section === 'favorites' || section === 'incorrect-quiz' || 
+         section === 'spelling-favorites' || section === 'spelling-incorrect' || 
+         section === 'student-dashboard' || section === 'parent-dashboard') && !currentUser) {
+        alert('Please sign in to access this feature');
+        showAuthModal();
+        return;
+    }
+    
+    // ✅ PREVENT PARENTS FROM ACCESSING STUDENT FEATURES
+    if (currentUser && section !== 'parent-dashboard' && section !== 'home' && section !== 'about' && section !== 'coaches' && section !== 'students') {
+        try {
+            const userDoc = await db.collection('users').doc(currentUser.uid).get();
+            const userData = userDoc.data();
+            
+            if (userData && userData.userType === 'parent') {
+                alert('⚠️ Parents can only access:\n• Parent Dashboard\n• Home\n• About\n• Coaches\n• Students\n\nPlease use the Parent Dashboard to manage your child\'s account.');
+                navigateTo('parent-dashboard');
+                return;
+            }
+        } catch (error) {
+            console.error('Error checking user type:', error);
+        }
+    }
+    
+    // ✅ Track current section BEFORE changing
+    const currentSection = document.querySelector('.content-section.active')?.id.replace('-section', '');
+    
+    // ✅ RESET QUIZ STATE WHEN LEAVING QUIZ SECTION
+    if (currentSection === 'quiz' && section !== 'quiz') {
+        currentQuiz = null;
+        currentQuestionIndex = 0;
+        quizScore = 0;
+        selectedGameLevel = '';
+    }
+    
+    document.querySelectorAll('.content-section').forEach(sec => {
+        sec.classList.remove('active');
+    });
+    
+    const sectionId = section + '-section';
+    const targetSection = document.getElementById(sectionId);
+    if (targetSection) {
+        targetSection.classList.add('active');
+    }
+    
+    if (section === 'word-database') {
+        // Always show level selection first
+        document.getElementById('level-selection').style.display = 'block';
+        document.getElementById('word-database-display').style.display = 'none';
+    }
+    
+    // ✅ Reset Quiz section ONLY if coming from OUTSIDE
+    if (section === 'quiz' && currentSection !== 'quiz') {
+        document.getElementById('quiz-level-selection').style.display = 'block';
+        document.getElementById('practice-quiz-container').innerHTML = '';
+        selectedGameLevel = '';
+    }
+    
+    // ✅ Reset Spelling section ONLY if coming from OUTSIDE
+    if (section === 'spelling' && currentSection !== 'spelling') {
+        document.getElementById('spelling-level-selection').style.display = 'block';
+        document.getElementById('spelling-game').style.display = 'none';
+        document.getElementById('spelling-results').style.display = 'none';
+        selectedGameLevel = '';
+    }
+    
+    if (section === 'favorites' && currentUser) {
+        displayFavorites();
+    }
+    
+    if (section === 'incorrect-quiz' && currentUser) {
+        displayIncorrect();
+    }
+    
+    if (section === 'spelling-favorites' && currentUser) {
+        displaySpellingFavorites();
+    }
+    
+    if (section === 'spelling-incorrect' && currentUser) {
+        displaySpellingIncorrect();
+    }
+    
+    // Load coaches section
+    if (section === 'coaches') {
+        await loadAndDisplayCoaches();
+    }
+    
+    // Load students section
+    if (section === 'students') {
+        await loadAndDisplayStudents();
+    }
+    
+    // ✅ Load student dashboard when navigating to it
+    if (section === 'student-dashboard' && currentUser) {
+        await loadUserDashboard();
+    }
+    
+    // ✅ Load parent dashboard when navigating to it
+    if (section === 'parent-dashboard' && currentUser) {
+        await loadParentDashboard();
+    }
+    
+    // ✅ LOAD ADMIN PANEL WHEN NAVIGATING TO IT
+    if (section === 'admin' && currentUser) {
+        console.log('🎯 Navigating to admin panel. isAdmin:', isAdmin);
+        if (!isAdmin) {
+            alert('❌ Admin access required. Please sign in with an admin account.');
+            navigateTo('home');
+            return;
+        }
+        await loadAdminPanel();
+    }
+    
+    if (!skipSidebarClose) {
+        toggleSidebar(true);
+    }
+
+    if (section === 'tournaments') {
+    await loadTournamentList();
+}
+   // Load class section
+    if (section === 'class' && currentUser) {
+        await loadMyClass();
+} 
+}
+
 // ===== ADMIN CONFIGURATION =====
 const ADMIN_EMAIL = 'carlanviroberts@gmail.com'; // ⚠️ CHANGE THIS TO YOUR ADMIN EMAIL
 let isAdmin = false;
