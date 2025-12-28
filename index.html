@@ -4802,7 +4802,7 @@ async function loadPayPalSDK() {
     }
 }
         
-        // ===== GLOBAL VARIABLES =====
+       // ===== GLOBAL VARIABLES =====
 let allWords = [];
 let currentLetter = '';
 let currentWord = null;
@@ -4828,6 +4828,8 @@ let shownPopupIds = new Set();
 let declinedChallengeIds = new Set(); // ✅ NEW: Track declined challenges
 let presenceInitialized = false; // ✅ NEW: Prevent duplicate presence initialization
 
+// ===== LISTENER CLEANUP SYSTEM =====
+let unsubscribeFunctions = []; // Store all listener unsubscribe functions
 
 // ===== PARENT ID VERIFICATION VARIABLES =====
 let parentIDFile = null;
@@ -4887,7 +4889,6 @@ let myScore = 0;
 let opponentScore = 0;
 let presenceRef = null;
 
-
 // ===== LIVE QUIZ VARIABLES =====
 let quizOnlineUsersRef = null;
 let quizChallengesRef = null;
@@ -4909,11 +4910,9 @@ let challengeTimeoutTimer = null;
 let turnTimeoutTimer = null;
 let offlineCheckTimer = null;
 
-
 let userCoins = 0;
 const COINS_PER_WIN = 5;
 const MAX_COINS = 1000;
-
 
 // ===== TOURNAMENT VARIABLES =====
 let currentTournament = null;
@@ -4954,7 +4953,6 @@ let stage7RoomId = null;
 let currentStageRoom = null;
 let stageRoomListener = null;
 
-
 // ===== LIVE ROOM VARIABLES =====
 let localStream = null;
 let liveRoomParticipants = new Map(); // userId -> {name, email, schoolId, stream, audioEnabled, videoEnabled}
@@ -4962,15 +4960,13 @@ let liveRoomListener = null;
 let myAudioEnabled = true;
 let myVideoEnabled = true;
 
-
 // ===== AUTO-ELIMINATION VARIABLES =====
 let stage3CompletionChecker = null;
 const STAGE3_CUTOFF_TIME = 15 * 60 * 1000; // 15 minutes to complete Stage 3
 const STAGE3_ELIMINATION_DELAY = 2 * 60 * 1000; // Wait 2 minutes after first completion before eliminating
 let stage3FirstCompletionTime = null;
 
-
-   // ===== CLASS SYSTEM VARIABLES =====
+// ===== CLASS SYSTEM VARIABLES =====
 let myClass = null;
 let classStudents = [];
 let classAnnouncements = [];
@@ -4986,7 +4982,104 @@ let remoteStreams = new Map(); // userId -> MediaStream
 let isMicMuted = false;
 let sessionParticipants = new Map(); // userId -> {name, email, photoURL}
 let isCoach = false; // Track if current user is coach
-        
+
+// ===== LISTENER CLEANUP HELPER FUNCTIONS =====
+function trackListener(unsubscribe) {
+    if (unsubscribe && typeof unsubscribe === 'function') {
+        unsubscribeFunctions.push(unsubscribe);
+    }
+    return unsubscribe;
+}
+
+function unsubscribeAllListeners() {
+    console.log('🔌 Unsubscribing from all listeners:', unsubscribeFunctions.length);
+    
+    // Unsubscribe from tracked listeners
+    unsubscribeFunctions.forEach(unsubscribe => {
+        try {
+            if (typeof unsubscribe === 'function') {
+                unsubscribe();
+            }
+        } catch (error) {
+            console.error('Error unsubscribing:', error);
+        }
+    });
+    unsubscribeFunctions = [];
+    
+    // Clean up specific listeners that might not be tracked
+    if (challengeListener) {
+        try { challengeListener(); } catch (e) {}
+        challengeListener = null;
+    }
+    
+    if (myChallengeListener) {
+        try { myChallengeListener(); } catch (e) {}
+        myChallengeListener = null;
+    }
+    
+    if (quizChallengeListener) {
+        try { quizChallengeListener(); } catch (e) {}
+        quizChallengeListener = null;
+    }
+    
+    if (myQuizChallengeListener) {
+        try { myQuizChallengeListener(); } catch (e) {}
+        myQuizChallengeListener = null;
+    }
+    
+    if (liveRoomListener) {
+        try { liveRoomListener(); } catch (e) {}
+        liveRoomListener = null;
+    }
+    
+    if (liveSessionListener) {
+        try { liveSessionListener(); } catch (e) {}
+        liveSessionListener = null;
+    }
+    
+    if (stageRoomListener) {
+        try { stageRoomListener(); } catch (e) {}
+        stageRoomListener = null;
+    }
+    
+    if (stage3CompletionChecker) {
+        try { stage3CompletionChecker(); } catch (e) {}
+        stage3CompletionChecker = null;
+    }
+    
+    // Clean up timers
+    if (challengeTimeoutTimer) {
+        clearTimeout(challengeTimeoutTimer);
+        challengeTimeoutTimer = null;
+    }
+    
+    if (turnTimeoutTimer) {
+        clearTimeout(turnTimeoutTimer);
+        turnTimeoutTimer = null;
+    }
+    
+    if (offlineCheckTimer) {
+        clearInterval(offlineCheckTimer);
+        offlineCheckTimer = null;
+    }
+    
+    if (stage1Timer) {
+        clearInterval(stage1Timer);
+        stage1Timer = null;
+    }
+    
+    if (stage2Timer) {
+        clearInterval(stage2Timer);
+        stage2Timer = null;
+    }
+    
+    if (stage3Timer) {
+        clearInterval(stage3Timer);
+        stage3Timer = null;
+    }
+    
+    console.log('✅ All listeners and timers cleaned up');
+}
         
      // ===== INITIALIZE =====
 document.addEventListener('DOMContentLoaded', function() {
@@ -5041,7 +5134,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 
-   auth.onAuthStateChanged(async user => {
+  auth.onAuthStateChanged(async user => {
     if (user) {
         currentUser = user;
         
@@ -5160,17 +5253,81 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     } else {
+        console.log('❌ User signed out');
+        
+        // ✅ CRITICAL: Unsubscribe from ALL listeners BEFORE clearing user data
+        unsubscribeAllListeners();
+        
+        // Clear user state
         currentUser = null;
         isAdmin = false;
+        userType = 'student';
+        subscriptionActive = false;
+        userFavorites = [];
+        userIncorrect = [];
+        userSpellingFavorites = [];
+        userSpellingIncorrect = [];
+        userCoins = 0;
+        presenceInitialized = false;
+        
+        // Clear popup tracking
+        shownPopupIds.clear();
+        declinedChallengeIds.clear();
+        shownQuizPopupIds.clear();
+        
+        // Clear challenge data
+        activeChallenge = null;
+        activeQuizChallenge = null;
+        challengeWords = [];
+        quizChallengeWords = [];
+        
+        // Clear tournament data
+        currentTournament = null;
+        tournamentStage = 0;
+        stage1Questions = [];
+        stage2Words = [];
+        stage3Words = [];
+        
+        // Clear class data
+        myClass = null;
+        classStudents = [];
+        classAnnouncements = [];
+        liveSessionActive = false;
+        liveSessionId = null;
+        
+        // Clear peer connections
+        peerConnections.forEach(pc => {
+            try { pc.close(); } catch (e) {}
+        });
+        peerConnections.clear();
+        remoteStreams.clear();
+        sessionParticipants.clear();
+        
+        // Stop local media streams
+        if (localAudioStream) {
+            localAudioStream.getTracks().forEach(track => track.stop());
+            localAudioStream = null;
+        }
+        
+        if (localStream) {
+            localStream.getTracks().forEach(track => track.stop());
+            localStream = null;
+        }
         
         // ✅ Clean up tournament listeners
         if (tournamentListeners) {
-            tournamentListeners.forEach(unsubscribe => unsubscribe());
+            tournamentListeners.forEach(unsubscribe => {
+                try { unsubscribe(); } catch (e) {}
+            });
             tournamentListeners = [];
         }
         
+        // Update UI
         updateUIForGuestUser();
         updateAdminUI();
+        
+        // Navigate to home
+        navigateTo('home');
     }
 });
     });
