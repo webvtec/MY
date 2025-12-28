@@ -769,7 +769,7 @@ async function navigateTo(section, skipSidebarClose = false) {
 
 
  
-     // ===== COACHES DISPLAY FUNCTIONS =====
+      // ===== COACHES DISPLAY FUNCTIONS =====
 async function loadAndDisplayCoaches() {
     const container = document.getElementById('coaches-container');
     
@@ -1857,10 +1857,32 @@ async function startLiveSession() {
     }
     
     try {
+        console.log('🎤 Starting live session...');
+        
+        // ✅ CRITICAL: Clean up any existing session first
+        if (localAudioStream) {
+            console.log('⚠️ Cleaning up existing audio stream');
+            localAudioStream.getTracks().forEach(track => track.stop());
+            localAudioStream = null;
+        }
+        
+        if (peerConnections.size > 0) {
+            console.log('⚠️ Cleaning up existing peer connections');
+            peerConnections.forEach(pc => pc.close());
+            peerConnections.clear();
+        }
+        
+        if (liveSessionListener) {
+            console.log('⚠️ Cleaning up existing listener');
+            liveSessionListener();
+            liveSessionListener = null;
+        }
+        
         // ✅ CHECK IF SESSION IS ALREADY ACTIVE (REJOIN SCENARIO)
         const isRejoin = myClass.liveSessionActive && myClass.liveSessionId;
         
-        // Get microphone permission
+        // Get microphone permission with fresh stream
+        console.log('🎤 Requesting microphone access...');
         localAudioStream = await navigator.mediaDevices.getUserMedia({ 
             audio: {
                 echoCancellation: true,
@@ -1870,6 +1892,10 @@ async function startLiveSession() {
         });
         
         console.log('✅ Microphone access granted');
+        console.log('   Audio tracks:', localAudioStream.getAudioTracks().length);
+        localAudioStream.getAudioTracks().forEach(track => {
+            console.log('   Track:', track.kind, 'enabled:', track.enabled, 'readyState:', track.readyState);
+        });
         
         if (!isRejoin) {
             // Starting new session
@@ -1914,6 +1940,7 @@ async function startLiveSession() {
         
         liveSessionActive = true;
         isCoach = true;
+        isMicMuted = false;
         
         // Show live session UI for COACH
         const startBtn = document.getElementById('start-session-btn');
@@ -1921,6 +1948,13 @@ async function startLiveSession() {
         
         if (startBtn) startBtn.style.display = 'none';
         if (liveSessionContainer) liveSessionContainer.style.display = 'block';
+        
+        // Reset mic button
+        const micBtn = document.getElementById('coach-toggle-mic-btn');
+        if (micBtn) {
+            micBtn.textContent = '🎤 Mute';
+            micBtn.style.background = '#28a745';
+        }
         
         // Update session count in UI
         updateCoachClassStats();
@@ -1931,8 +1965,10 @@ async function startLiveSession() {
         const message = isRejoin ? '✅ Rejoined live session!' : '✅ Live session started! Students can now join.';
         alert(message);
         
+        console.log('✅ Session start complete');
+        
     } catch (error) {
-        console.error('Error starting live session:', error);
+        console.error('❌ Error starting live session:', error);
         
         if (error.name === 'NotAllowedError') {
             alert('❌ Microphone access denied. Please allow microphone access and try again.');
@@ -1949,6 +1985,7 @@ async function startLiveSession() {
         }
     }
 }
+
         
 // ===== JOIN LIVE SESSION (STUDENT) =====
 async function joinLiveSession() {
@@ -1958,9 +1995,29 @@ async function joinLiveSession() {
     }
     
     try {
-        console.log('🎤 Requesting microphone access...');
+        console.log('🎤 Joining live session...');
         
-        // Get microphone permission
+        // ✅ CRITICAL: Clean up any existing session first
+        if (localAudioStream) {
+            console.log('⚠️ Cleaning up existing audio stream');
+            localAudioStream.getTracks().forEach(track => track.stop());
+            localAudioStream = null;
+        }
+        
+        if (peerConnections.size > 0) {
+            console.log('⚠️ Cleaning up existing peer connections');
+            peerConnections.forEach(pc => pc.close());
+            peerConnections.clear();
+        }
+        
+        if (liveSessionListener) {
+            console.log('⚠️ Cleaning up existing listener');
+            liveSessionListener();
+            liveSessionListener = null;
+        }
+        
+        // Get microphone permission with fresh stream
+        console.log('🎤 Requesting microphone access...');
         localAudioStream = await navigator.mediaDevices.getUserMedia({ 
             audio: {
                 echoCancellation: true,
@@ -1970,6 +2027,7 @@ async function joinLiveSession() {
         });
         
         console.log('✅ Microphone access granted');
+        console.log('   Audio tracks:', localAudioStream.getAudioTracks().length);
         
         // Get user data
         const userDoc = await db.collection('users').doc(currentUser.uid).get();
@@ -1986,7 +2044,7 @@ async function joinLiveSession() {
         
         liveSessionId = userData.classId;
         
-        // ✅ FIXED: Check if session is actually active before joining
+        // Check if session is actually active
         const classDoc = await db.collection('classes').doc(userData.classId).get();
         const classData = classDoc.data();
         
@@ -2018,13 +2076,21 @@ async function joinLiveSession() {
         console.log('✅ Added to session participants');
         
         liveSessionActive = true;
+        isMicMuted = false;
         
-        // ✅ FIXED: Hide join button and show active session UI
+        // Hide join button and show active session UI
         const joinContainer = document.getElementById('live-session-join-container');
         const activeSessionUI = document.getElementById('student-live-session-active');
         
         if (joinContainer) joinContainer.style.display = 'none';
         if (activeSessionUI) activeSessionUI.style.display = 'block';
+        
+        // Reset mic button
+        const micBtn = document.getElementById('student-toggle-mic-btn');
+        if (micBtn) {
+            micBtn.textContent = '🎤 Mute';
+            micBtn.style.background = '#28a745';
+        }
         
         // Listen for participants
         listenForSessionParticipants();
@@ -2032,7 +2098,7 @@ async function joinLiveSession() {
         console.log('✅ Joined live session successfully');
         
     } catch (error) {
-        console.error('Error joining session:', error);
+        console.error('❌ Error joining session:', error);
         
         let errorMessage = 'Failed to join session. ';
         
@@ -2056,7 +2122,7 @@ async function joinLiveSession() {
         
         liveSessionActive = false;
         
-        // ✅ Remove from participants if we added ourselves
+        // Remove from participants if we added ourselves
         try {
             const userDoc = await db.collection('users').doc(currentUser.uid).get();
             const userData = userDoc.data();
@@ -2072,10 +2138,11 @@ async function joinLiveSession() {
         }
     }
 }
-
 // ===== LISTEN FOR SESSION PARTICIPANTS =====
 function listenForSessionParticipants() {
     const classId = myClass ? myClass.id : liveSessionId;
+    
+    console.log('👂 Setting up participant listener for class:', classId);
     
     liveSessionListener = db.collection('classes')
         .doc(classId)
@@ -2085,9 +2152,16 @@ function listenForSessionParticipants() {
                 if (change.type === 'added') {
                     const participant = change.doc.data();
                     
+                    console.log('➕ Participant added:', participant.name, participant.userId);
+                    
                     if (participant.userId !== currentUser.uid) {
-                        // New participant joined - create peer connection
-                        createPeerConnection(participant.userId, participant);
+                        // ✅ FIXED: Only coach initiates connections
+                        if (isCoach) {
+                            console.log('👑 Coach creating connection to:', participant.name);
+                            createPeerConnection(participant.userId, participant, true);
+                        } else {
+                            console.log('👨‍🎓 Student waiting for offer from coach');
+                        }
                     }
                     
                     sessionParticipants.set(participant.userId, participant);
@@ -2095,8 +2169,8 @@ function listenForSessionParticipants() {
                 
                 if (change.type === 'removed') {
                     const participant = change.doc.data();
+                    console.log('➖ Participant removed:', participant.name);
                     
-                    // Participant left - close connection
                     closePeerConnection(participant.userId);
                     sessionParticipants.delete(participant.userId);
                 }
@@ -2114,7 +2188,6 @@ function listenForSessionParticipants() {
     listenForSignaling();
 }
 
-
 // ===== CREATE PEER CONNECTION =====
 async function createPeerConnection(userId, participant, isInitiator = true) {
     try {
@@ -2131,18 +2204,40 @@ async function createPeerConnection(userId, participant, isInitiator = true) {
         if (localAudioStream) {
             localAudioStream.getTracks().forEach(track => {
                 console.log('📤 Adding local audio track to peer connection');
+                console.log('   Track enabled:', track.enabled);
+                console.log('   Track muted:', track.muted);
+                console.log('   Track readyState:', track.readyState);
+                console.log('   Track kind:', track.kind);
                 peerConnection.addTrack(track, localAudioStream);
             });
+        } else {
+            console.error('❌ No local audio stream available!');
         }
         
         peerConnection.ontrack = (event) => {
-            console.log('📥 Received audio stream from:', participant.name);
+            console.log('📥 Received track from:', participant.name);
+            console.log('   Track kind:', event.track.kind);
+            console.log('   Track enabled:', event.track.enabled);
+            console.log('   Track muted:', event.track.muted);
+            console.log('   Track readyState:', event.track.readyState);
+            console.log('   Streams:', event.streams.length);
+            
+            if (event.streams.length === 0) {
+                console.error('❌ No streams in track event!');
+                return;
+            }
             
             const remoteStream = event.streams[0];
+            console.log('   Stream audio tracks:', remoteStream.getAudioTracks().length);
+            console.log('   Stream video tracks:', remoteStream.getVideoTracks().length);
+            
             remoteStreams.set(userId, remoteStream);
             
             const oldAudio = document.getElementById(`audio_${userId}`);
-            if (oldAudio) oldAudio.remove();
+            if (oldAudio) {
+                console.log('🗑️ Removing old audio element');
+                oldAudio.remove();
+            }
             
             const audioElement = document.createElement('audio');
             audioElement.id = `audio_${userId}`;
@@ -2151,37 +2246,83 @@ async function createPeerConnection(userId, participant, isInitiator = true) {
             audioElement.volume = 1.0;
             audioElement.srcObject = remoteStream;
             
-            const container = document.getElementById('remote-audio-container') || document.body;
+            // Add to container
+            let container = document.getElementById('remote-audio-container');
+            if (!container) {
+                console.warn('⚠️ remote-audio-container not found, creating it');
+                container = document.createElement('div');
+                container.id = 'remote-audio-container';
+                container.style.display = 'none';
+                document.body.appendChild(container);
+            }
             container.appendChild(audioElement);
             
+            console.log('   Audio element created and added to container');
+            console.log('   Container ID:', container.id);
+            console.log('   Audio element ID:', audioElement.id);
+            
+            // Attempt to play
             audioElement.play()
-                .then(() => console.log('✅ Audio playing for:', participant.name))
-                .catch(err => console.error('❌ Error playing audio:', err));
+                .then(() => {
+                    console.log('✅ Audio playing successfully for:', participant.name);
+                    console.log('   Audio volume:', audioElement.volume);
+                    console.log('   Audio muted:', audioElement.muted);
+                    console.log('   Audio paused:', audioElement.paused);
+                })
+                .catch(err => {
+                    console.error('❌ Error playing audio:', err);
+                    console.log('   Waiting for user interaction...');
+                    
+                    // Show alert to user
+                    alert(`Click OK to enable audio from ${participant.name}`);
+                    
+                    // Try playing after user interaction
+                    audioElement.play()
+                        .then(() => console.log('✅ Audio playing after user interaction'))
+                        .catch(e => console.error('❌ Still failed:', e));
+                });
         };
         
         peerConnection.onicecandidate = (event) => {
             if (event.candidate) {
                 console.log('🧊 Sending ICE candidate to:', participant.name);
                 sendIceCandidate(userId, event.candidate);
+            } else {
+                console.log('✅ All ICE candidates sent to:', participant.name);
             }
         };
         
         peerConnection.onconnectionstatechange = () => {
             console.log(`Connection state with ${participant.name}:`, peerConnection.connectionState);
             
-            if (peerConnection.connectionState === 'failed') {
-                console.error('❌ Connection failed, restarting ICE');
+            if (peerConnection.connectionState === 'connected') {
+                console.log('✅ Peer connection established with:', participant.name);
+            } else if (peerConnection.connectionState === 'failed') {
+                console.error('❌ Connection failed with:', participant.name, '- restarting ICE');
                 peerConnection.restartIce();
+            } else if (peerConnection.connectionState === 'disconnected') {
+                console.warn('⚠️ Connection disconnected with:', participant.name);
             }
         };
         
         peerConnection.oniceconnectionstatechange = () => {
             console.log(`ICE connection state with ${participant.name}:`, peerConnection.iceConnectionState);
+            
+            if (peerConnection.iceConnectionState === 'connected') {
+                console.log('✅ ICE connected with:', participant.name);
+            } else if (peerConnection.iceConnectionState === 'failed') {
+                console.error('❌ ICE failed with:', participant.name);
+            }
+        };
+        
+        peerConnection.onsignalingstatechange = () => {
+            console.log(`Signaling state with ${participant.name}:`, peerConnection.signalingState);
         };
         
         peerConnections.set(userId, peerConnection);
         
         if (isInitiator) {
+            console.log('📤 Creating and sending offer to:', participant.name);
             const offer = await peerConnection.createOffer({
                 offerToReceiveAudio: true,
                 offerToReceiveVideo: false
@@ -2194,7 +2335,7 @@ async function createPeerConnection(userId, participant, isInitiator = true) {
         return peerConnection;
         
     } catch (error) {
-        console.error('Error creating peer connection:', error);
+        console.error('❌ Error creating peer connection:', error);
         throw error;
     }
 }
@@ -2301,24 +2442,20 @@ async function handleAnswer(fromUserId, answer) {
         const currentState = peerConnection.signalingState;
         console.log('Current signaling state:', currentState);
         
-        if (currentState === 'stable') {
-            console.warn('⚠️ Already in stable state, ignoring duplicate answer');
-            return;
+        // ✅ FIXED: Only set remote description if we're in the correct state
+        if (currentState === 'have-local-offer') {
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+            console.log('✅ Answer processed from:', fromUserId);
+        } else if (currentState === 'stable') {
+            console.log('✅ Already connected, ignoring duplicate answer');
+        } else {
+            console.warn('⚠️ Unexpected state for answer:', currentState);
         }
-        
-        if (currentState !== 'have-local-offer') {
-            console.warn('⚠️ Not in correct state to receive answer, state:', currentState);
-            return;
-        }
-        
-        await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
-        console.log('✅ Answer processed from:', fromUserId);
         
     } catch (error) {
         console.error('Error handling answer:', error);
     }
 }
-
 async function getParticipantData(userId) {
     const classId = myClass ? myClass.id : liveSessionId;
     const participantDoc = await db.collection('classes')
@@ -2337,6 +2474,8 @@ async function getParticipantData(userId) {
 function listenForSignaling() {
     const classId = myClass ? myClass.id : liveSessionId;
     
+    console.log('👂 Setting up signaling listeners for class:', classId);
+    
     // Listen for offers
     db.collection('classes')
         .doc(classId)
@@ -2346,10 +2485,11 @@ function listenForSignaling() {
             snapshot.docChanges().forEach(async change => {
                 if (change.type === 'added') {
                     const data = change.doc.data();
+                    console.log('📨 Received offer from:', data.from);
                     await handleOffer(data.from, data.offer);
                     
                     // Delete processed offer
-                    change.doc.ref.delete();
+                    change.doc.ref.delete().catch(e => console.error('Error deleting offer:', e));
                 }
             });
         });
@@ -2363,10 +2503,11 @@ function listenForSignaling() {
             snapshot.docChanges().forEach(async change => {
                 if (change.type === 'added') {
                     const data = change.doc.data();
+                    console.log('📨 Received answer from:', data.from);
                     await handleAnswer(data.from, data.answer);
                     
                     // Delete processed answer
-                    change.doc.ref.delete();
+                    change.doc.ref.delete().catch(e => console.error('Error deleting answer:', e));
                 }
             });
         });
@@ -2380,17 +2521,22 @@ function listenForSignaling() {
             snapshot.docChanges().forEach(async change => {
                 if (change.type === 'added') {
                     const data = change.doc.data();
+                    console.log('📨 Received ICE candidate from:', data.from);
                     await handleIceCandidate(data.from, data.candidate);
                     
                     // Delete processed candidate
-                    change.doc.ref.delete();
+                    change.doc.ref.delete().catch(e => console.error('Error deleting candidate:', e));
                 }
             });
         });
 }
 
+
+// ===== SEND OFFER =====
 async function sendOffer(toUserId, offer) {
     const classId = myClass ? myClass.id : liveSessionId;
+    
+    console.log('📤 Sending offer to:', toUserId);
     
     await db.collection('classes')
         .doc(classId)
@@ -2406,107 +2552,132 @@ async function sendOffer(toUserId, offer) {
         });
 }
 
+// ===== HANDLE OFFER =====
 async function handleOffer(fromUserId, offer) {
     try {
         console.log('📨 Handling offer from user:', fromUserId);
         
+        // ✅ Close any existing connection first
         let peerConnection = peerConnections.get(fromUserId);
+        if (peerConnection) {
+            console.log('⚠️ Closing existing connection before handling offer');
+            peerConnection.close();
+            peerConnections.delete(fromUserId);
+        }
         
-        if (!peerConnection) {
-            console.log('🆕 Creating new peer connection for incoming offer');
+        // Get participant info
+        const classId = myClass ? myClass.id : liveSessionId;
+        const participantDoc = await db.collection('classes')
+            .doc(classId)
+            .collection('sessionParticipants')
+            .doc(fromUserId)
+            .get();
+        
+        if (!participantDoc.exists) {
+            console.error('❌ Participant not found:', fromUserId);
+            return;
+        }
+        
+        const participant = participantDoc.data();
+        console.log('👤 Creating connection for:', participant.name);
+        
+        // Create new peer connection
+        peerConnection = new RTCPeerConnection(iceServers);
+        
+        // Add local audio
+        if (localAudioStream) {
+            localAudioStream.getTracks().forEach(track => {
+                console.log('📤 Adding local audio track (answering)');
+                peerConnection.addTrack(track, localAudioStream);
+            });
+        } else {
+            console.error('❌ No local audio stream!');
+        }
+        
+        // Handle remote audio
+        peerConnection.ontrack = (event) => {
+            console.log('📥 Received track from:', participant.name);
+            console.log('   Track kind:', event.track.kind);
+            console.log('   Streams:', event.streams.length);
             
-            // Get participant info
-            const classId = myClass ? myClass.id : liveSessionId;
-            const participantDoc = await db.collection('classes')
-                .doc(classId)
-                .collection('sessionParticipants')
-                .doc(fromUserId)
-                .get();
-            
-            if (!participantDoc.exists) {
-                console.error('❌ Participant not found:', fromUserId);
+            if (event.streams.length === 0) {
+                console.error('❌ No streams!');
                 return;
             }
             
-            const participant = participantDoc.data();
+            const remoteStream = event.streams[0];
+            remoteStreams.set(fromUserId, remoteStream);
             
-            // Create new peer connection
-            peerConnection = new RTCPeerConnection(iceServers);
-            
-            // Add local audio
-            if (localAudioStream) {
-                localAudioStream.getTracks().forEach(track => {
-                    console.log('📤 Adding local audio track (answer)');
-                    peerConnection.addTrack(track, localAudioStream);
-                });
+            let audioElement = document.getElementById(`audio_${fromUserId}`);
+            if (audioElement) {
+                console.log('🗑️ Removing old audio element');
+                audioElement.remove();
             }
             
-            // Handle remote audio
-            peerConnection.ontrack = (event) => {
-                console.log('📥 Received audio from:', participant.name);
-                const remoteStream = event.streams[0];
-                remoteStreams.set(fromUserId, remoteStream);
-                
-                let audioElement = document.getElementById(`audio_${fromUserId}`);
-                if (!audioElement) {
-                    audioElement = document.createElement('audio');
-                    audioElement.id = `audio_${fromUserId}`;
-                    audioElement.autoplay = true;
-                    audioElement.volume = 1.0;
-                    
-                    // Add to appropriate container
-                    const coachContainer = document.getElementById('coach-remote-audio-container');
-                    const studentContainer = document.getElementById('remote-audio-container');
-                    
-                    if (coachContainer) {
-                        coachContainer.appendChild(audioElement);
-                    } else if (studentContainer) {
-                        studentContainer.appendChild(audioElement);
-                    } else {
-                        document.body.appendChild(audioElement);
-                    }
-                    
-                    console.log('✅ Audio element created (answer)');
-                }
-                
-                audioElement.srcObject = remoteStream;
-                audioElement.play().then(() => {
-                    console.log('✅ Audio playing (answer)');
-                }).catch(err => {
-                    console.error('❌ Error playing audio (answer):', err);
+            audioElement = document.createElement('audio');
+            audioElement.id = `audio_${fromUserId}`;
+            audioElement.autoplay = true;
+            audioElement.playsInline = true;
+            audioElement.volume = 1.0;
+            audioElement.srcObject = remoteStream;
+            
+            let container = document.getElementById('remote-audio-container');
+            if (!container) {
+                console.warn('⚠️ Container not found, creating it');
+                container = document.createElement('div');
+                container.id = 'remote-audio-container';
+                container.style.display = 'none';
+                document.body.appendChild(container);
+            }
+            container.appendChild(audioElement);
+            
+            audioElement.play()
+                .then(() => console.log('✅ Audio playing from:', participant.name))
+                .catch(err => {
+                    console.error('❌ Playback error:', err);
+                    alert(`Click OK to enable audio from ${participant.name}`);
+                    audioElement.play();
                 });
-            };
-            
-            peerConnection.onicecandidate = (event) => {
-                if (event.candidate) {
-                    sendIceCandidate(fromUserId, event.candidate);
-                }
-            };
-            
-            peerConnection.onconnectionstatechange = () => {
-                console.log(`Connection state with ${participant.name}:`, peerConnection.connectionState);
-            };
-            
-            peerConnections.set(fromUserId, peerConnection);
-        }
+        };
         
+        peerConnection.onicecandidate = (event) => {
+            if (event.candidate) {
+                console.log('🧊 Sending ICE candidate');
+                sendIceCandidate(fromUserId, event.candidate);
+            }
+        };
+        
+        peerConnection.onconnectionstatechange = () => {
+            console.log(`Connection state with ${participant.name}:`, peerConnection.connectionState);
+        };
+        
+        peerConnections.set(fromUserId, peerConnection);
+        
+        // ✅ Set remote description (the offer)
         await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
         console.log('✅ Remote description set');
         
+        // ✅ Create and send answer
         const answer = await peerConnection.createAnswer({
-            offerToReceiveAudio: true // ✅ Explicitly request to receive audio
+            offerToReceiveAudio: true,
+            offerToReceiveVideo: false
         });
         await peerConnection.setLocalDescription(answer);
         
         await sendAnswer(fromUserId, answer);
-        console.log('✅ Answer sent');
+        console.log('✅ Answer sent to:', participant.name);
         
     } catch (error) {
-        console.error('Error handling offer:', error);
+        console.error('❌ Error handling offer:', error);
     }
 }
+
+        
+// ===== SEND ANSWER =====
 async function sendAnswer(toUserId, answer) {
     const classId = myClass ? myClass.id : liveSessionId;
+    
+    console.log('📤 Sending answer to:', toUserId);
     
     await db.collection('classes')
         .doc(classId)
@@ -2521,7 +2692,8 @@ async function sendAnswer(toUserId, answer) {
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 }
-
+        
+// ===== HANDLE ANSWER =====
 async function handleAnswer(fromUserId, answer) {
     try {
         console.log('📨 Handling answer from user:', fromUserId);
@@ -2533,26 +2705,30 @@ async function handleAnswer(fromUserId, answer) {
             return;
         }
         
-        // ✅ CHECK SIGNALING STATE BEFORE SETTING REMOTE DESCRIPTION
         const currentState = peerConnection.signalingState;
-        console.log('Current signaling state:', currentState);
+        console.log('   Current signaling state:', currentState);
         
-        // Only set remote description if we're in the correct state
+        // ✅ Only process answer if we're waiting for one
         if (currentState === 'have-local-offer') {
             await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
             console.log('✅ Answer processed from:', fromUserId);
         } else if (currentState === 'stable') {
-            console.warn('⚠️ Already in stable state, ignoring duplicate answer');
+            console.log('✅ Already connected, ignoring answer');
+        } else if (currentState === 'have-remote-offer') {
+            console.error('❌ Wrong state - we should be answering, not receiving answer');
+            console.log('   This connection is confused, closing and waiting for new offer');
+            peerConnection.close();
+            peerConnections.delete(fromUserId);
         } else {
-            console.warn('⚠️ Unexpected state for answer:', currentState);
+            console.warn('⚠️ Unexpected state:', currentState);
         }
         
     } catch (error) {
-        console.error('Error handling answer:', error);
-        // Don't throw - just log the error to prevent breaking the flow
+        console.error('❌ Error handling answer:', error);
     }
 }
 
+// ===== SEND ICE CANDIDATE =====
 async function sendIceCandidate(toUserId, candidate) {
     const classId = myClass ? myClass.id : liveSessionId;
     
@@ -2567,14 +2743,19 @@ async function sendIceCandidate(toUserId, candidate) {
         });
 }
 
+
+// ===== HANDLE ICE CANDIDATE =====
 async function handleIceCandidate(fromUserId, candidate) {
     try {
         const peerConnection = peerConnections.get(fromUserId);
-        if (peerConnection) {
+        if (peerConnection && peerConnection.remoteDescription) {
             await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+            console.log('✅ ICE candidate added from:', fromUserId);
+        } else {
+            console.warn('⚠️ Cannot add ICE candidate yet, remote description not set');
         }
     } catch (error) {
-        console.error('Error handling ICE candidate:', error);
+        console.error('❌ Error handling ICE candidate:', error);
     }
 }
 
@@ -2684,22 +2865,56 @@ async function endLiveSession() {
     }
     
     try {
-        // Stop local audio
+        console.log('🛑 Ending live session...');
+        
+        // ✅ CRITICAL: Stop and remove ALL audio elements first
+        document.querySelectorAll('audio').forEach(audio => {
+            console.log('🗑️ Removing audio element:', audio.id);
+            audio.pause();
+            audio.srcObject = null;
+            audio.remove();
+        });
+        
+        // ✅ Stop local audio tracks
         if (localAudioStream) {
-            localAudioStream.getTracks().forEach(track => track.stop());
+            console.log('🛑 Stopping local audio stream');
+            localAudioStream.getTracks().forEach(track => {
+                console.log('   Stopping track:', track.kind, track.id);
+                track.stop();
+            });
             localAudioStream = null;
         }
         
-        // Close all peer connections
+        // ✅ Close ALL peer connections
+        console.log('🛑 Closing peer connections:', peerConnections.size);
         peerConnections.forEach((pc, userId) => {
-            pc.close();
+            console.log('   Closing connection with:', userId);
+            try {
+                pc.close();
+            } catch (e) {
+                console.error('   Error closing connection:', e);
+            }
         });
         peerConnections.clear();
+        
+        // ✅ Clear remote streams
         remoteStreams.clear();
         
-        // Remove from participants
+        // ✅ Unsubscribe from session listeners
+        if (liveSessionListener) {
+            console.log('🛑 Unsubscribing from session listener');
+            try {
+                liveSessionListener();
+            } catch (e) {
+                console.error('Error unsubscribing:', e);
+            }
+            liveSessionListener = null;
+        }
+        
+        // ✅ Remove from participants in Firestore
         const classId = myClass ? myClass.id : liveSessionId;
-        if (classId) {
+        if (classId && currentUser) {
+            console.log('🗑️ Removing from session participants');
             await db.collection('classes')
                 .doc(classId)
                 .collection('sessionParticipants')
@@ -2707,8 +2922,10 @@ async function endLiveSession() {
                 .delete();
         }
         
-        // If coach, end session for everyone
+        // ✅ If coach, end session for everyone
         if (isCoachUser && myClass) {
+            console.log('🛑 Coach ending session for everyone');
+            
             await db.collection('classes').doc(myClass.id).update({
                 liveSessionActive: false,
                 liveSessionId: null
@@ -2725,56 +2942,62 @@ async function endLiveSession() {
                 batch.delete(doc.ref);
             });
             await batch.commit();
+            
+            // Clear signaling data
+            console.log('🗑️ Clearing signaling data');
+            const [offersSnap, answersSnap, candidatesSnap] = await Promise.all([
+                db.collection('classes').doc(myClass.id).collection('offers').get(),
+                db.collection('classes').doc(myClass.id).collection('answers').get(),
+                db.collection('classes').doc(myClass.id).collection('iceCandidates').get()
+            ]);
+            
+            const signalingBatch = db.batch();
+            offersSnap.forEach(doc => signalingBatch.delete(doc.ref));
+            answersSnap.forEach(doc => signalingBatch.delete(doc.ref));
+            candidatesSnap.forEach(doc => signalingBatch.delete(doc.ref));
+            await signalingBatch.commit();
         }
         
-        // Cleanup listeners
-        if (liveSessionListener) {
-            liveSessionListener();
-            liveSessionListener = null;
-        }
+        // ✅ Clear session participants map
+        sessionParticipants.clear();
         
-        // Reset UI based on user type
+        // ✅ Reset state variables
+        liveSessionActive = false;
+        liveSessionId = null;
+        isMicMuted = false;
+        
+        // ✅ Reset UI based on user type
         if (isCoachUser) {
             const startBtn = document.getElementById('start-session-btn');
             const liveSessionContainer = document.getElementById('coach-live-session-active');
             
             if (liveSessionContainer) liveSessionContainer.style.display = 'none';
-            if (startBtn) startBtn.style.display = 'block';
-        } else {
-            // ✅ STUDENT: Show join button again if session is still active
-            const userDoc = await db.collection('users').doc(currentUser.uid).get();
-            const userData = userDoc.data();
-            
-            if (userData.classId) {
-                const classDoc = await db.collection('classes').doc(userData.classId).get();
-                const classData = classDoc.data();
-                
-                // If session is still active, show join button
-                if (classData && classData.liveSessionActive && classData.liveSessionId) {
-                    const liveSessionContainer = document.getElementById('student-live-session-active');
-                    const joinContainer = document.getElementById('live-session-join-container');
-                    
-                    if (liveSessionContainer) liveSessionContainer.style.display = 'none';
-                    if (joinContainer) joinContainer.style.display = 'block';
-                } else {
-                    // Session ended, reload view
-                    await loadStudentClassView();
-                }
+            if (startBtn) {
+                startBtn.style.display = 'block';
+                startBtn.textContent = '🎥 Start Live Session';
+                startBtn.style.background = '#28a745';
             }
+            
+            // Clear participants list
+            const participantsList = document.getElementById('coach-session-participants-list');
+            if (participantsList) participantsList.innerHTML = '<p style="color: #666;">No participants</p>';
+            
+        } else {
+            // Student: Reload view to show correct UI
+            await loadStudentClassView();
         }
-        
-        sessionParticipants.clear();
-        liveSessionActive = false;
-        isMicMuted = false;
         
         const message = isCoachUser ? '✅ Live session ended' : '✅ Left live session';
         alert(message);
         
+        console.log('✅ Session cleanup complete');
+        
     } catch (error) {
-        console.error('Error ending session:', error);
+        console.error('❌ Error ending session:', error);
         alert('Error ending session: ' + error.message);
     }
 }
+
 // ===== CHECK FOR ACTIVE SESSION (FOR STUDENTS) =====
 async function checkForActiveSession() {
     if (!currentUser) return;
