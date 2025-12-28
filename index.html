@@ -21459,18 +21459,40 @@ async function createPeerConnection(userId, participant, isInitiator = true) {
         if (localAudioStream) {
             localAudioStream.getTracks().forEach(track => {
                 console.log('📤 Adding local audio track to peer connection');
+                console.log('   Track enabled:', track.enabled);
+                console.log('   Track muted:', track.muted);
+                console.log('   Track readyState:', track.readyState);
+                console.log('   Track kind:', track.kind);
                 peerConnection.addTrack(track, localAudioStream);
             });
+        } else {
+            console.error('❌ No local audio stream available!');
         }
         
         peerConnection.ontrack = (event) => {
-            console.log('📥 Received audio stream from:', participant.name);
+            console.log('📥 Received track from:', participant.name);
+            console.log('   Track kind:', event.track.kind);
+            console.log('   Track enabled:', event.track.enabled);
+            console.log('   Track muted:', event.track.muted);
+            console.log('   Track readyState:', event.track.readyState);
+            console.log('   Streams:', event.streams.length);
+            
+            if (event.streams.length === 0) {
+                console.error('❌ No streams in track event!');
+                return;
+            }
             
             const remoteStream = event.streams[0];
+            console.log('   Stream audio tracks:', remoteStream.getAudioTracks().length);
+            console.log('   Stream video tracks:', remoteStream.getVideoTracks().length);
+            
             remoteStreams.set(userId, remoteStream);
             
             const oldAudio = document.getElementById(`audio_${userId}`);
-            if (oldAudio) oldAudio.remove();
+            if (oldAudio) {
+                console.log('🗑️ Removing old audio element');
+                oldAudio.remove();
+            }
             
             const audioElement = document.createElement('audio');
             audioElement.id = `audio_${userId}`;
@@ -21479,37 +21501,83 @@ async function createPeerConnection(userId, participant, isInitiator = true) {
             audioElement.volume = 1.0;
             audioElement.srcObject = remoteStream;
             
-            const container = document.getElementById('remote-audio-container') || document.body;
+            // Add to container
+            let container = document.getElementById('remote-audio-container');
+            if (!container) {
+                console.warn('⚠️ remote-audio-container not found, creating it');
+                container = document.createElement('div');
+                container.id = 'remote-audio-container';
+                container.style.display = 'none';
+                document.body.appendChild(container);
+            }
             container.appendChild(audioElement);
             
+            console.log('   Audio element created and added to container');
+            console.log('   Container ID:', container.id);
+            console.log('   Audio element ID:', audioElement.id);
+            
+            // Attempt to play
             audioElement.play()
-                .then(() => console.log('✅ Audio playing for:', participant.name))
-                .catch(err => console.error('❌ Error playing audio:', err));
+                .then(() => {
+                    console.log('✅ Audio playing successfully for:', participant.name);
+                    console.log('   Audio volume:', audioElement.volume);
+                    console.log('   Audio muted:', audioElement.muted);
+                    console.log('   Audio paused:', audioElement.paused);
+                })
+                .catch(err => {
+                    console.error('❌ Error playing audio:', err);
+                    console.log('   Waiting for user interaction...');
+                    
+                    // Show alert to user
+                    alert(`Click OK to enable audio from ${participant.name}`);
+                    
+                    // Try playing after user interaction
+                    audioElement.play()
+                        .then(() => console.log('✅ Audio playing after user interaction'))
+                        .catch(e => console.error('❌ Still failed:', e));
+                });
         };
         
         peerConnection.onicecandidate = (event) => {
             if (event.candidate) {
                 console.log('🧊 Sending ICE candidate to:', participant.name);
                 sendIceCandidate(userId, event.candidate);
+            } else {
+                console.log('✅ All ICE candidates sent to:', participant.name);
             }
         };
         
         peerConnection.onconnectionstatechange = () => {
             console.log(`Connection state with ${participant.name}:`, peerConnection.connectionState);
             
-            if (peerConnection.connectionState === 'failed') {
-                console.error('❌ Connection failed, restarting ICE');
+            if (peerConnection.connectionState === 'connected') {
+                console.log('✅ Peer connection established with:', participant.name);
+            } else if (peerConnection.connectionState === 'failed') {
+                console.error('❌ Connection failed with:', participant.name, '- restarting ICE');
                 peerConnection.restartIce();
+            } else if (peerConnection.connectionState === 'disconnected') {
+                console.warn('⚠️ Connection disconnected with:', participant.name);
             }
         };
         
         peerConnection.oniceconnectionstatechange = () => {
             console.log(`ICE connection state with ${participant.name}:`, peerConnection.iceConnectionState);
+            
+            if (peerConnection.iceConnectionState === 'connected') {
+                console.log('✅ ICE connected with:', participant.name);
+            } else if (peerConnection.iceConnectionState === 'failed') {
+                console.error('❌ ICE failed with:', participant.name);
+            }
+        };
+        
+        peerConnection.onsignalingstatechange = () => {
+            console.log(`Signaling state with ${participant.name}:`, peerConnection.signalingState);
         };
         
         peerConnections.set(userId, peerConnection);
         
         if (isInitiator) {
+            console.log('📤 Creating and sending offer to:', participant.name);
             const offer = await peerConnection.createOffer({
                 offerToReceiveAudio: true,
                 offerToReceiveVideo: false
@@ -21522,7 +21590,7 @@ async function createPeerConnection(userId, participant, isInitiator = true) {
         return peerConnection;
         
     } catch (error) {
-        console.error('Error creating peer connection:', error);
+        console.error('❌ Error creating peer connection:', error);
         throw error;
     }
 }
@@ -21629,24 +21697,20 @@ async function handleAnswer(fromUserId, answer) {
         const currentState = peerConnection.signalingState;
         console.log('Current signaling state:', currentState);
         
-        if (currentState === 'stable') {
-            console.warn('⚠️ Already in stable state, ignoring duplicate answer');
-            return;
+        // ✅ FIXED: Only set remote description if we're in the correct state
+        if (currentState === 'have-local-offer') {
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+            console.log('✅ Answer processed from:', fromUserId);
+        } else if (currentState === 'stable') {
+            console.log('✅ Already connected, ignoring duplicate answer');
+        } else {
+            console.warn('⚠️ Unexpected state for answer:', currentState);
         }
-        
-        if (currentState !== 'have-local-offer') {
-            console.warn('⚠️ Not in correct state to receive answer, state:', currentState);
-            return;
-        }
-        
-        await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
-        console.log('✅ Answer processed from:', fromUserId);
         
     } catch (error) {
         console.error('Error handling answer:', error);
     }
 }
-
 async function getParticipantData(userId) {
     const classId = myClass ? myClass.id : liveSessionId;
     const participantDoc = await db.collection('classes')
