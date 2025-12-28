@@ -21185,10 +21185,32 @@ async function startLiveSession() {
     }
     
     try {
+        console.log('🎤 Starting live session...');
+        
+        // ✅ CRITICAL: Clean up any existing session first
+        if (localAudioStream) {
+            console.log('⚠️ Cleaning up existing audio stream');
+            localAudioStream.getTracks().forEach(track => track.stop());
+            localAudioStream = null;
+        }
+        
+        if (peerConnections.size > 0) {
+            console.log('⚠️ Cleaning up existing peer connections');
+            peerConnections.forEach(pc => pc.close());
+            peerConnections.clear();
+        }
+        
+        if (liveSessionListener) {
+            console.log('⚠️ Cleaning up existing listener');
+            liveSessionListener();
+            liveSessionListener = null;
+        }
+        
         // ✅ CHECK IF SESSION IS ALREADY ACTIVE (REJOIN SCENARIO)
         const isRejoin = myClass.liveSessionActive && myClass.liveSessionId;
         
-        // Get microphone permission
+        // Get microphone permission with fresh stream
+        console.log('🎤 Requesting microphone access...');
         localAudioStream = await navigator.mediaDevices.getUserMedia({ 
             audio: {
                 echoCancellation: true,
@@ -21198,6 +21220,10 @@ async function startLiveSession() {
         });
         
         console.log('✅ Microphone access granted');
+        console.log('   Audio tracks:', localAudioStream.getAudioTracks().length);
+        localAudioStream.getAudioTracks().forEach(track => {
+            console.log('   Track:', track.kind, 'enabled:', track.enabled, 'readyState:', track.readyState);
+        });
         
         if (!isRejoin) {
             // Starting new session
@@ -21242,6 +21268,7 @@ async function startLiveSession() {
         
         liveSessionActive = true;
         isCoach = true;
+        isMicMuted = false;
         
         // Show live session UI for COACH
         const startBtn = document.getElementById('start-session-btn');
@@ -21249,6 +21276,13 @@ async function startLiveSession() {
         
         if (startBtn) startBtn.style.display = 'none';
         if (liveSessionContainer) liveSessionContainer.style.display = 'block';
+        
+        // Reset mic button
+        const micBtn = document.getElementById('coach-toggle-mic-btn');
+        if (micBtn) {
+            micBtn.textContent = '🎤 Mute';
+            micBtn.style.background = '#28a745';
+        }
         
         // Update session count in UI
         updateCoachClassStats();
@@ -21259,8 +21293,10 @@ async function startLiveSession() {
         const message = isRejoin ? '✅ Rejoined live session!' : '✅ Live session started! Students can now join.';
         alert(message);
         
+        console.log('✅ Session start complete');
+        
     } catch (error) {
-        console.error('Error starting live session:', error);
+        console.error('❌ Error starting live session:', error);
         
         if (error.name === 'NotAllowedError') {
             alert('❌ Microphone access denied. Please allow microphone access and try again.');
@@ -21277,6 +21313,7 @@ async function startLiveSession() {
         }
     }
 }
+
         
 // ===== JOIN LIVE SESSION (STUDENT) =====
 async function joinLiveSession() {
@@ -21286,9 +21323,29 @@ async function joinLiveSession() {
     }
     
     try {
-        console.log('🎤 Requesting microphone access...');
+        console.log('🎤 Joining live session...');
         
-        // Get microphone permission
+        // ✅ CRITICAL: Clean up any existing session first
+        if (localAudioStream) {
+            console.log('⚠️ Cleaning up existing audio stream');
+            localAudioStream.getTracks().forEach(track => track.stop());
+            localAudioStream = null;
+        }
+        
+        if (peerConnections.size > 0) {
+            console.log('⚠️ Cleaning up existing peer connections');
+            peerConnections.forEach(pc => pc.close());
+            peerConnections.clear();
+        }
+        
+        if (liveSessionListener) {
+            console.log('⚠️ Cleaning up existing listener');
+            liveSessionListener();
+            liveSessionListener = null;
+        }
+        
+        // Get microphone permission with fresh stream
+        console.log('🎤 Requesting microphone access...');
         localAudioStream = await navigator.mediaDevices.getUserMedia({ 
             audio: {
                 echoCancellation: true,
@@ -21298,6 +21355,7 @@ async function joinLiveSession() {
         });
         
         console.log('✅ Microphone access granted');
+        console.log('   Audio tracks:', localAudioStream.getAudioTracks().length);
         
         // Get user data
         const userDoc = await db.collection('users').doc(currentUser.uid).get();
@@ -21314,7 +21372,7 @@ async function joinLiveSession() {
         
         liveSessionId = userData.classId;
         
-        // ✅ FIXED: Check if session is actually active before joining
+        // Check if session is actually active
         const classDoc = await db.collection('classes').doc(userData.classId).get();
         const classData = classDoc.data();
         
@@ -21346,13 +21404,21 @@ async function joinLiveSession() {
         console.log('✅ Added to session participants');
         
         liveSessionActive = true;
+        isMicMuted = false;
         
-        // ✅ FIXED: Hide join button and show active session UI
+        // Hide join button and show active session UI
         const joinContainer = document.getElementById('live-session-join-container');
         const activeSessionUI = document.getElementById('student-live-session-active');
         
         if (joinContainer) joinContainer.style.display = 'none';
         if (activeSessionUI) activeSessionUI.style.display = 'block';
+        
+        // Reset mic button
+        const micBtn = document.getElementById('student-toggle-mic-btn');
+        if (micBtn) {
+            micBtn.textContent = '🎤 Mute';
+            micBtn.style.background = '#28a745';
+        }
         
         // Listen for participants
         listenForSessionParticipants();
@@ -21360,7 +21426,7 @@ async function joinLiveSession() {
         console.log('✅ Joined live session successfully');
         
     } catch (error) {
-        console.error('Error joining session:', error);
+        console.error('❌ Error joining session:', error);
         
         let errorMessage = 'Failed to join session. ';
         
@@ -21384,7 +21450,7 @@ async function joinLiveSession() {
         
         liveSessionActive = false;
         
-        // ✅ Remove from participants if we added ourselves
+        // Remove from participants if we added ourselves
         try {
             const userDoc = await db.collection('users').doc(currentUser.uid).get();
             const userData = userDoc.data();
@@ -21400,7 +21466,6 @@ async function joinLiveSession() {
         }
     }
 }
-
 // ===== LISTEN FOR SESSION PARTICIPANTS =====
 function listenForSessionParticipants() {
     const classId = myClass ? myClass.id : liveSessionId;
@@ -22076,22 +22141,56 @@ async function endLiveSession() {
     }
     
     try {
-        // Stop local audio
+        console.log('🛑 Ending live session...');
+        
+        // ✅ CRITICAL: Stop and remove ALL audio elements first
+        document.querySelectorAll('audio').forEach(audio => {
+            console.log('🗑️ Removing audio element:', audio.id);
+            audio.pause();
+            audio.srcObject = null;
+            audio.remove();
+        });
+        
+        // ✅ Stop local audio tracks
         if (localAudioStream) {
-            localAudioStream.getTracks().forEach(track => track.stop());
+            console.log('🛑 Stopping local audio stream');
+            localAudioStream.getTracks().forEach(track => {
+                console.log('   Stopping track:', track.kind, track.id);
+                track.stop();
+            });
             localAudioStream = null;
         }
         
-        // Close all peer connections
+        // ✅ Close ALL peer connections
+        console.log('🛑 Closing peer connections:', peerConnections.size);
         peerConnections.forEach((pc, userId) => {
-            pc.close();
+            console.log('   Closing connection with:', userId);
+            try {
+                pc.close();
+            } catch (e) {
+                console.error('   Error closing connection:', e);
+            }
         });
         peerConnections.clear();
+        
+        // ✅ Clear remote streams
         remoteStreams.clear();
         
-        // Remove from participants
+        // ✅ Unsubscribe from session listeners
+        if (liveSessionListener) {
+            console.log('🛑 Unsubscribing from session listener');
+            try {
+                liveSessionListener();
+            } catch (e) {
+                console.error('Error unsubscribing:', e);
+            }
+            liveSessionListener = null;
+        }
+        
+        // ✅ Remove from participants in Firestore
         const classId = myClass ? myClass.id : liveSessionId;
-        if (classId) {
+        if (classId && currentUser) {
+            console.log('🗑️ Removing from session participants');
             await db.collection('classes')
                 .doc(classId)
                 .collection('sessionParticipants')
@@ -22099,8 +22198,10 @@ async function endLiveSession() {
                 .delete();
         }
         
-        // If coach, end session for everyone
+        // ✅ If coach, end session for everyone
         if (isCoachUser && myClass) {
+            console.log('🛑 Coach ending session for everyone');
+            
             await db.collection('classes').doc(myClass.id).update({
                 liveSessionActive: false,
                 liveSessionId: null
@@ -22117,56 +22218,62 @@ async function endLiveSession() {
                 batch.delete(doc.ref);
             });
             await batch.commit();
+            
+            // Clear signaling data
+            console.log('🗑️ Clearing signaling data');
+            const [offersSnap, answersSnap, candidatesSnap] = await Promise.all([
+                db.collection('classes').doc(myClass.id).collection('offers').get(),
+                db.collection('classes').doc(myClass.id).collection('answers').get(),
+                db.collection('classes').doc(myClass.id).collection('iceCandidates').get()
+            ]);
+            
+            const signalingBatch = db.batch();
+            offersSnap.forEach(doc => signalingBatch.delete(doc.ref));
+            answersSnap.forEach(doc => signalingBatch.delete(doc.ref));
+            candidatesSnap.forEach(doc => signalingBatch.delete(doc.ref));
+            await signalingBatch.commit();
         }
         
-        // Cleanup listeners
-        if (liveSessionListener) {
-            liveSessionListener();
-            liveSessionListener = null;
-        }
+        // ✅ Clear session participants map
+        sessionParticipants.clear();
         
-        // Reset UI based on user type
+        // ✅ Reset state variables
+        liveSessionActive = false;
+        liveSessionId = null;
+        isMicMuted = false;
+        
+        // ✅ Reset UI based on user type
         if (isCoachUser) {
             const startBtn = document.getElementById('start-session-btn');
             const liveSessionContainer = document.getElementById('coach-live-session-active');
             
             if (liveSessionContainer) liveSessionContainer.style.display = 'none';
-            if (startBtn) startBtn.style.display = 'block';
-        } else {
-            // ✅ STUDENT: Show join button again if session is still active
-            const userDoc = await db.collection('users').doc(currentUser.uid).get();
-            const userData = userDoc.data();
-            
-            if (userData.classId) {
-                const classDoc = await db.collection('classes').doc(userData.classId).get();
-                const classData = classDoc.data();
-                
-                // If session is still active, show join button
-                if (classData && classData.liveSessionActive && classData.liveSessionId) {
-                    const liveSessionContainer = document.getElementById('student-live-session-active');
-                    const joinContainer = document.getElementById('live-session-join-container');
-                    
-                    if (liveSessionContainer) liveSessionContainer.style.display = 'none';
-                    if (joinContainer) joinContainer.style.display = 'block';
-                } else {
-                    // Session ended, reload view
-                    await loadStudentClassView();
-                }
+            if (startBtn) {
+                startBtn.style.display = 'block';
+                startBtn.textContent = '🎥 Start Live Session';
+                startBtn.style.background = '#28a745';
             }
+            
+            // Clear participants list
+            const participantsList = document.getElementById('coach-session-participants-list');
+            if (participantsList) participantsList.innerHTML = '<p style="color: #666;">No participants</p>';
+            
+        } else {
+            // Student: Reload view to show correct UI
+            await loadStudentClassView();
         }
-        
-        sessionParticipants.clear();
-        liveSessionActive = false;
-        isMicMuted = false;
         
         const message = isCoachUser ? '✅ Live session ended' : '✅ Left live session';
         alert(message);
         
+        console.log('✅ Session cleanup complete');
+        
     } catch (error) {
-        console.error('Error ending session:', error);
+        console.error('❌ Error ending session:', error);
         alert('Error ending session: ' + error.message);
     }
 }
+
 // ===== CHECK FOR ACTIVE SESSION (FOR STUDENTS) =====
 async function checkForActiveSession() {
     if (!currentUser) return;
