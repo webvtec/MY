@@ -4987,7 +4987,20 @@ let isMicMuted = false;
 let sessionParticipants = new Map(); // userId -> {name, email, photoURL}
 let isCoach = false; // Track if current user is coach
 
+// ===== LIVE SESSION VARIABLES =====
+let liveSessionActive = false;
+let liveSessionId = null;
+let liveSessionListener = null;
+let myPeerConnection = null;
+let localAudioStream = null;
+let peerConnections = new Map(); // userId -> RTCPeerConnection
+let remoteStreams = new Map(); // userId -> MediaStream
+let isMicMuted = false;
+let sessionParticipants = new Map(); // userId -> {name, email, photoURL}
+let isCoach = false; // Track if current user is coach
+let coachMutedMe = false; // ✅ NEW: Track if coach has muted this student
 
+        
 // ===== ICE CANDIDATE QUEUE =====
 const pendingIceCandidates = new Map(); // userId -> [candidates]
         
@@ -22233,6 +22246,12 @@ async function toggleMicrophone() {
         return;
     }
     
+    // ✅ Check if coach has muted this student
+    if (coachMutedMe && !isCoach) {
+        alert('❌ Your coach has muted you. You cannot unmute yourself.');
+        return;
+    }
+    
     const audioTrack = localAudioStream.getAudioTracks()[0];
     if (!audioTrack) {
         console.error('❌ No audio track found!');
@@ -22267,13 +22286,61 @@ async function toggleMicrophone() {
                 .doc(classId)
                 .collection('sessionParticipants')
                 .doc(currentUser.uid)
-                .update({ micMuted: isMicMuted });
+                .update({ 
+                    micMuted: isMicMuted,
+                    coachMuted: false // ✅ Clear coach mute flag when student toggles themselves
+                });
         } catch (error) {
             console.error('Error updating mic status in Firestore:', error);
         }
     }
 }
 
+
+   // ===== MUTE PARTICIPANT (COACH ONLY) =====
+async function muteParticipant(userId, participantName, currentlyMuted) {
+    if (!isCoach) {
+        alert('Only coaches can mute participants');
+        return;
+    }
+    
+    const action = currentlyMuted ? 'unmute' : 'mute';
+    
+    if (!confirm(`${action.toUpperCase()} ${participantName}?`)) {
+        return;
+    }
+    
+    try {
+        const classId = myClass.id;
+        
+        // Update in Firestore
+        await db.collection('classes')
+            .doc(classId)
+            .collection('sessionParticipants')
+            .doc(userId)
+            .update({ 
+                micMuted: !currentlyMuted,
+                coachMuted: !currentlyMuted // ✅ Track that coach did this
+            });
+        
+        console.log(`✅ ${action}d ${participantName}`);
+        
+        // Update local map
+        const participant = sessionParticipants.get(userId);
+        if (participant) {
+            participant.micMuted = !currentlyMuted;
+            participant.coachMuted = !currentlyMuted;
+            sessionParticipants.set(userId, participant);
+        }
+        
+        // Update UI
+        updateParticipantsList();
+        
+    } catch (error) {
+        console.error(`Error ${action}ing participant:`, error);
+        alert(`Failed to ${action} participant: ${error.message}`);
+    }
+}          
         
 // ===== UPDATE PARTICIPANTS LIST =====
 function updateParticipantsList() {
@@ -22303,20 +22370,124 @@ function updateParticipantsList() {
                 : `<div class="coach-avatar" style="width: 40px; height: 40px;">${(participant.name || 'U').charAt(0).toUpperCase()}</div>`;
             
             const micStatus = participant.micMuted ? '🔇' : '🎤';
+            const isCurrentUser = participant.userId === currentUser.uid;
+            
+            // ✅ Coach controls for each participant
+            const coachControls = isCoach && !isCurrentUser ? `
+                <button 
+                    onclick="muteParticipant('${participant.userId}', '${participant.name.replace(/'/g, "\\'")}', ${participant.micMuted || false})"
+                    style="
+                        background: ${participant.micMuted ? '#28a745' : '#dc3545'};
+                        color: white;
+                        border: none;
+                        padding: 8px 15px;
+                        border-radius: 5px;
+                        cursor: pointer;
+                        font-size: 0.9rem;
+                        font-weight: bold;
+                        transition: all 0.3s;
+                    "
+                    onmouseover="this.style.opacity='0.8'"
+                    onmouseout="this.style.opacity='1'"
+                >
+                    ${participant.micMuted ? '🔊 Unmute' : '🔇 Mute'}
+                </button>
+            ` : '';
             
             return `
                 <div style="display: flex; align-items: center; gap: 10px; padding: 10px; background: white; border-radius: 8px; margin-bottom: 10px;">
                     ${avatarHtml}
                     <div style="flex: 1;">
-                        <div style="font-weight: bold; color: #0d3b66;">${participant.name}</div>
+                        <div style="font-weight: bold; color: #0d3b66;">
+                            ${participant.name}${isCurrentUser ? ' (You)' : ''}
+                            ${participant.coachMuted ? ' <span style="color: #dc3545; font-size: 0.8rem;">(Muted by Coach)</span>' : ''}
+                        </div>
                         <div style="font-size: 0.9rem; color: #666;">${participant.email}</div>
                     </div>
                     <div style="font-size: 1.5rem;">${micStatus}</div>
+                    ${coachControls}
                 </div>
             `;
         }).join('');
 }
 
+function listenForSessionParticipants() {
+    const classId = myClass ? myClass.id : liveSessionId;
+    
+    console.log('👂 Setting up participant listener for class:', classId);
+    
+    liveSessionListener = db.collection('classes')
+        .doc(classId)
+        .collection('sessionParticipants')
+        .onSnapshot(snapshot => {
+            snapshot.docChanges().forEach(change => {
+                if (change.type === 'added') {
+                    const participant = change.doc.data();
+                    
+                    console.log('➕ Participant added:', participant.name, participant.userId);
+                    
+                    if (participant.userId !== currentUser.uid) {
+                        if (isCoach) {
+                            console.log('👑 Coach creating connection to:', participant.name);
+                            createPeerConnection(participant.userId, participant, true);
+                        } else {
+                            console.log('👨‍🎓 Student waiting for offer from coach');
+                        }
+                    }
+                    
+                    sessionParticipants.set(participant.userId, participant);
+                }
+                
+                if (change.type === 'removed') {
+                    const participant = change.doc.data();
+                    console.log('➖ Participant removed:', participant.name);
+                    
+                    closePeerConnection(participant.userId);
+                    sessionParticipants.delete(participant.userId);
+                }
+                
+                if (change.type === 'modified') {
+                    const participant = change.doc.data();
+                    sessionParticipants.set(participant.userId, participant);
+                    
+                    // ✅ NEW: Check if coach muted/unmuted this student
+                    if (participant.userId === currentUser.uid && !isCoach) {
+                        const wasCoachMuted = coachMutedMe;
+                        coachMutedMe = participant.coachMuted || false;
+                        
+                        if (coachMutedMe && !wasCoachMuted) {
+                            // Coach just muted me
+                            console.log('🔇 Coach muted you');
+                            if (localAudioStream) {
+                                const audioTrack = localAudioStream.getAudioTracks()[0];
+                                if (audioTrack) {
+                                    audioTrack.enabled = false;
+                                    isMicMuted = true;
+                                    
+                                    const btn = document.getElementById('student-toggle-mic-btn');
+                                    if (btn) {
+                                        btn.textContent = '🔇 Unmute';
+                                        btn.style.background = '#dc3545';
+                                    }
+                                }
+                            }
+                            alert('🔇 Your coach has muted you');
+                        } else if (!coachMutedMe && wasCoachMuted) {
+                            // Coach unmuted me
+                            console.log('🔊 Coach unmuted you');
+                            alert('🔊 Your coach has unmuted you. You can now speak.');
+                        }
+                    }
+                }
+            });
+            
+            updateParticipantsList();
+        });
+    
+    // Listen for WebRTC signaling
+    listenForSignaling();
+}
+        
         
 // ===== CLOSE PEER CONNECTION =====
 function closePeerConnection(userId) {
@@ -22664,7 +22835,10 @@ async function recruitStudent(studentId, studentName) {
         console.error('Error recruiting student:', error);
         alert('Failed to recruit student: ' + error.message);
     }
-}     
+}    
+
+
+   
     </script>
 </body>
 </html>
