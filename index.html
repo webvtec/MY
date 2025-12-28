@@ -5182,17 +5182,25 @@ async function navigateTo(section, skipSidebarClose = false) {
     // ✅ CHECK SUBSCRIPTION FOR STUDENTS BEFORE ALLOWING NAVIGATION
     if (currentUser && !subscriptionActive && section !== 'student-dashboard' && section !== 'parent-dashboard' && section !== 'about') {
         try {
-            const userDoc = await db.collection('users').doc(currentUser.uid).get();
-            const userData = userDoc.data();
+            // ✅ Wait for auth to be ready
+            await auth.authStateReady();
             
-            // ✅ ADD: Only check if user data is fully loaded
-            if (userData && userData.profileComplete && userData.userType === 'student') {
-                showSubscriptionModal();
-                return;
+            // ✅ Double-check auth is still valid
+            if (!auth.currentUser) {
+                console.warn('Auth state changed, allowing navigation');
+            } else {
+                const userDoc = await db.collection('users').doc(currentUser.uid).get();
+                const userData = userDoc.data();
+                
+                // ✅ Only check if user data is fully loaded
+                if (userData && userData.profileComplete && userData.userType === 'student') {
+                    showSubscriptionModal();
+                    return;
+                }
             }
         } catch (error) {
             console.error('Error checking subscription in navigation:', error);
-            // Allow navigation on error
+            // Allow navigation on error to prevent blocking users
         }
     }
     
@@ -5208,16 +5216,22 @@ async function navigateTo(section, skipSidebarClose = false) {
     // ✅ PREVENT PARENTS FROM ACCESSING STUDENT FEATURES
     if (currentUser && section !== 'parent-dashboard' && section !== 'home' && section !== 'about' && section !== 'coaches' && section !== 'students') {
         try {
-            const userDoc = await db.collection('users').doc(currentUser.uid).get();
-            const userData = userDoc.data();
+            // ✅ Wait for auth to be ready
+            await auth.authStateReady();
             
-            if (userData && userData.userType === 'parent') {
-                alert('⚠️ Parents can only access:\n• Parent Dashboard\n• Home\n• About\n• Coaches\n• Students\n\nPlease use the Parent Dashboard to manage your child\'s account.');
-                navigateTo('parent-dashboard');
-                return;
+            if (auth.currentUser) {
+                const userDoc = await db.collection('users').doc(currentUser.uid).get();
+                const userData = userDoc.data();
+                
+                if (userData && userData.userType === 'parent') {
+                    alert('⚠️ Parents can only access:\n• Parent Dashboard\n• Home\n• About\n• Coaches\n• Students\n\nPlease use the Parent Dashboard to manage your child\'s account.');
+                    navigateTo('parent-dashboard');
+                    return;
+                }
             }
         } catch (error) {
             console.error('Error checking user type:', error);
+            // Allow navigation on error
         }
     }
     
@@ -5315,12 +5329,14 @@ async function navigateTo(section, skipSidebarClose = false) {
     }
 
     if (section === 'tournaments') {
-    await loadTournamentList();
-}
-   // Load class section
+        await loadTournamentList();
+    }
+    
+    // Load class section
     if (section === 'class' && currentUser) {
         await loadMyClass();
-} 
+    } 
+}
 }
         
        function toggleSidebar(forceClose = false) {
