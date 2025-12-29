@@ -6337,7 +6337,6 @@ function signOut() {
 async function signInWithGoogle() {
     const provider = new firebase.auth.GoogleAuthProvider();
     
-    // ✅ Force account selection every time
     provider.setCustomParameters({
         prompt: 'select_account'
     });
@@ -6346,39 +6345,21 @@ async function signInWithGoogle() {
         const result = await auth.signInWithPopup(provider);
         const user = result.user;
         
-        // Check if user document exists
         const userRef = db.collection('users').doc(user.uid);
         const userDoc = await userRef.get();
         
         if (!userDoc.exists) {
-            // ❌ User has not signed up - reject sign in
+            // ✅ ORPHANED AUTH ACCOUNT - Delete and ask to sign up
             await auth.signOut();
             
-            document.getElementById('signin-error').textContent = '❌ Account not found. Please sign up first before signing in.';
+            document.getElementById('signin-error').textContent = '❌ Account data not found. Please sign up to create a new account.';
             document.getElementById('signin-error').style.display = 'block';
-            
-            // Optional: Auto-switch to sign up tab after 2 seconds
-            setTimeout(() => {
-                const signinTab = document.getElementById('signin-tab');
-                const signupTab = document.getElementById('signup-tab');
-                const signinForm = document.getElementById('signin-form');
-                const signupForm = document.getElementById('signup-form');
-                
-                if (signinTab && signupTab && signinForm && signupForm) {
-                    signinTab.classList.remove('active');
-                    signupTab.classList.add('active');
-                    signinForm.style.display = 'none';
-                    signupForm.style.display = 'block';
-                }
-            }, 2000);
-            
             return;
         }
         
-        // ✅ Existing user - check if profile is complete
         const userData = userDoc.data();
         
-        // Sync photoURL if it exists in auth but not in Firestore
+        // Sync photoURL
         if (user.photoURL && !userData.photoURL) {
             await userRef.update({
                 photoURL: user.photoURL
@@ -6395,7 +6376,6 @@ async function signInWithGoogle() {
     } catch (error) {
         console.error('Google sign-in error:', error);
         
-        // Don't show error for user-cancelled actions
         if (error.code !== 'auth/popup-closed-by-user' && 
             error.code !== 'auth/cancelled-popup-request') {
             document.getElementById('signin-error').textContent = error.message;
@@ -6407,7 +6387,6 @@ async function signInWithGoogle() {
 async function signUpWithGoogle(userType) {
     const provider = new firebase.auth.GoogleAuthProvider();
     
-    // ✅ Force account selection every time
     provider.setCustomParameters({
         prompt: 'select_account'
     });
@@ -6419,35 +6398,21 @@ async function signUpWithGoogle(userType) {
         const userRef = db.collection('users').doc(user.uid);
         const existingDoc = await userRef.get();
         
-        // ❌ Check if user already exists
         if (existingDoc.exists) {
-            await auth.signOut();
+            // ✅ Check if this is an orphaned document (auth deleted but Firestore remains)
+            // If the auth account exists, this is a real existing user
+            console.log('✅ Account exists - signing in instead');
+            closeAuthModal();
             
-            const errorDiv = document.getElementById(`signup-${userType}-error`);
-            if (errorDiv) {
-                errorDiv.textContent = '⚠️ Account already exists. Please sign in instead.';
-                errorDiv.style.display = 'block';
+            // Check if profile complete
+            const userData = existingDoc.data();
+            if (!userData.profileComplete) {
+                showVerificationModal(userData);
             }
-            
-            // Auto-switch to sign in tab after 2 seconds
-            setTimeout(() => {
-                const signinTab = document.getElementById('signin-tab');
-                const signupTab = document.getElementById('signup-tab');
-                const signinForm = document.getElementById('signin-form');
-                const signupForm = document.getElementById('signup-form');
-                
-                if (signinTab && signupTab && signinForm && signupForm) {
-                    signupTab.classList.remove('active');
-                    signinTab.classList.add('active');
-                    signupForm.style.display = 'none';
-                    signinForm.style.display = 'block';
-                }
-            }, 2000);
-            
             return;
         }
         
-        // ✅ Generate student ID if signing up as student
+        // ✅ NEW USER - Create Firestore document
         const userData = {
             name: user.displayName,
             email: user.email,
@@ -6459,8 +6424,8 @@ async function signUpWithGoogle(userType) {
         
         if (userType === 'student') {
             userData.studentId = generateStudentId(user.uid);
-            userData.coins = 0; // ✅ Initialize coins for students
-            userData.subscriptionActive = false; // ✅ Initialize subscription
+            userData.coins = 0;
+            userData.subscriptionActive = false;
         }
         
         await userRef.set(userData);
@@ -6475,7 +6440,6 @@ async function signUpWithGoogle(userType) {
     } catch (error) {
         console.error('Google sign-up error:', error);
         
-        // Don't show error for user-cancelled actions
         if (error.code !== 'auth/popup-closed-by-user' && 
             error.code !== 'auth/cancelled-popup-request') {
             const errorDiv = document.getElementById(`signup-${userType}-error`);
@@ -6486,7 +6450,6 @@ async function signUpWithGoogle(userType) {
         }
     }
 }
-
         
         // ===== VERIFICATION MODAL FUNCTIONS =====
 function showVerificationModal(userData) {
