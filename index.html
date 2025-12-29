@@ -20976,23 +20976,8 @@ async function joinLiveSession() {
             liveSessionListener = null;
         }
         
-        // Get microphone permission with fresh stream
-        console.log('🎤 Requesting microphone access...');
-        localAudioStream = await navigator.mediaDevices.getUserMedia({ 
-            audio: {
-                echoCancellation: true,
-                noiseSuppression: true,
-                autoGainControl: true
-            } 
-        });
-        
-        // ✅ START WITH MIC MUTED
-        localAudioStream.getAudioTracks().forEach(track => {
-            track.enabled = false; // Start muted
-        });
-        isMicMuted = true;
-        
-        console.log('✅ Microphone access granted (MUTED by default)');
+        // Clear pending ICE candidates
+        pendingIceCandidates.clear();
         
         // Get user data
         const userDoc = await db.collection('users').doc(currentUser.uid).get();
@@ -21000,10 +20985,6 @@ async function joinLiveSession() {
         
         if (!userData.classId) {
             alert('You are not enrolled in a class');
-            if (localAudioStream) {
-                localAudioStream.getTracks().forEach(track => track.stop());
-                localAudioStream = null;
-            }
             return;
         }
         
@@ -21015,10 +20996,6 @@ async function joinLiveSession() {
         
         if (!classData.liveSessionActive || !classData.liveSessionId) {
             alert('❌ This session is no longer active');
-            if (localAudioStream) {
-                localAudioStream.getTracks().forEach(track => track.stop());
-                localAudioStream = null;
-            }
             return;
         }
         
@@ -21040,11 +21017,31 @@ async function joinLiveSession() {
                 .doc(currentUser.uid)
                 .delete();
             
-            // Wait a moment for coach to clean up their side
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            // ✅ Wait longer for coach to detect removal and clean up
+            console.log('⏳ Waiting for coach to clean up old connection...');
+            await new Promise(resolve => setTimeout(resolve, 2000));
         }
         
-        // Add to session participants
+        // Get microphone permission with fresh stream
+        console.log('🎤 Requesting microphone access...');
+        localAudioStream = await navigator.mediaDevices.getUserMedia({ 
+            audio: {
+                echoCancellation: true,
+                noiseSuppression: true,
+                autoGainControl: true
+            } 
+        });
+        
+        // ✅ START WITH MIC MUTED
+        localAudioStream.getAudioTracks().forEach(track => {
+            track.enabled = false; // Start muted
+        });
+        isMicMuted = true;
+        
+        console.log('✅ Microphone access granted (MUTED by default)');
+        
+        // Add to session participants (this triggers coach to create new connection)
+        console.log('📝 Adding to session participants...');
         await db.collection('classes')
             .doc(userData.classId)
             .collection('sessionParticipants')
@@ -21077,7 +21074,7 @@ async function joinLiveSession() {
             micBtn.style.background = '#dc3545';
         }
         
-        // Listen for participants
+        // Listen for participants (this will trigger coach's offer)
         listenForSessionParticipants();
         
         alert('✅ Joined live session! (Mic is muted - click Unmute when ready to speak)');
@@ -21107,7 +21104,6 @@ async function joinLiveSession() {
             localAudioStream = null;
         }
         
-        
         // Remove from participants if we added ourselves
         try {
             const userDoc = await db.collection('users').doc(currentUser.uid).get();
@@ -21124,6 +21120,7 @@ async function joinLiveSession() {
         }
     }
 }
+
         
 // ===== LISTEN FOR SESSION PARTICIPANTS =====
 function listenForSessionParticipants() {
@@ -21142,10 +21139,24 @@ function listenForSessionParticipants() {
                     console.log('➕ Participant added:', participant.name, participant.userId);
                     
                     if (participant.userId !== currentUser.uid) {
-                        // âœ… FIXED: Only coach initiates connections
                         if (isCoach) {
                             console.log('👑 Coach creating connection to:', participant.name);
-                            // âœ… Always create fresh connection for rejoining participants
+                            // ✅ Always create fresh connection for new/rejoining participants
+                            
+                            // Close any existing connection first
+                            if (peerConnections.has(participant.userId)) {
+                                console.log('🗑️ Closing old connection before creating new one');
+                                const oldPc = peerConnections.get(participant.userId);
+                                oldPc.close();
+                                peerConnections.delete(participant.userId);
+                            }
+                            
+                            // Clear any pending candidates
+                            if (pendingIceCandidates.has(participant.userId)) {
+                                pendingIceCandidates.delete(participant.userId);
+                            }
+                            
+                            // Create new connection
                             createPeerConnection(participant.userId, participant, true);
                         } else {
                             console.log('👨‍🎓 Student waiting for offer from coach');
@@ -21166,6 +21177,35 @@ function listenForSessionParticipants() {
                 if (change.type === 'modified') {
                     const participant = change.doc.data();
                     sessionParticipants.set(participant.userId, participant);
+                    
+                    // ✅ Check if coach muted/unmuted this student
+                    if (participant.userId === currentUser.uid && !isCoach) {
+                        const wasCoachMuted = coachMutedMe;
+                        coachMutedMe = participant.coachMuted || false;
+                        
+                        if (coachMutedMe && !wasCoachMuted) {
+                            // Coach just muted me
+                            console.log('🔇 Coach muted you');
+                            if (localAudioStream) {
+                                const audioTrack = localAudioStream.getAudioTracks()[0];
+                                if (audioTrack) {
+                                    audioTrack.enabled = false;
+                                    isMicMuted = true;
+                                    
+                                    const btn = document.getElementById('student-toggle-mic-btn');
+                                    if (btn) {
+                                        btn.textContent = '🔇 Unmute';
+                                        btn.style.background = '#dc3545';
+                                    }
+                                }
+                            }
+                            alert('🔇 Your coach has muted you');
+                        } else if (!coachMutedMe && wasCoachMuted) {
+                            // Coach unmuted me
+                            console.log('🔊 Coach unmuted you');
+                            alert('🔊 Your coach has unmuted you. You can now speak.');
+                        }
+                    }
                 }
             });
             
