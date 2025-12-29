@@ -21765,34 +21765,43 @@ function listenForSignaling() {
                     // ✅ Skip if already processed
                     if (processedOffers.has(messageId)) {
                         console.log('⏭️ Skipping duplicate offer:', messageId);
-                        await change.doc.ref.delete();
+                        try {
+                            await change.doc.ref.delete();
+                        } catch (e) {
+                            console.error('Error deleting duplicate offer:', e);
+                        }
                         return;
                     }
                     
                     // ✅ Ignore if we're cleaning up
                     if (isCleaningUp) {
                         console.log('⏸️ Ignoring offer during cleanup');
-                        await change.doc.ref.delete();
+                        try {
+                            await change.doc.ref.delete();
+                        } catch (e) {
+                            console.error('Error deleting offer during cleanup:', e);
+                        }
                         return;
                     }
                     
-                    // ✅ Mark as processed
+                    // ✅ Mark as processed IMMEDIATELY
                     processedOffers.add(messageId);
                     
-                    console.log('📨 Received offer from:', data.from);
-                    await handleOffer(data.from, data.offer);
-                    
-                    // Delete processed offer
+                    // ✅ Delete BEFORE processing to prevent race conditions
                     try {
                         await change.doc.ref.delete();
+                        console.log('🗑️ Deleted offer message before processing');
                     } catch (e) {
                         console.error('Error deleting offer:', e);
                     }
                     
-                    // ✅ Clean up processed set after 5 seconds
+                    console.log('📨 Received offer from:', data.from);
+                    await handleOffer(data.from, data.offer);
+                    
+                    // ✅ Clean up processed set after 10 seconds
                     setTimeout(() => {
                         processedOffers.delete(messageId);
-                    }, 5000);
+                    }, 10000);
                 }
             });
         });
@@ -21811,34 +21820,43 @@ function listenForSignaling() {
                     // ✅ Skip if already processed
                     if (processedAnswers.has(messageId)) {
                         console.log('⏭️ Skipping duplicate answer:', messageId);
-                        await change.doc.ref.delete();
+                        try {
+                            await change.doc.ref.delete();
+                        } catch (e) {
+                            console.error('Error deleting duplicate answer:', e);
+                        }
                         return;
                     }
                     
                     // ✅ Ignore if we're cleaning up
                     if (isCleaningUp) {
                         console.log('⏸️ Ignoring answer during cleanup');
-                        await change.doc.ref.delete();
+                        try {
+                            await change.doc.ref.delete();
+                        } catch (e) {
+                            console.error('Error deleting answer during cleanup:', e);
+                        }
                         return;
                     }
                     
-                    // ✅ Mark as processed
+                    // ✅ Mark as processed IMMEDIATELY
                     processedAnswers.add(messageId);
                     
-                    console.log('📨 Received answer from:', data.from);
-                    await handleAnswer(data.from, data.answer);
-                    
-                    // Delete processed answer
+                    // ✅ Delete BEFORE processing to prevent race conditions
                     try {
                         await change.doc.ref.delete();
+                        console.log('🗑️ Deleted answer message before processing');
                     } catch (e) {
                         console.error('Error deleting answer:', e);
                     }
                     
-                    // ✅ Clean up processed set after 5 seconds
+                    console.log('📨 Received answer from:', data.from);
+                    await handleAnswer(data.from, data.answer);
+                    
+                    // ✅ Clean up processed set after 10 seconds
                     setTimeout(() => {
                         processedAnswers.delete(messageId);
-                    }, 5000);
+                    }, 10000);
                 }
             });
         });
@@ -21857,34 +21875,42 @@ function listenForSignaling() {
                     // ✅ Skip if already processed
                     if (processedCandidates.has(messageId)) {
                         console.log('⏭️ Skipping duplicate ICE candidate:', messageId);
-                        await change.doc.ref.delete();
+                        try {
+                            await change.doc.ref.delete();
+                        } catch (e) {
+                            console.error('Error deleting duplicate candidate:', e);
+                        }
                         return;
                     }
                     
                     // ✅ Ignore if we're cleaning up
                     if (isCleaningUp) {
                         console.log('⏸️ Ignoring ICE candidate during cleanup');
-                        await change.doc.ref.delete();
+                        try {
+                            await change.doc.ref.delete();
+                        } catch (e) {
+                            console.error('Error deleting candidate during cleanup:', e);
+                        }
                         return;
                     }
                     
-                    // ✅ Mark as processed
+                    // ✅ Mark as processed IMMEDIATELY
                     processedCandidates.add(messageId);
                     
-                    console.log('📨 Received ICE candidate from:', data.from);
-                    await handleIceCandidate(data.from, data.candidate);
-                    
-                    // Delete processed candidate
+                    // ✅ Delete BEFORE processing
                     try {
                         await change.doc.ref.delete();
                     } catch (e) {
                         console.error('Error deleting candidate:', e);
                     }
                     
-                    // ✅ Clean up processed set after 5 seconds
+                    console.log('📨 Received ICE candidate from:', data.from);
+                    await handleIceCandidate(data.from, data.candidate);
+                    
+                    // ✅ Clean up processed set after 10 seconds
                     setTimeout(() => {
                         processedCandidates.delete(messageId);
-                    }, 5000);
+                    }, 10000);
                 }
             });
         });
@@ -22053,32 +22079,32 @@ async function sendAnswer(toUserId, answer) {
         
 // ===== HANDLE ANSWER =====
 async function handleAnswer(fromUserId, answer) {
-    console.log('📨 Handling answer from user:', fromUserId);
-    
-    const peerConnection = peerConnections.get(fromUserId);
-    
-    if (!peerConnection) {
-        console.warn('⚠️ No peer connection found for:', fromUserId, '- ignoring answer');
-        return;
-    }
-    
-    const currentState = peerConnection.signalingState;
-    console.log('   Current signaling state:', currentState);
-    
-    // ✅ Only process answer if we're in the correct state
-    if (currentState !== 'have-local-offer') {
-        if (currentState === 'stable') {
-            console.log('⚠️ Already in stable state - ignoring duplicate/stale answer');
-        } else if (currentState === 'have-remote-offer') {
-            console.warn('⚠️ Wrong role - we should be answering, not receiving answer. Ignoring.');
-        } else {
-            console.warn('⚠️ Unexpected signaling state:', currentState, '- ignoring answer');
-        }
-        return; // ✅ Exit early - don't try to set remote description
-    }
-    
-    // ✅ Now we know we're in the correct state, wrap in try-catch for safety
     try {
+        console.log('📨 Handling answer from user:', fromUserId);
+        
+        const peerConnection = peerConnections.get(fromUserId);
+        
+        if (!peerConnection) {
+            console.warn('⚠️ No peer connection found for:', fromUserId, '- ignoring answer');
+            return;
+        }
+        
+        const currentState = peerConnection.signalingState;
+        console.log('   Current signaling state:', currentState);
+        
+        // ✅ Only process answer if we're waiting for one
+        if (currentState !== 'have-local-offer') {
+            if (currentState === 'stable') {
+                console.log('⏭️ Already in stable state - answer already processed, skipping');
+            } else if (currentState === 'have-remote-offer') {
+                console.warn('⚠️ Wrong role - we should be answering, not receiving answer. Ignoring.');
+            } else {
+                console.warn('⚠️ Unexpected signaling state:', currentState, '- ignoring answer');
+            }
+            return; // ✅ Exit early
+        }
+        
+        // ✅ Process the answer
         await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
         console.log('✅ Answer processed from:', fromUserId);
         
@@ -22098,9 +22124,10 @@ async function handleAnswer(fromUserId, answer) {
             
             pendingIceCandidates.delete(fromUserId);
         }
+        
     } catch (error) {
-        // ✅ Catch any unexpected errors from setRemoteDescription
-        console.error('❌ Error setting remote description (non-fatal):', error.message);
+        // ✅ Catch any unexpected errors
+        console.error('❌ Error handling answer (non-fatal):', error.message);
     }
 }
         
