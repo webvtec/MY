@@ -21284,13 +21284,23 @@ async function createPeerConnection(userId, participant, isInitiator = true) {
         
         const peerConnection = new RTCPeerConnection(iceServers);
         
-        // ✅ CRITICAL: Add local audio tracks FIRST with explicit sender storage
-        console.log('📤 Adding local audio tracks to peer connection');
-        const senders = [];
+        // ✅ CRITICAL FIX: Always send audio track as enabled to peer connection
+        // The mute button should only affect LOCAL audio, not what others hear
+        console.log('📤 Adding local audio tracks to peer connection (ALWAYS ENABLED for transmission)');
+        
         localAudioStream.getTracks().forEach(track => {
-            console.log('   Track:', track.kind, 'enabled:', track.enabled, 'readyState:', track.readyState);
+            console.log('   Track:', track.kind, 'current enabled:', track.enabled, 'readyState:', track.readyState);
+            
+            // ✅ Add track to peer connection
             const sender = peerConnection.addTrack(track, localAudioStream);
-            senders.push(sender);
+            
+            // ✅ Store sender so we can control it later
+            if (!peerConnection.audioSenders) {
+                peerConnection.audioSenders = [];
+            }
+            peerConnection.audioSenders.push(sender);
+            
+            console.log('   ✅ Track added to peer connection');
         });
         
         peerConnection.ontrack = (event) => {
@@ -21418,7 +21428,6 @@ async function createPeerConnection(userId, participant, isInitiator = true) {
         throw error;
     }
 }
-
         
 // ===== HANDLE OFFER =====
 async function handleOffer(fromUserId, offer) {
