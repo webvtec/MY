@@ -21241,13 +21241,101 @@ function listenForSessionParticipants() {
     listenForSignaling();
 }
 
+
+// ===== CONNECTION HEALTH CHECK WITH AUDIO VERIFICATION =====
+function startConnectionHealthCheck(userId, peerConnection, participant) {
+    // Clear any existing check
+    if (connectionHealthChecks.has(userId)) {
+        clearInterval(connectionHealthChecks.get(userId));
+    }
+    
+    let failureCount = 0;
+    const MAX_FAILURES = 3;
+    
+    const checkInterval = setInterval(async () => {
+        if (!peerConnection || peerConnection.connectionState === 'closed') {
+            clearInterval(checkInterval);
+            connectionHealthChecks.delete(userId);
+            return;
+        }
         
-// ===== CREATE PEER CONNECTION =====
+        const state = peerConnection.connectionState;
+        const iceState = peerConnection.iceConnectionState;
+        
+        console.log(`🏥 Health check ${participant.name}: connection=${state}, ice=${iceState}`);
+        
+        // Check for failures
+        if (state === 'failed' || iceState === 'failed' || iceState === 'disconnected') {
+            failureCount++;
+            console.warn(`⚠️ Connection issue detected for ${participant.name} (${failureCount}/${MAX_FAILURES})`);
+            
+            if (failureCount >= MAX_FAILURES) {
+                console.error(`❌ Connection health check failed ${MAX_FAILURES} times for ${participant.name}, reconnecting...`);
+                clearInterval(checkInterval);
+                connectionHealthChecks.delete(userId);
+                
+                // Close and recreate connection
+                peerConnection.close();
+                peerConnections.delete(userId);
+                
+                // Remove audio element
+                const audioElement = document.getElementById(`audio_${userId}`);
+                if (audioElement) {
+                    audioElement.pause();
+                    audioElement.srcObject = null;
+                    audioElement.remove();
+                }
+                
+                if (sessionParticipants.has(userId) && !isCleaningUp) {
+                    setTimeout(() => {
+                        console.log('🔄 Recreating connection to:', participant.name);
+                        createPeerConnection(userId, participant, isCoach);
+                    }, 2000);
+                }
+            }
+        } else if (state === 'connected' && iceState === 'connected') {
+            // Connection is good, reset failure count
+            if (failureCount > 0) {
+                console.log(`✅ Connection recovered for ${participant.name}`);
+                failureCount = 0;
+            }
+            
+            // ✅ VERIFY AUDIO IS ACTUALLY FLOWING
+            const audioElement = document.getElementById(`audio_${userId}`);
+            if (audioElement && audioElement.srcObject) {
+                const stream = audioElement.srcObject;
+                const audioTracks = stream.getAudioTracks();
+                
+                if (audioTracks.length > 0) {
+                    const track = audioTracks[0];
+                    if (track.readyState === 'ended') {
+                        console.error(`❌ Audio track ended for ${participant.name}, recreating connection`);
+                        failureCount = MAX_FAILURES; // Force reconnection
+                    }
+                } else {
+                    console.warn(`⚠️ No audio tracks for ${participant.name}`);
+                }
+            }
+        }
+    }, 5000); // Check every 5 seconds
+    
+    connectionHealthChecks.set(userId, checkInterval);
+    console.log(`✅ Health monitoring started for ${participant.name}`);
+}
+
+        
+// ===== CREATE PEER CONNECTION WITH HEALTH MONITORING =====
 async function createPeerConnection(userId, participant, isInitiator = true) {
     try {
         console.log('🔗 Creating peer connection with:', participant.name, 'isInitiator:', isInitiator);
         
-        // ✅ CRITICAL: Ensure we have a local audio stream
+        // Stop any existing health check
+        if (connectionHealthChecks.has(userId)) {
+            clearInterval(connectionHealthChecks.get(userId));
+            connectionHealthChecks.delete(userId);
+        }
+        
+        // Ensure we have a local audio stream
         if (!localAudioStream || localAudioStream.getTracks().length === 0) {
             console.error('❌ No local audio stream available! Re-requesting...');
             try {
@@ -21258,7 +21346,6 @@ async function createPeerConnection(userId, participant, isInitiator = true) {
                         autoGainControl: true
                     } 
                 });
-                // Apply muted state to new stream
                 localAudioStream.getAudioTracks().forEach(track => {
                     track.enabled = !isMicMuted;
                 });
@@ -21269,14 +21356,13 @@ async function createPeerConnection(userId, participant, isInitiator = true) {
             }
         }
         
-        // ✅ Close existing connection if it exists
+        // Close existing connection if it exists
         if (peerConnections.has(userId)) {
             console.log('⚠️ Closing existing connection before creating new one');
             const oldPc = peerConnections.get(userId);
             oldPc.close();
             peerConnections.delete(userId);
             
-            // ✅ Remove old audio element
             const oldAudio = document.getElementById(`audio_${userId}`);
             if (oldAudio) {
                 oldAudio.pause();
@@ -21285,48 +21371,29 @@ async function createPeerConnection(userId, participant, isInitiator = true) {
             }
         }
         
-        const peerConnection = new RTCPeerConnection(iceServers);
-        
-        // ✅ CRITICAL: Temporarily enable ALL tracks for negotiation (even if muted)
-        console.log('🎤 Adding local audio tracks to peer connection');
-        const tracksToRestore = [];
-        
-        localAudioStream.getTracks().forEach(track => {
-            const wasEnabled = track.enabled;
-            tracksToRestore.push({ track, wasEnabled });
-            
-            // FORCE enable for connection setup
-            track.enabled = true;
-            console.log('   Track:', track.kind, 'forced enabled (was:', wasEnabled, ')');
-            
-            peerConnection.addTrack(track, localAudioStream);
-            console.log('   ✅ Track added to peer connection');
+        const peerConnection = new RTCPeerConnection({
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' },
+                { urls: 'stun:stun2.l.google.com:19302' }
+            ],
+            iceCandidatePoolSize: 10
         });
         
-        // ✅ Restore original enabled state after connection is established
-       peerConnection.onconnectionstatechange = () => {
-    console.log(`Connection state with ${participant.name}:`, peerConnection.connectionState);
-    
-    if (peerConnection.connectionState === 'connected') {
-        console.log('✅ Peer connection established with:', participant.name);
+        // ✅ CAPTURE CURRENT MIC STATE BEFORE ADDING TRACKS
+        const currentMicState = isMicMuted;
+        console.log('📸 Captured mic state:', currentMicState ? 'MUTED' : 'UNMUTED');
         
-        // ✅ FIX: Restore CURRENT mute state, not old state
-        setTimeout(() => {
-            if (localAudioStream) {
-                localAudioStream.getTracks().forEach(track => {
-                    // Use CURRENT isMicMuted state, not stored state
-                    track.enabled = !isMicMuted;
-                    console.log('🔄 Restored track to CURRENT state - enabled:', !isMicMuted, '(isMicMuted:', isMicMuted, ')');
-                });
-            }
-        }, 500);
-    } else if (peerConnection.connectionState === 'failed') {
-                console.error('❌ Connection failed with:', participant.name);
-            } else if (peerConnection.connectionState === 'disconnected') {
-                console.warn('⚠️ Connection disconnected with:', participant.name);
-            }
-        };
+        // Add local audio tracks
+        console.log('🎤 Adding local audio tracks to peer connection');
+        localAudioStream.getTracks().forEach(track => {
+            // ✅ Set to ACTUAL current state, not forced
+            track.enabled = !currentMicState;
+            console.log('   ✅ Track added:', track.kind, 'enabled:', track.enabled);
+            peerConnection.addTrack(track, localAudioStream);
+        });
         
+        // Handle incoming tracks
         peerConnection.ontrack = (event) => {
             console.log('📥 Received track from:', participant.name);
             console.log('   Track kind:', event.track.kind);
@@ -21352,7 +21419,7 @@ async function createPeerConnection(userId, participant, isInitiator = true) {
                 oldAudio.remove();
             }
             
-            // ✅ Wait for track to be fully ready
+            // Create new audio element
             setTimeout(() => {
                 const audioElement = document.createElement('audio');
                 audioElement.id = `audio_${userId}`;
@@ -21385,7 +21452,7 @@ async function createPeerConnection(userId, participant, isInitiator = true) {
                 
                 console.log('✅ Audio element created and added');
                 
-                // ✅ Force play with user interaction fallback
+                // Force play
                 const playPromise = audioElement.play();
                 if (playPromise !== undefined) {
                     playPromise
@@ -21412,8 +21479,44 @@ async function createPeerConnection(userId, participant, isInitiator = true) {
             }
         };
         
+        peerConnection.onconnectionstatechange = () => {
+            console.log(`Connection state with ${participant.name}:`, peerConnection.connectionState);
+            
+            if (peerConnection.connectionState === 'connected') {
+                console.log('✅ Peer connection established with:', participant.name);
+                
+                // ✅ START HEALTH MONITORING
+                startConnectionHealthCheck(userId, peerConnection, participant);
+                
+            } else if (peerConnection.connectionState === 'failed') {
+                console.error('❌ Connection failed with:', participant.name);
+                
+                // Stop health check
+                if (connectionHealthChecks.has(userId)) {
+                    clearInterval(connectionHealthChecks.get(userId));
+                    connectionHealthChecks.delete(userId);
+                }
+                
+                // Attempt reconnection after delay
+                setTimeout(() => {
+                    if (sessionParticipants.has(userId)) {
+                        console.log('🔄 Attempting to reconnect with:', participant.name);
+                        createPeerConnection(userId, participant, isCoach);
+                    }
+                }, 3000);
+                
+            } else if (peerConnection.connectionState === 'disconnected') {
+                console.warn('⚠️ Connection disconnected with:', participant.name);
+            }
+        };
+        
         peerConnection.oniceconnectionstatechange = () => {
             console.log(`ICE connection state with ${participant.name}:`, peerConnection.iceConnectionState);
+            
+            if (peerConnection.iceConnectionState === 'failed') {
+                console.error('❌ ICE connection failed, triggering restart');
+                peerConnection.restartIce();
+            }
         };
         
         peerConnections.set(userId, peerConnection);
@@ -21470,7 +21573,7 @@ async function handleOffer(fromUserId, offer) {
         if (peerConnection) {
             console.log('⚠️ Closing existing connection before handling offer');
             peerConnection.close();
-            peerConnections.delete(userId);
+            peerConnections.delete(fromUserId);
             
             const oldAudio = document.getElementById(`audio_${fromUserId}`);
             if (oldAudio) {
@@ -21511,11 +21614,17 @@ async function handleOffer(fromUserId, offer) {
             iceCandidatePoolSize: 10
         });
         
+        // ✅ CAPTURE CURRENT MIC STATE BEFORE ADDING TRACKS
+        const currentMicState = isMicMuted;
+        console.log('📸 Captured mic state for answer:', currentMicState ? 'MUTED' : 'UNMUTED');
+        
         // Add local audio tracks
         console.log('🎤 Adding local audio tracks (answering)');
         localAudioStream.getTracks().forEach(track => {
-            peerConnection.addTrack(track, localAudioStream);
+            // ✅ Set to ACTUAL current state
+            track.enabled = !currentMicState;
             console.log('   ✅ Track added:', track.kind, 'enabled:', track.enabled);
+            peerConnection.addTrack(track, localAudioStream);
         });
         
         // Handle remote audio
@@ -21599,9 +21708,18 @@ async function handleOffer(fromUserId, offer) {
             
             if (peerConnection.connectionState === 'connected') {
                 console.log('✅ Peer connection established with:', participant.name);
+                
+                // ✅ START HEALTH MONITORING
                 startConnectionHealthCheck(fromUserId, peerConnection, participant);
+                
             } else if (peerConnection.connectionState === 'failed' || peerConnection.connectionState === 'disconnected') {
                 console.warn(`⚠️ Connection ${peerConnection.connectionState} with ${participant.name}`);
+                
+                // Stop health check
+                if (connectionHealthChecks.has(fromUserId)) {
+                    clearInterval(connectionHealthChecks.get(fromUserId));
+                    connectionHealthChecks.delete(fromUserId);
+                }
             }
         };
         
@@ -22000,7 +22118,18 @@ async function toggleMicrophone() {
     audioTrack.enabled = !audioTrack.enabled;
     isMicMuted = !audioTrack.enabled;
     
-    console.log('🎤 Microphone', isMicMuted ? 'MUTED' : 'UNMUTED');
+    console.log('🎤 Microphone', isMicMuted ? 'MUTED' : 'UNMUTED', '- enabled:', audioTrack.enabled);
+    
+    // ✅ UPDATE ALL PEER CONNECTION SENDERS
+    peerConnections.forEach((pc, userId) => {
+        const senders = pc.getSenders();
+        senders.forEach(sender => {
+            if (sender.track && sender.track.kind === 'audio') {
+                sender.track.enabled = audioTrack.enabled;
+                console.log(`   Updated audio sender for ${userId}: enabled=${audioTrack.enabled}`);
+            }
+        });
+    });
     
     // Update activeSpeakers set
     if (isMicMuted) {
@@ -22039,6 +22168,8 @@ async function toggleMicrophone() {
         }
     }
 }
+
+        
   // ===== MUTE PARTICIPANT (COACH ONLY) =====
 async function muteParticipant(userId, participantName) {
     if (!isCoach) {
