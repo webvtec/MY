@@ -6125,7 +6125,7 @@ async function fetchWordDetails(word) {
             return matrix[str2.length][str1.length];
         }
 
-       // ===== AUTHENTICATION FUNCTIONS =====
+      // ===== AUTHENTICATION FUNCTIONS =====
 function showAuthModal() {
     document.getElementById('authModal').classList.add('active');
 }
@@ -6336,83 +6336,57 @@ function signOut() {
 
 async function signInWithGoogle() {
     const provider = new firebase.auth.GoogleAuthProvider();
-    
-    provider.setCustomParameters({
-        prompt: 'select_account'
-    });
-    
     try {
         const result = await auth.signInWithPopup(provider);
         const user = result.user;
         
+        // Check if user document exists
         const userRef = db.collection('users').doc(user.uid);
         const userDoc = await userRef.get();
         
         if (!userDoc.exists) {
-            // ✅ ORPHANED AUTH ACCOUNT - Delete and ask to sign up
-            await auth.signOut();
-            
-            document.getElementById('signin-error').textContent = '❌ Account data not found. Please sign up to create a new account.';
-            document.getElementById('signin-error').style.display = 'block';
-            return;
-        }
-        
-        const userData = userDoc.data();
-        
-        // Sync photoURL
-        if (user.photoURL && !userData.photoURL) {
-            await userRef.update({
-                photoURL: user.photoURL
+            // ✅ NOW SAVING photoURL
+            await userRef.set({
+                name: user.displayName,
+                email: user.email,
+                photoURL: user.photoURL || null, // ✅ ADD THIS
+                userType: 'student',
+                profileComplete: false,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
-        }
-        
-        if (!userData.profileComplete) {
+            
             closeAuthModal();
-            showVerificationModal(userData);
+            showVerificationModal({
+                name: user.displayName,
+                email: user.email,
+                userType: 'student'
+            });
         } else {
-            closeAuthModal();
+            // Existing user - check if profile is complete
+            const userData = userDoc.data();
+            if (!userData.profileComplete) {
+                closeAuthModal();
+                showVerificationModal(userData);
+            } else {
+                closeAuthModal();
+            }
         }
-        
     } catch (error) {
         console.error('Google sign-in error:', error);
-        
-        if (error.code !== 'auth/popup-closed-by-user' && 
-            error.code !== 'auth/cancelled-popup-request') {
-            document.getElementById('signin-error').textContent = error.message;
-            document.getElementById('signin-error').style.display = 'block';
-        }
+        document.getElementById('signin-error').textContent = error.message;
+        document.getElementById('signin-error').style.display = 'block';
     }
 }
         
 async function signUpWithGoogle(userType) {
     const provider = new firebase.auth.GoogleAuthProvider();
-    
-    provider.setCustomParameters({
-        prompt: 'select_account'
-    });
-    
     try {
         const result = await auth.signInWithPopup(provider);
         const user = result.user;
         
         const userRef = db.collection('users').doc(user.uid);
-        const existingDoc = await userRef.get();
         
-        if (existingDoc.exists) {
-            // ✅ Check if this is an orphaned document (auth deleted but Firestore remains)
-            // If the auth account exists, this is a real existing user
-            console.log('✅ Account exists - signing in instead');
-            closeAuthModal();
-            
-            // Check if profile complete
-            const userData = existingDoc.data();
-            if (!userData.profileComplete) {
-                showVerificationModal(userData);
-            }
-            return;
-        }
-        
-        // ✅ NEW USER - Create Firestore document
+        // ✅ Generate student ID if signing up as student
         const userData = {
             name: user.displayName,
             email: user.email,
@@ -6424,8 +6398,6 @@ async function signUpWithGoogle(userType) {
         
         if (userType === 'student') {
             userData.studentId = generateStudentId(user.uid);
-            userData.coins = 0;
-            userData.subscriptionActive = false;
         }
         
         await userRef.set(userData);
@@ -6436,18 +6408,11 @@ async function signUpWithGoogle(userType) {
             email: user.email,
             userType: userType
         });
-        
     } catch (error) {
         console.error('Google sign-up error:', error);
-        
-        if (error.code !== 'auth/popup-closed-by-user' && 
-            error.code !== 'auth/cancelled-popup-request') {
-            const errorDiv = document.getElementById(`signup-${userType}-error`);
-            if (errorDiv) {
-                errorDiv.textContent = error.message;
-                errorDiv.style.display = 'block';
-            }
-        }
+        const errorDiv = document.getElementById(`signup-${userType}-error`);
+        errorDiv.textContent = error.message;
+        errorDiv.style.display = 'block';
     }
 }
         
