@@ -21775,11 +21775,6 @@ function listenForSignaling() {
     
     console.log('👂 Setting up signaling listeners for class:', classId);
     
-    // ✅ Track processed messages to prevent duplicates
-    const processedOffers = new Set();
-    const processedAnswers = new Set();
-    const processedCandidates = new Set();
-    
     // Listen for offers
     db.collection('classes')
         .doc(classId)
@@ -21789,48 +21784,19 @@ function listenForSignaling() {
             snapshot.docChanges().forEach(async change => {
                 if (change.type === 'added') {
                     const data = change.doc.data();
-                    const messageId = change.doc.id;
                     
-                    // ✅ Skip if already processed
-                    if (processedOffers.has(messageId)) {
-                        console.log('⏭️ Skipping duplicate offer:', messageId);
-                        try {
-                            await change.doc.ref.delete();
-                        } catch (e) {
-                            console.error('Error deleting duplicate offer:', e);
-                        }
-                        return;
-                    }
+                    // ✅ Delete IMMEDIATELY before processing
+                    const docRef = change.doc.ref;
+                    docRef.delete().catch(e => console.error('Error deleting offer:', e));
                     
                     // ✅ Ignore if we're cleaning up
                     if (isCleaningUp) {
                         console.log('⏸️ Ignoring offer during cleanup');
-                        try {
-                            await change.doc.ref.delete();
-                        } catch (e) {
-                            console.error('Error deleting offer during cleanup:', e);
-                        }
                         return;
-                    }
-                    
-                    // ✅ Mark as processed IMMEDIATELY
-                    processedOffers.add(messageId);
-                    
-                    // ✅ Delete BEFORE processing to prevent race conditions
-                    try {
-                        await change.doc.ref.delete();
-                        console.log('🗑️ Deleted offer message before processing');
-                    } catch (e) {
-                        console.error('Error deleting offer:', e);
                     }
                     
                     console.log('📨 Received offer from:', data.from);
                     await handleOffer(data.from, data.offer);
-                    
-                    // ✅ Clean up processed set after 10 seconds
-                    setTimeout(() => {
-                        processedOffers.delete(messageId);
-                    }, 10000);
                 }
             });
         });
@@ -21844,48 +21810,32 @@ function listenForSignaling() {
             snapshot.docChanges().forEach(async change => {
                 if (change.type === 'added') {
                     const data = change.doc.data();
-                    const messageId = change.doc.id;
+                    const fromUserId = data.from;
                     
-                    // ✅ Skip if already processed
-                    if (processedAnswers.has(messageId)) {
-                        console.log('⏭️ Skipping duplicate answer:', messageId);
-                        try {
-                            await change.doc.ref.delete();
-                        } catch (e) {
-                            console.error('Error deleting duplicate answer:', e);
-                        }
-                        return;
-                    }
+                    // ✅ DELETE IMMEDIATELY FIRST
+                    const docRef = change.doc.ref;
+                    docRef.delete().catch(e => console.error('Error deleting answer:', e));
                     
                     // ✅ Ignore if we're cleaning up
                     if (isCleaningUp) {
                         console.log('⏸️ Ignoring answer during cleanup');
-                        try {
-                            await change.doc.ref.delete();
-                        } catch (e) {
-                            console.error('Error deleting answer during cleanup:', e);
-                        }
                         return;
                     }
                     
-                    // ✅ Mark as processed IMMEDIATELY
-                    processedAnswers.add(messageId);
-                    
-                    // ✅ Delete BEFORE processing to prevent race conditions
-                    try {
-                        await change.doc.ref.delete();
-                        console.log('🗑️ Deleted answer message before processing');
-                    } catch (e) {
-                        console.error('Error deleting answer:', e);
+                    // ✅ CHECK STATE BEFORE CALLING handleAnswer
+                    const peerConnection = peerConnections.get(fromUserId);
+                    if (!peerConnection) {
+                        console.warn('⚠️ No peer connection for answer from:', fromUserId);
+                        return;
                     }
                     
-                    console.log('📨 Received answer from:', data.from);
-                    await handleAnswer(data.from, data.answer);
+                    if (peerConnection.signalingState !== 'have-local-offer') {
+                        console.log('⏭️ Ignoring answer - wrong state:', peerConnection.signalingState);
+                        return;
+                    }
                     
-                    // ✅ Clean up processed set after 10 seconds
-                    setTimeout(() => {
-                        processedAnswers.delete(messageId);
-                    }, 10000);
+                    console.log('📨 Processing answer from:', fromUserId);
+                    await handleAnswer(fromUserId, data.answer);
                 }
             });
         });
@@ -21899,47 +21849,19 @@ function listenForSignaling() {
             snapshot.docChanges().forEach(async change => {
                 if (change.type === 'added') {
                     const data = change.doc.data();
-                    const messageId = change.doc.id;
                     
-                    // ✅ Skip if already processed
-                    if (processedCandidates.has(messageId)) {
-                        console.log('⏭️ Skipping duplicate ICE candidate:', messageId);
-                        try {
-                            await change.doc.ref.delete();
-                        } catch (e) {
-                            console.error('Error deleting duplicate candidate:', e);
-                        }
-                        return;
-                    }
+                    // ✅ Delete immediately
+                    const docRef = change.doc.ref;
+                    docRef.delete().catch(e => console.error('Error deleting candidate:', e));
                     
                     // ✅ Ignore if we're cleaning up
                     if (isCleaningUp) {
                         console.log('⏸️ Ignoring ICE candidate during cleanup');
-                        try {
-                            await change.doc.ref.delete();
-                        } catch (e) {
-                            console.error('Error deleting candidate during cleanup:', e);
-                        }
                         return;
-                    }
-                    
-                    // ✅ Mark as processed IMMEDIATELY
-                    processedCandidates.add(messageId);
-                    
-                    // ✅ Delete BEFORE processing
-                    try {
-                        await change.doc.ref.delete();
-                    } catch (e) {
-                        console.error('Error deleting candidate:', e);
                     }
                     
                     console.log('📨 Received ICE candidate from:', data.from);
                     await handleIceCandidate(data.from, data.candidate);
-                    
-                    // ✅ Clean up processed set after 10 seconds
-                    setTimeout(() => {
-                        processedCandidates.delete(messageId);
-                    }, 10000);
                 }
             });
         });
@@ -22106,21 +22028,42 @@ async function sendAnswer(toUserId, answer) {
         });
 }
         
-async function handleAnswer(answer) {
-  // Assuming 'peerConnection' is your RTCPeerConnection instance
-  if (peerConnection.signalingState === 'stable') {
-    console.warn('Received answer while in stable state. Ignoring duplicate/late answer.');
-    return; // Or handle as an error if this state is unexpected
-  }
-
-  try {
-    const remoteDescription = new RTCSessionDescription(answer);
-    await peerConnection.setRemoteDescription(remoteDescription);
-    console.log('Remote answer set successfully.');
-  } catch (error) {
-    console.error('❌ Error handling answer (non-fatal):', error.message);
-    // Further error handling based on your application's needs
-  }
+// ===== HANDLE ANSWER =====
+async function handleAnswer(fromUserId, answer) {
+    const peerConnection = peerConnections.get(fromUserId);
+    
+    if (!peerConnection) {
+        return; // Silent return
+    }
+    
+    // ✅ ONLY process if in correct state
+    if (peerConnection.signalingState !== 'have-local-offer') {
+        return; // Silent return - wrong state
+    }
+    
+    try {
+        await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+        console.log('✅ Answer processed from:', fromUserId);
+        
+        // Process queued ICE candidates
+        if (pendingIceCandidates.has(fromUserId)) {
+            const queued = pendingIceCandidates.get(fromUserId);
+            console.log(`📋 Processing ${queued.length} queued ICE candidates`);
+            
+            for (const candidate of queued) {
+                try {
+                    await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+                } catch (err) {
+                    console.error('❌ Error adding queued candidate:', err);
+                }
+            }
+            
+            pendingIceCandidates.delete(fromUserId);
+        }
+        
+    } catch (error) {
+        console.error('❌ Error in handleAnswer:', error.message);
+    }
 }
 
         
