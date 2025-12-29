@@ -22106,59 +22106,23 @@ async function sendAnswer(toUserId, answer) {
         });
 }
         
-// ===== HANDLE ANSWER =====
-async function handleAnswer(fromUserId, answer) {
-    try {
-        console.log('📨 Handling answer from user:', fromUserId);
-        
-        const peerConnection = peerConnections.get(fromUserId);
-        
-        if (!peerConnection) {
-            console.warn('⚠️ No peer connection found for:', fromUserId, '- ignoring answer');
-            return;
-        }
-        
-        const currentState = peerConnection.signalingState;
-        console.log('   Current signaling state:', currentState);
-        
-        // ✅ Only process answer if we're waiting for one
-        if (currentState !== 'have-local-offer') {
-            if (currentState === 'stable') {
-                console.log('⏭️ Already in stable state - answer already processed, skipping');
-            } else if (currentState === 'have-remote-offer') {
-                console.warn('⚠️ Wrong role - we should be answering, not receiving answer. Ignoring.');
-            } else {
-                console.warn('⚠️ Unexpected signaling state:', currentState, '- ignoring answer');
-            }
-            return; // ✅ Exit early
-        }
-        
-        // ✅ Process the answer
-        await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
-        console.log('✅ Answer processed from:', fromUserId);
-        
-        // ✅ Process any queued ICE candidates now that remote description is set
-        if (pendingIceCandidates.has(fromUserId)) {
-            const queued = pendingIceCandidates.get(fromUserId);
-            console.log(`📋 Processing ${queued.length} queued ICE candidates after answer`);
-            
-            for (const candidate of queued) {
-                try {
-                    await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
-                    console.log('✅ Queued ICE candidate added');
-                } catch (err) {
-                    console.error('❌ Error adding queued candidate:', err);
-                }
-            }
-            
-            pendingIceCandidates.delete(fromUserId);
-        }
-        
-    } catch (error) {
-        // ✅ Catch any unexpected errors
-        console.error('❌ Error handling answer (non-fatal):', error.message);
-    }
+async function handleAnswer(answer) {
+  // Assuming 'peerConnection' is your RTCPeerConnection instance
+  if (peerConnection.signalingState === 'stable') {
+    console.warn('Received answer while in stable state. Ignoring duplicate/late answer.');
+    return; // Or handle as an error if this state is unexpected
+  }
+
+  try {
+    const remoteDescription = new RTCSessionDescription(answer);
+    await peerConnection.setRemoteDescription(remoteDescription);
+    console.log('Remote answer set successfully.');
+  } catch (error) {
+    console.error('❌ Error handling answer (non-fatal):', error.message);
+    // Further error handling based on your application's needs
+  }
 }
+
         
 // ===== SEND ICE CANDIDATE =====
 async function sendIceCandidate(toUserId, candidate) {
