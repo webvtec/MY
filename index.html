@@ -22716,7 +22716,7 @@ async function loadAdminStudentsList(container) {
     
     try {
         const studentsSnapshot = await db.collection('users')
-            .where('role', '==', 'student')
+            .where('userType', '==', 'student')  // ✅ CHANGED FROM 'role' TO 'userType'
             .orderBy('createdAt', 'desc')
             .get();
         
@@ -22752,7 +22752,7 @@ async function loadAdminStudentsList(container) {
                         ${students.map(student => `
                             <tr>
                                 <td>
-                                    <div style="font-weight: bold; color: #0d3b66;">${student.firstName || 'N/A'} ${student.lastName || ''}</div>
+                                    <div style="font-weight: bold; color: #0d3b66;">${student.name || student.firstName || 'N/A'} ${student.lastName || ''}</div>
                                     <div style="font-size: 0.85rem; color: #666;">ID: ${student.id.substring(0, 8)}...</div>
                                 </td>
                                 <td>${student.email || 'No email'}</td>
@@ -22776,7 +22776,7 @@ async function loadAdminStudentsList(container) {
                                                 🔒 Lock
                                             </button>`
                                         }
-                                        <button class="practice-btn" onclick="deleteStudentAccount('${student.id}', '${student.firstName} ${student.lastName}')" style="padding: 8px 15px; font-size: 0.85rem; background: #dc3545;">
+                                        <button class="practice-btn" onclick="deleteStudentAccount('${student.id}', '${student.name || student.firstName} ${student.lastName || ''}')" style="padding: 8px 15px; font-size: 0.85rem; background: #dc3545;">
                                             🗑️ Delete
                                         </button>
                                     </div>
@@ -22805,7 +22805,7 @@ async function loadAdminCoachesList(container) {
     
     try {
         const coachesSnapshot = await db.collection('users')
-            .where('role', '==', 'coach')
+            .where('userType', '==', 'coach')  // ✅ CHANGED FROM 'role' TO 'userType'
             .orderBy('createdAt', 'desc')
             .get();
         
@@ -22842,7 +22842,7 @@ async function loadAdminCoachesList(container) {
                         ${coaches.map(coach => `
                             <tr>
                                 <td>
-                                    <div style="font-weight: bold; color: #0d3b66;">${coach.firstName || 'N/A'} ${coach.lastName || ''}</div>
+                                    <div style="font-weight: bold; color: #0d3b66;">${coach.name || coach.firstName || 'N/A'} ${coach.lastName || ''}</div>
                                     <div style="font-size: 0.85rem; color: #666;">ID: ${coach.id.substring(0, 8)}...</div>
                                 </td>
                                 <td>${coach.email || 'No email'}</td>
@@ -22871,7 +22871,7 @@ async function loadAdminCoachesList(container) {
                                                 🔒 Lock
                                             </button>`
                                         }
-                                        <button class="practice-btn" onclick="deleteCoachAccount('${coach.id}', '${coach.firstName} ${coach.lastName}')" style="padding: 8px 15px; font-size: 0.85rem; background: #dc3545;">
+                                        <button class="practice-btn" onclick="deleteCoachAccount('${coach.id}', '${coach.name || coach.firstName} ${coach.lastName || ''}')" style="padding: 8px 15px; font-size: 0.85rem; background: #dc3545;">
                                             🗑️ Delete
                                         </button>
                                     </div>
