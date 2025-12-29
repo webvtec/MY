@@ -21024,6 +21024,26 @@ async function joinLiveSession() {
         
         console.log('✅ Session is active, joining...');
         
+        // ✅ Check if we're already in the participants list (rejoining scenario)
+        const existingParticipant = await db.collection('classes')
+            .doc(userData.classId)
+            .collection('sessionParticipants')
+            .doc(currentUser.uid)
+            .get();
+
+        if (existingParticipant.exists) {
+            console.log('🔄 Rejoining - cleaning up old participant entry');
+            // Delete old entry to force clean reconnection
+            await db.collection('classes')
+                .doc(userData.classId)
+                .collection('sessionParticipants')
+                .doc(currentUser.uid)
+                .delete();
+            
+            // Wait a moment for coach to clean up their side
+            await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+        
         // Add to session participants
         await db.collection('classes')
             .doc(userData.classId)
@@ -21104,7 +21124,6 @@ async function joinLiveSession() {
         }
     }
 }
-
         
 // ===== LISTEN FOR SESSION PARTICIPANTS =====
 function listenForSessionParticipants() {
@@ -21304,7 +21323,7 @@ async function handleOffer(fromUserId, offer) {
     try {
         console.log('📨 Handling offer from user:', fromUserId);
         
-        // âœ… CRITICAL: Ensure we have a local audio stream
+        // ✅ CRITICAL: Ensure we have a local audio stream
         if (!localAudioStream || localAudioStream.getTracks().length === 0) {
             console.error('❌ No local audio stream! Re-requesting...');
             try {
@@ -21322,7 +21341,7 @@ async function handleOffer(fromUserId, offer) {
             }
         }
         
-        // âœ… Close any existing connection first
+        // ✅ Close any existing connection first
         let peerConnection = peerConnections.get(fromUserId);
         if (peerConnection) {
             console.log('⚠️ Closing existing connection before handling offer');
@@ -21330,7 +21349,7 @@ async function handleOffer(fromUserId, offer) {
             peerConnections.delete(fromUserId);
         }
         
-        // âœ… Clear any queued candidates for this user
+        // ✅ Clear any queued candidates for this user
         if (pendingIceCandidates.has(fromUserId)) {
             console.log('🗑️ Clearing old queued ICE candidates');
             pendingIceCandidates.delete(fromUserId);
@@ -21355,7 +21374,7 @@ async function handleOffer(fromUserId, offer) {
         // Create new peer connection
         peerConnection = new RTCPeerConnection(iceServers);
         
-        // âœ… CRITICAL: Add local audio tracks FIRST before setting descriptions
+        // ✅ CRITICAL: Add local audio tracks FIRST before setting descriptions
         console.log('📤 Adding local audio tracks (answering)');
         localAudioStream.getTracks().forEach(track => {
             console.log('   Track:', track.kind, 'enabled:', track.enabled, 'readyState:', track.readyState);
@@ -21420,40 +21439,44 @@ async function handleOffer(fromUserId, offer) {
         peerConnection.onconnectionstatechange = () => {
             console.log(`Connection state with ${participant.name}:`, peerConnection.connectionState);
             
-            if (peerConnection.connectionState === 'failed' || peerConnection.connectionState === 'disconnected') {
+            if (peerConnection.connectionState === 'connected') {
+                console.log('✅ Peer connection established with:', participant.name);
+            } else if (peerConnection.connectionState === 'failed' || peerConnection.connectionState === 'disconnected') {
                 console.warn(`⚠️ Connection ${peerConnection.connectionState} with ${participant.name}`);
                 
-                // âœ… Auto-reconnect after a brief delay
+                // ✅ Only auto-reconnect if still in session
                 setTimeout(() => {
                     const stillExists = sessionParticipants.has(fromUserId);
                     const currentPc = peerConnections.get(fromUserId);
                     
-                    if (stillExists && currentPc === peerConnection) {
-                        console.log('🔄 Attempting to reconnect with:', participant.name);
+                    // Only reconnect if: participant still exists, this is still the current connection, and we're the coach
+                    if (stillExists && currentPc === peerConnection && isCoach) {
+                        console.log('🔄 Coach attempting to reconnect with:', participant.name);
                         
                         // Close old connection
                         peerConnection.close();
                         peerConnections.delete(fromUserId);
                         
-                        // âœ… Only coach should initiate reconnection
-                        if (isCoach) {
-                            console.log('👑 Coach initiating reconnection');
-                            createPeerConnection(fromUserId, participant, true);
-                        } else {
-                            console.log('👨‍🎓 Student waiting for coach to reconnect');
-                        }
+                        // Create new connection with fresh offer
+                        createPeerConnection(fromUserId, participant, true);
+                    } else if (stillExists && !isCoach) {
+                        console.log('👨‍🎓 Student waiting for new offer from coach after disconnect');
                     }
-                }, 2000); // Wait 2 seconds before reconnecting
+                }, 2000);
             }
+        };
+        
+        peerConnection.oniceconnectionstatechange = () => {
+            console.log(`ICE connection state with ${participant.name}:`, peerConnection.iceConnectionState);
         };
         
         peerConnections.set(fromUserId, peerConnection);
         
-        // âœ… Set remote description (the offer)
+        // ✅ Set remote description (the offer)
         await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
         console.log('✅ Remote description set');
         
-        // âœ… Create and send answer
+        // ✅ Create and send answer
         const answer = await peerConnection.createAnswer({
             offerToReceiveAudio: true,
             offerToReceiveVideo: false
@@ -21463,7 +21486,7 @@ async function handleOffer(fromUserId, offer) {
         await sendAnswer(fromUserId, answer);
         console.log('✅ Answer sent to:', participant.name);
         
-        // âœ… Process any queued ICE candidates now that remote description is set
+        // ✅ Process any queued ICE candidates now that remote description is set
         if (pendingIceCandidates.has(fromUserId)) {
             const queued = pendingIceCandidates.get(fromUserId);
             console.log(`📋 Processing ${queued.length} queued ICE candidates after offer`);
@@ -21484,6 +21507,7 @@ async function handleOffer(fromUserId, offer) {
         console.error('❌ Error handling offer:', error);
     }
 }
+        
 // ===== HANDLE ANSWER =====
 async function handleAnswer(fromUserId, answer) {
     try {
@@ -21788,22 +21812,40 @@ async function handleAnswer(fromUserId, answer) {
         if (currentState === 'have-local-offer') {
             await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
             console.log('✅ Answer processed from:', fromUserId);
+            
+            // ✅ Process any queued ICE candidates now that remote description is set
+            if (pendingIceCandidates.has(fromUserId)) {
+                const queued = pendingIceCandidates.get(fromUserId);
+                console.log(`📋 Processing ${queued.length} queued ICE candidates after answer`);
+                
+                for (const candidate of queued) {
+                    try {
+                        await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+                        console.log('✅ Queued ICE candidate added');
+                    } catch (err) {
+                        console.error('❌ Error adding queued candidate:', err);
+                    }
+                }
+                
+                pendingIceCandidates.delete(fromUserId);
+            }
         } else if (currentState === 'stable') {
-            console.log('✅ Already connected, ignoring answer');
+            console.log('⚠️ Already in stable state - connection exists, ignoring duplicate answer');
+            // Don't error, just ignore the duplicate answer
         } else if (currentState === 'have-remote-offer') {
-            console.error('❌ Wrong state - we should be answering, not receiving answer');
-            console.log('   This connection is confused, closing and waiting for new offer');
-            peerConnection.close();
-            peerConnections.delete(fromUserId);
+            console.warn('⚠️ Wrong role - we should be answering, not receiving answer. Ignoring.');
+            // Student received an answer when they should receive offers - ignore it
         } else {
-            console.warn('⚠️ Unexpected state:', currentState);
+            console.warn('⚠️ Unexpected signaling state:', currentState, '- ignoring answer');
         }
         
     } catch (error) {
         console.error('❌ Error handling answer:', error);
+        // Don't throw - just log and continue
     }
 }
 
+        
 // ===== SEND ICE CANDIDATE =====
 async function sendIceCandidate(toUserId, candidate) {
     const classId = myClass ? myClass.id : liveSessionId;
