@@ -21027,7 +21027,7 @@ async function joinLiveSession() {
                 .delete();
             
             // ✅ Wait for coach to detect removal and clean up
-            console.log('⏳ Waiting 3 seconds for complete cleanup...');
+            console.log('⏳ Waiting 5 seconds for complete cleanup...');
             await new Promise(resolve => setTimeout(resolve, 3000));
             
             // ✅ Clean up signaling AGAIN (in case coach sent messages during deletion)
@@ -21699,28 +21699,32 @@ async function cleanupOldSignalingMessages(userId) {
     console.log('🗑️ Cleaning up ALL signaling messages for user:', userId);
     
     try {
-        // Get all signaling messages related to this user
-        const [offersFrom, offersTo, answersFrom, answersTo, candidatesFrom, candidatesTo] = await Promise.all([
-            db.collection('classes').doc(classId).collection('offers').where('from', '==', userId).get(),
-            db.collection('classes').doc(classId).collection('offers').where('to', '==', userId).get(),
-            db.collection('classes').doc(classId).collection('answers').where('from', '==', userId).get(),
-            db.collection('classes').doc(classId).collection('answers').where('to', '==', userId).get(),
-            db.collection('classes').doc(classId).collection('iceCandidates').where('from', '==', userId).get(),
-            db.collection('classes').doc(classId).collection('iceCandidates').where('to', '==', userId).get()
-        ]);
-        
-        // Delete all of them
+        // ✅ Delete ALL signaling messages in both directions
         const deletions = [];
+        
+        // Offers
+        const offersFrom = await db.collection('classes').doc(classId).collection('offers').where('from', '==', userId).get();
+        const offersTo = await db.collection('classes').doc(classId).collection('offers').where('to', '==', userId).get();
         offersFrom.forEach(doc => deletions.push(doc.ref.delete()));
         offersTo.forEach(doc => deletions.push(doc.ref.delete()));
+        
+        // Answers
+        const answersFrom = await db.collection('classes').doc(classId).collection('answers').where('from', '==', userId).get();
+        const answersTo = await db.collection('classes').doc(classId).collection('answers').where('to', '==', userId).get();
         answersFrom.forEach(doc => deletions.push(doc.ref.delete()));
         answersTo.forEach(doc => deletions.push(doc.ref.delete()));
+        
+        // ICE Candidates
+        const candidatesFrom = await db.collection('classes').doc(classId).collection('iceCandidates').where('from', '==', userId).get();
+        const candidatesTo = await db.collection('classes').doc(classId).collection('iceCandidates').where('to', '==', userId).get();
         candidatesFrom.forEach(doc => deletions.push(doc.ref.delete()));
         candidatesTo.forEach(doc => deletions.push(doc.ref.delete()));
         
+        // Wait for all deletions to complete
         await Promise.all(deletions);
         
-        console.log(`✅ Deleted ${deletions.length} old signaling messages`);
+        console.log(`✅ Deleted ${deletions.length} old signaling messages for ${userId}`);
+        
     } catch (error) {
         console.error('Error cleaning up signaling:', error);
     }
@@ -21733,6 +21737,11 @@ function listenForSignaling() {
     
     console.log('👂 Setting up signaling listeners for class:', classId);
     
+    // ✅ Track processed messages to prevent duplicates
+    const processedOffers = new Set();
+    const processedAnswers = new Set();
+    const processedCandidates = new Set();
+    
     // Listen for offers
     db.collection('classes')
         .doc(classId)
@@ -21742,6 +21751,14 @@ function listenForSignaling() {
             snapshot.docChanges().forEach(async change => {
                 if (change.type === 'added') {
                     const data = change.doc.data();
+                    const messageId = change.doc.id;
+                    
+                    // ✅ Skip if already processed
+                    if (processedOffers.has(messageId)) {
+                        console.log('⏭️ Skipping duplicate offer:', messageId);
+                        await change.doc.ref.delete();
+                        return;
+                    }
                     
                     // ✅ Ignore if we're cleaning up
                     if (isCleaningUp) {
@@ -21749,6 +21766,9 @@ function listenForSignaling() {
                         await change.doc.ref.delete();
                         return;
                     }
+                    
+                    // ✅ Mark as processed
+                    processedOffers.add(messageId);
                     
                     console.log('📨 Received offer from:', data.from);
                     await handleOffer(data.from, data.offer);
@@ -21759,6 +21779,11 @@ function listenForSignaling() {
                     } catch (e) {
                         console.error('Error deleting offer:', e);
                     }
+                    
+                    // ✅ Clean up processed set after 5 seconds
+                    setTimeout(() => {
+                        processedOffers.delete(messageId);
+                    }, 5000);
                 }
             });
         });
@@ -21772,6 +21797,14 @@ function listenForSignaling() {
             snapshot.docChanges().forEach(async change => {
                 if (change.type === 'added') {
                     const data = change.doc.data();
+                    const messageId = change.doc.id;
+                    
+                    // ✅ Skip if already processed
+                    if (processedAnswers.has(messageId)) {
+                        console.log('⏭️ Skipping duplicate answer:', messageId);
+                        await change.doc.ref.delete();
+                        return;
+                    }
                     
                     // ✅ Ignore if we're cleaning up
                     if (isCleaningUp) {
@@ -21779,6 +21812,9 @@ function listenForSignaling() {
                         await change.doc.ref.delete();
                         return;
                     }
+                    
+                    // ✅ Mark as processed
+                    processedAnswers.add(messageId);
                     
                     console.log('📨 Received answer from:', data.from);
                     await handleAnswer(data.from, data.answer);
@@ -21789,6 +21825,11 @@ function listenForSignaling() {
                     } catch (e) {
                         console.error('Error deleting answer:', e);
                     }
+                    
+                    // ✅ Clean up processed set after 5 seconds
+                    setTimeout(() => {
+                        processedAnswers.delete(messageId);
+                    }, 5000);
                 }
             });
         });
@@ -21802,6 +21843,14 @@ function listenForSignaling() {
             snapshot.docChanges().forEach(async change => {
                 if (change.type === 'added') {
                     const data = change.doc.data();
+                    const messageId = change.doc.id;
+                    
+                    // ✅ Skip if already processed
+                    if (processedCandidates.has(messageId)) {
+                        console.log('⏭️ Skipping duplicate ICE candidate:', messageId);
+                        await change.doc.ref.delete();
+                        return;
+                    }
                     
                     // ✅ Ignore if we're cleaning up
                     if (isCleaningUp) {
@@ -21809,6 +21858,9 @@ function listenForSignaling() {
                         await change.doc.ref.delete();
                         return;
                     }
+                    
+                    // ✅ Mark as processed
+                    processedCandidates.add(messageId);
                     
                     console.log('📨 Received ICE candidate from:', data.from);
                     await handleIceCandidate(data.from, data.candidate);
@@ -21819,11 +21871,15 @@ function listenForSignaling() {
                     } catch (e) {
                         console.error('Error deleting candidate:', e);
                     }
+                    
+                    // ✅ Clean up processed set after 5 seconds
+                    setTimeout(() => {
+                        processedCandidates.delete(messageId);
+                    }, 5000);
                 }
             });
         });
 }
-
         
 // ===== SEND OFFER =====
 async function sendOffer(toUserId, offer) {
