@@ -22670,6 +22670,207 @@ async function loadAdminTournaments(container) {
     }
 }
 
+
+
+ async function switchUserSubSection(subSection) {
+    currentUserSubSection = subSection;
+    
+    // Update button styles
+    const studentsBtn = document.getElementById('admin-students-btn');
+    const coachesBtn = document.getElementById('admin-coaches-btn');
+    
+    if (studentsBtn && coachesBtn) {
+        studentsBtn.style.background = subSection === 'students' ? 'linear-gradient(135deg, #667eea, #764ba2)' : '#6c757d';
+        coachesBtn.style.background = subSection === 'coaches' ? 'linear-gradient(135deg, #667eea, #764ba2)' : '#6c757d';
+    }
+    
+    const listContainer = document.getElementById('admin-user-list-container');
+    
+    if (subSection === 'students') {
+        await loadAdminStudentsList(listContainer);
+    } else if (subSection === 'coaches') {
+        await loadAdminCoachesList(listContainer);
+    }
+}
+
+// ===== STUDENTS LIST =====
+
+async function loadAdminStudentsList(container) {
+    container.innerHTML = '<div class="loading">Loading students...</div>';
+    
+    try {
+        const studentsSnapshot = await db.collection('users')
+            .where('userType', '==', 'student')
+            .orderBy('createdAt', 'desc')
+            .get();
+        
+        const students = [];
+        studentsSnapshot.forEach(doc => {
+            students.push({ id: doc.id, ...doc.data() });
+        });
+        
+        if (students.length === 0) {
+            container.innerHTML = `
+                <div class="loading">
+                    No students found on the platform.
+                </div>
+            `;
+            return;
+        }
+        
+        container.innerHTML = `
+            <h3 style="color: #0d3b66; margin-bottom: 20px;">🎓 All Students (${students.length})</h3>
+            
+            <div class="coaches-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>👤 Student</th>
+                            <th>📧 Email</th>
+                            <th>📅 Joined</th>
+                            <th>🔒 Status</th>
+                            <th>⚙️ Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${students.map(student => `
+                            <tr onclick="viewStudentDetailsAdmin('${student.id}')" style="cursor: pointer;">
+                                <td>
+                                    <div style="font-weight: bold; color: #0d3b66;">${student.name || student.firstName || 'N/A'} ${student.lastName || ''}</div>
+                                    <div style="font-size: 0.85rem; color: #666;">ID: ${student.id.substring(0, 8)}...</div>
+                                </td>
+                                <td>${student.email || 'No email'}</td>
+                                <td>${student.createdAt ? new Date(student.createdAt.toDate()).toLocaleDateString() : 'N/A'}</td>
+                                <td style="text-align: center;">
+                                    ${student.subscriptionLocked ? 
+                                        '<span style="background: #ff6b6b; color: white; padding: 5px 10px; border-radius: 15px; font-size: 0.85rem;">🔒 Locked</span>' : 
+                                        '<span style="background: #51cf66; color: white; padding: 5px 10px; border-radius: 15px; font-size: 0.85rem;">✅ Active</span>'
+                                    }
+                                </td>
+                                <td onclick="event.stopPropagation();">
+                                    <div style="display: flex; gap: 5px; justify-content: center;">
+                                        ${student.subscriptionLocked ? 
+                                            `<button class="practice-btn" onclick="unlockStudentAccount('${student.id}')" style="padding: 8px 15px; font-size: 0.85rem; background: #51cf66;">
+                                                🔓 Unlock
+                                            </button>` :
+                                            `<button class="practice-btn" onclick="lockStudentAccount('${student.id}')" style="padding: 8px 15px; font-size: 0.85rem; background: #ffc107; color: #0d3b66;">
+                                                🔒 Lock
+                                            </button>`
+                                        }
+                                        <button class="practice-btn" onclick="deleteStudentAccount('${student.id}', '${(student.name || student.firstName || 'Student') + ' ' + (student.lastName || '')}')" style="padding: 8px 15px; font-size: 0.85rem; background: #dc3545;">
+                                            🗑️ Delete
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+        
+    } catch (error) {
+        console.error('Error loading students:', error);
+        container.innerHTML = `
+            <div class="feedback error">
+                ❌ Failed to load students: ${error.message}
+            </div>
+        `;
+    }
+}
+
+// ===== COACHES LIST =====
+
+async function loadAdminCoachesList(container) {
+    container.innerHTML = '<div class="loading">Loading coaches...</div>';
+    
+    try {
+        const coachesSnapshot = await db.collection('users')
+            .where('userType', '==', 'coach')
+            .orderBy('createdAt', 'desc')
+            .get();
+        
+        const coaches = [];
+        coachesSnapshot.forEach(doc => {
+            coaches.push({ id: doc.id, ...doc.data() });
+        });
+        
+        if (coaches.length === 0) {
+            container.innerHTML = `
+                <div class="loading">
+                    No coaches found on the platform.
+                </div>
+            `;
+            return;
+        }
+        
+        container.innerHTML = `
+            <h3 style="color: #0d3b66; margin-bottom: 20px;">👨‍🏫 All Coaches (${coaches.length})</h3>
+            
+            <div class="coaches-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>👤 Coach</th>
+                            <th>📧 Email</th>
+                            <th>👥 Students</th>
+                            <th>📅 Joined</th>
+                            <th>🔒 Status</th>
+                            <th>⚙️ Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${coaches.map(coach => `
+                            <tr onclick="viewCoachDetailsAdmin('${coach.id}')" style="cursor: pointer;">
+                                <td>
+                                    <div style="font-weight: bold; color: #0d3b66;">${coach.name || coach.firstName || 'N/A'} ${coach.lastName || ''}</div>
+                                    <div style="font-size: 0.85rem; color: #666;">ID: ${coach.id.substring(0, 8)}...</div>
+                                </td>
+                                <td>${coach.email || 'No email'}</td>
+                                <td style="text-align: center;">
+                                    <span style="background: #e3f2fd; padding: 5px 15px; border-radius: 15px; font-weight: bold; color: #0d3b66;">
+                                        ${coach.studentCount || 0}
+                                    </span>
+                                </td>
+                                <td>${coach.createdAt ? new Date(coach.createdAt.toDate()).toLocaleDateString() : 'N/A'}</td>
+                                <td style="text-align: center;">
+                                    ${coach.subscriptionLocked ? 
+                                        '<span style="background: #ff6b6b; color: white; padding: 5px 10px; border-radius: 15px; font-size: 0.85rem;">🔒 Locked</span>' : 
+                                        '<span style="background: #51cf66; color: white; padding: 5px 10px; border-radius: 15px; font-size: 0.85rem;">✅ Active</span>'
+                                    }
+                                </td>
+                                <td onclick="event.stopPropagation();">
+                                    <div style="display: flex; gap: 5px; justify-content: center;">
+                                        ${coach.subscriptionLocked ? 
+                                            `<button class="practice-btn" onclick="unlockCoachAccount('${coach.id}')" style="padding: 8px 15px; font-size: 0.85rem; background: #51cf66;">
+                                                🔓 Unlock
+                                            </button>` :
+                                            `<button class="practice-btn" onclick="lockCoachAccount('${coach.id}')" style="padding: 8px 15px; font-size: 0.85rem; background: #ffc107; color: #0d3b66;">
+                                                🔒 Lock
+                                            </button>`
+                                        }
+                                        <button class="practice-btn" onclick="deleteCoachAccount('${coach.id}', '${(coach.name || coach.firstName || 'Coach') + ' ' + (coach.lastName || '')}')" style="padding: 8px 15px; font-size: 0.85rem; background: #dc3545;">
+                                            🗑️ Delete
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+        
+    } catch (error) {
+        console.error('Error loading coaches:', error);
+        container.innerHTML = `
+            <div class="feedback error">
+                ❌ Failed to load coaches: ${error.message}
+            </div>
+        `;
+    }
+}
+        
 // ===== USERS SECTION =====
 
 async function loadAdminUsersSection(container) {
