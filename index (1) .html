@@ -618,7 +618,323 @@ async function navigateTo(section, skipSidebarClose = false) {
 } 
 }
 
+ // ===== COACHES DISPLAY FUNCTIONS =====
+async function loadAndDisplayCoaches() {
+    const container = document.getElementById('coaches-container');
+    
+    try {
+        container.innerHTML = '<div class="loading">📚 Loading coaches...</div>';
+        
+        console.log('🔍 Fetching coaches from Firestore...');
+        
+        // Fetch all coaches from Firestore
+        const coachesSnapshot = await db.collection('users')
+            .where('userType', '==', 'coach')
+            .get();
+        
+        console.log('📊 Found coaches:', coachesSnapshot.size);
+        
+        if (coachesSnapshot.empty) {
+            container.innerHTML = `
+                <div style="text-align: center; padding: 40px; color: #666;">
+                    <div style="font-size: 3rem; margin-bottom: 20px;">👨‍🏫</div>
+                    <h3>No coaches registered yet</h3>
+                    <p>Be the first to join as a coach!</p>
+                </div>
+            `;
+            return;
+        }
+        
+        const coaches = [];
+        coachesSnapshot.forEach(doc => {
+            const data = doc.data();
+            console.log('👤 Coach:', doc.id, data.name, data.photoURL);
+            coaches.push({ id: doc.id, ...data });
+        });
+        
+        // Sort coaches (newest first)
+        coaches.sort((a, b) => {
+            if (!a.createdAt) return 1;
+            if (!b.createdAt) return -1;
+            return b.createdAt.toDate() - a.createdAt.toDate();
+        });
+        
+        // Calculate stats
+        const totalCoaches = coaches.length;
+        const verifiedCoaches = coaches.filter(c => c.idVerified).length;
+        const pendingCoaches = totalCoaches - verifiedCoaches;
+        
+        // Display stats and table
+        container.innerHTML = `
+            <!-- Stats Cards -->
+            <div class="coach-stats">
+                <div class="coach-stat-card">
+                    <div class="stat-number">${totalCoaches}</div>
+                    <div class="stat-label">Total Coaches</div>
+                </div>
+                <div class="coach-stat-card">
+                    <div class="stat-number">${verifiedCoaches}</div>
+                    <div class="stat-label">Verified</div>
+                </div>
+                <div class="coach-stat-card">
+                    <div class="stat-number">${pendingCoaches}</div>
+                    <div class="stat-label">⏳ Pending</div>
+                </div>
+            </div>
+            
+            <!-- Coaches Table -->
+            <div class="coaches-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>👨‍🏫 Coach</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${coaches.map(coach => {
+                            // Determine avatar display
+                            let avatarStyle = '';
+                            let avatarText = '';
+                            
+                            if (coach.photoURL) {
+                                avatarStyle = `style="background-image: url('${coach.photoURL}'); background-size: cover; background-position: center;"`;
+                                avatarText = '';
+                            } else {
+                                const initial = (coach.name || 'C').charAt(0).toUpperCase();
+                                avatarStyle = '';
+                                avatarText = initial;
+                            }
+                            
+                            return `
+                                <tr onclick="showCoachDetailById('${coach.id}')" style="cursor: pointer;">
+                                    <td>
+                                        <div class="coach-profile-cell">
+                                            <div class="coach-avatar" ${avatarStyle}>${avatarText}</div>
+                                            <div class="coach-name">${coach.name || 'Unknown Coach'}</div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        ${coach.idVerified ? 
+                                            '<span class="verified-badge">Verified</span>' : 
+                                            '<span class="unverified-badge">⏳ Pending</span>'
+                                        }
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            </div>
+            
+            <div style="margin-top: 30px; padding: 20px; background: #e3f2fd; border-radius: 10px; border-left: 4px solid #0d3b66;">
+                <h3 style="color: #0d3b66; margin-bottom: 10px;">🛡️ Safety & Verification</h3>
+                <p style="color: #666; line-height: 1.6;">
+                    All coaches on WordBiz Coaching Academy undergo ID verification for student safety. 
+                    Click on any coach to view their full profile and verification details.
+                </p>
+            </div>
+        `;
+        
+    } catch (error) {
+        console.error('❌ Error loading coaches:', error);
+        container.innerHTML = `
+            <div class="feedback error">
+                ❌ Error loading coaches. Please try refreshing the page.
+                <br><br>
+                <strong>Error details:</strong> ${error.message}
+                <br><br>
+                <button class="practice-btn" onclick="loadAndDisplayCoaches()">🔄 Retry</button>
+            </div>
+        `;
+    }
+}
 
+// Load and show coach profile modal
+async function showCoachDetailById(coachId) {
+    try {
+        console.log('📋 Loading coach details for:', coachId);
+        const coachDoc = await db.collection('users').doc(coachId).get();
+        
+        if (coachDoc.exists) {
+            const coach = { id: coachDoc.id, ...coachDoc.data() };
+            console.log('Coach data loaded:', coach);
+            showCoachDetail(coach);
+        } else {
+            console.error('❌ Coach not found');
+            alert('Coach profile not found');
+        }
+    } catch (error) {
+        console.error('❌ Error loading coach details:', error);
+        alert('Unable to load coach details: ' + error.message);
+    }
+}
+
+// Display coach detail modal
+async function showCoachDetail(coach) {
+    console.log('Displaying coach modal:', coach.name);
+    const modal = document.getElementById('coachDetailModal');
+    
+    if (!modal) {
+        console.error('Coach modal not found!');
+        return;
+    }
+
+
+ // ===== STUDENTS DISPLAY FUNCTIONS =====
+async function loadAndDisplayStudents() {
+    const container = document.getElementById('students-container');
+    
+    try {
+        container.innerHTML = '<div class="loading">📚 Loading students...</div>';
+        
+        console.log('🔍 Fetching students from Firestore...');
+        
+        // Fetch all students from Firestore
+        const studentsSnapshot = await db.collection('users')
+            .where('userType', '==', 'student')
+            .get();
+        
+        console.log('📊 Found students:', studentsSnapshot.size);
+        
+        if (studentsSnapshot.empty) {
+            container.innerHTML = `
+                <div style="text-align: center; padding: 40px; color: #666;">
+                    <div style="font-size: 3rem; margin-bottom: 20px;">🎓</div>
+                    <h3>No students registered yet</h3>
+                    <p>Be the first to join as a student!</p>
+                </div>
+            `;
+            return;
+        }
+        
+        const students = [];
+        studentsSnapshot.forEach(doc => {
+            const data = doc.data();
+            console.log('👤 Student:', doc.id, data.name, data.photoURL);
+            students.push({ id: doc.id, ...data });
+        });
+        
+        // Sort students (newest first)
+        students.sort((a, b) => {
+            if (!a.createdAt) return 1;
+            if (!b.createdAt) return -1;
+            return b.createdAt.toDate() - a.createdAt.toDate();
+        });
+        
+        // Calculate total students
+        const totalStudents = students.length;
+        
+        // Display stats and table
+        container.innerHTML = `
+            <!-- Stats Card -->
+            <div class="coach-stats">
+                <div class="coach-stat-card">
+                    <div class="stat-number">${totalStudents}</div>
+                    <div class="stat-label">Total Students</div>
+                </div>
+            </div>
+            
+            <!-- Students Table -->
+            <div class="coaches-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>🎓 Student</th>
+                            <th>🆔 Student ID</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${students.map(student => {
+                            // Generate Student ID (WB-2025-XXXX)
+                            const studentId = `WB-2025-${student.id.slice(-4).toUpperCase()}`;
+                            
+                            // Determine avatar display
+                            let avatarStyle = '';
+                            let avatarText = '';
+                            
+                            if (student.photoURL) {
+                                avatarStyle = `style="background-image: url('${student.photoURL}'); background-size: cover; background-position: center;"`;
+                                avatarText = '';
+                            } else {
+                                const initial = (student.name || 'S').charAt(0).toUpperCase();
+                                avatarStyle = '';
+                                avatarText = initial;
+                            }
+                            
+                            return `
+                                <tr onclick="showStudentDetailById('${student.id}')" style="cursor: pointer;">
+                                    <td>
+                                        <div class="coach-profile-cell">
+                                            <div class="coach-avatar" ${avatarStyle}>${avatarText}</div>
+                                            <div class="coach-name">${student.name || 'Student'}</div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span style="font-family: monospace; background: #e3f2fd; padding: 5px 10px; border-radius: 5px; font-weight: bold; color: #0d3b66;">
+                                            ${studentId}
+                                        </span>
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            </div>
+            
+            <div style="margin-top: 30px; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px;">
+                <h3 style="color: white; margin-bottom: 10px;">🌟 Growing Community</h3>
+                <p style="color: rgba(255,255,255,0.95); line-height: 1.6;">
+                    Our students are learning from coaches around the world, building vocabulary skills 
+                    through interactive quizzes, spelling challenges, and personalized practice sessions.
+                    Click on any student to view their full profile.
+                </p>
+            </div>
+        `;
+        
+    } catch (error) {
+        console.error('❌ Error loading students:', error);
+        container.innerHTML = `
+            <div class="feedback error">
+                ❌ Error loading students. Please try refreshing the page.
+                <br><br>
+                <strong>Error details:</strong> ${error.message}
+                <br><br>
+                <button class="practice-btn" onclick="loadAndDisplayStudents()">🔄 Retry</button>
+            </div>
+        `;
+    }
+}
+        
+// Load and show student profile modal
+async function showStudentDetailById(studentId) {
+    try {
+        console.log('📋 Loading student details for:', studentId);
+        const studentDoc = await db.collection('users').doc(studentId).get();
+        
+        if (studentDoc.exists) {
+            const student = { id: studentDoc.id, ...studentDoc.data() };
+            console.log('Student data loaded:', student);
+            showStudentDetail(student);
+        } else {
+            console.error('❌ Student not found');
+            alert('Student profile not found');
+        }
+    } catch (error) {
+        console.error('❌ Error loading student details:', error);
+        alert('Unable to load student details: ' + error.message);
+    }
+}
+
+// Display student detail modal
+async function showStudentDetail(student) {
+    console.log('Displaying student modal:', student.name);
+    const modal = document.getElementById('studentDetailModal');
+    
+    if (!modal) {
+        console.error('Student modal not found!');
+        return;
+    }
 
 
 
