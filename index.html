@@ -21174,7 +21174,7 @@ function listenForSessionParticipants() {
                     
                     // Skip ourselves
                     if (participant.userId === currentUser.uid) {
-                        console.log('   ⏭️ Skipping self');
+                        console.log('   ⭐️ Skipping self');
                         sessionParticipants.set(participant.userId, participant);
                         return;
                     }
@@ -22370,84 +22370,7 @@ function updateParticipantsList() {
 }
 
     
-function listenForSessionParticipants() {
-    const classId = myClass ? myClass.id : liveSessionId;
-    
-    console.log('👂 Setting up participant listener for class:', classId);
-    
-    liveSessionListener = db.collection('classes')
-        .doc(classId)
-        .collection('sessionParticipants')
-        .onSnapshot(snapshot => {
-            snapshot.docChanges().forEach(change => {
-                if (change.type === 'added') {
-                    const participant = change.doc.data();
-                    
-                    console.log('➕ Participant added:', participant.name, participant.userId);
-                    
-                    if (participant.userId !== currentUser.uid) {
-                        if (isCoach) {
-                            console.log('👑 Coach creating connection to:', participant.name);
-                            createPeerConnection(participant.userId, participant, true);
-                        } else {
-                            console.log('👨‍🎓 Student waiting for offer from coach');
-                        }
-                    }
-                    
-                    sessionParticipants.set(participant.userId, participant);
-                }
-                
-                if (change.type === 'removed') {
-                    const participant = change.doc.data();
-                    console.log('➖ Participant removed:', participant.name);
-                    
-                    closePeerConnection(participant.userId);
-                    sessionParticipants.delete(participant.userId);
-                }
-                
-                if (change.type === 'modified') {
-                    const participant = change.doc.data();
-                    sessionParticipants.set(participant.userId, participant);
-                    
-                    // ✅ NEW: Check if coach muted/unmuted this student
-                    if (participant.userId === currentUser.uid && !isCoach) {
-                        const wasCoachMuted = coachMutedMe;
-                        coachMutedMe = participant.coachMuted || false;
-                        
-                        if (coachMutedMe && !wasCoachMuted) {
-                            // Coach just muted me
-                            console.log('🔇 Coach muted you');
-                            if (localAudioStream) {
-                                const audioTrack = localAudioStream.getAudioTracks()[0];
-                                if (audioTrack) {
-                                    audioTrack.enabled = false;
-                                    isMicMuted = true;
-                                    
-                                    const btn = document.getElementById('student-toggle-mic-btn');
-                                    if (btn) {
-                                        btn.textContent = '🔇 Unmute';
-                                        btn.style.background = '#dc3545';
-                                    }
-                                }
-                            }
-                            alert('🔇 Your coach has muted you');
-                        } else if (!coachMutedMe && wasCoachMuted) {
-                            // Coach unmuted me
-                            console.log('🔊 Coach unmuted you');
-                            alert('🔊 Your coach has unmuted you. You can now speak.');
-                        }
-                    }
-                }
-            });
-            
-            updateParticipantsList();
-        });
-    
-    // Listen for WebRTC signaling
-    listenForSignaling();
-}
-        
-        
+
 // ===== CLOSE PEER CONNECTION =====
 function closePeerConnection(userId) {
     const peerConnection = peerConnections.get(userId);
