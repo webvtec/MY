@@ -21925,56 +21925,56 @@ async function sendAnswer(toUserId, answer) {
         
 // ===== HANDLE ANSWER =====
 async function handleAnswer(fromUserId, answer) {
-    try {
-        console.log('📨 Handling answer from user:', fromUserId);
-        
-        const peerConnection = peerConnections.get(fromUserId);
-        
-        if (!peerConnection) {
-            console.error('❌ No peer connection found for:', fromUserId);
-            return;
-        }
-        
-        const currentState = peerConnection.signalingState;
-        console.log('   Current signaling state:', currentState);
-        
-        // ✅ Only process answer if we're waiting for one
-        if (currentState === 'have-local-offer') {
-            await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
-            console.log('✅ Answer processed from:', fromUserId);
-            
-            // ✅ Process any queued ICE candidates now that remote description is set
-            if (pendingIceCandidates.has(fromUserId)) {
-                const queued = pendingIceCandidates.get(fromUserId);
-                console.log(`📋 Processing ${queued.length} queued ICE candidates after answer`);
-                
-                for (const candidate of queued) {
-                    try {
-                        await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
-                        console.log('✅ Queued ICE candidate added');
-                    } catch (err) {
-                        console.error('❌ Error adding queued candidate:', err);
-                    }
-                }
-                
-                pendingIceCandidates.delete(fromUserId);
-            }
-        } else if (currentState === 'stable') {
-            console.log('⚠️ Already in stable state - connection exists, ignoring duplicate answer');
-            // Don't error, just ignore the duplicate answer
+    console.log('📨 Handling answer from user:', fromUserId);
+    
+    const peerConnection = peerConnections.get(fromUserId);
+    
+    if (!peerConnection) {
+        console.warn('⚠️ No peer connection found for:', fromUserId, '- ignoring answer');
+        return;
+    }
+    
+    const currentState = peerConnection.signalingState;
+    console.log('   Current signaling state:', currentState);
+    
+    // ✅ Only process answer if we're in the correct state
+    if (currentState !== 'have-local-offer') {
+        if (currentState === 'stable') {
+            console.log('⚠️ Already in stable state - ignoring duplicate/stale answer');
         } else if (currentState === 'have-remote-offer') {
             console.warn('⚠️ Wrong role - we should be answering, not receiving answer. Ignoring.');
-            // Student received an answer when they should receive offers - ignore it
         } else {
             console.warn('⚠️ Unexpected signaling state:', currentState, '- ignoring answer');
         }
+        return; // ✅ Exit early - don't try to set remote description
+    }
+    
+    // ✅ Now we know we're in the correct state, wrap in try-catch for safety
+    try {
+        await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+        console.log('✅ Answer processed from:', fromUserId);
         
+        // ✅ Process any queued ICE candidates now that remote description is set
+        if (pendingIceCandidates.has(fromUserId)) {
+            const queued = pendingIceCandidates.get(fromUserId);
+            console.log(`📋 Processing ${queued.length} queued ICE candidates after answer`);
+            
+            for (const candidate of queued) {
+                try {
+                    await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+                    console.log('✅ Queued ICE candidate added');
+                } catch (err) {
+                    console.error('❌ Error adding queued candidate:', err);
+                }
+            }
+            
+            pendingIceCandidates.delete(fromUserId);
+        }
     } catch (error) {
-        console.error('❌ Error handling answer:', error);
-        // Don't throw - just log and continue
+        // ✅ Catch any unexpected errors from setRemoteDescription
+        console.error('❌ Error setting remote description (non-fatal):', error.message);
     }
 }
-
         
 // ===== SEND ICE CANDIDATE =====
 async function sendIceCandidate(toUserId, candidate) {
