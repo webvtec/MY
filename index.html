@@ -21441,7 +21441,7 @@ async function handleOffer(fromUserId, offer) {
     try {
         console.log('📨 Handling offer from user:', fromUserId);
         
-        // ✅ CRITICAL: Ensure we have a local audio stream
+        // Ensure we have a local audio stream
         if (!localAudioStream || localAudioStream.getTracks().length === 0) {
             console.error('❌ No local audio stream! Re-requesting...');
             try {
@@ -21462,12 +21462,12 @@ async function handleOffer(fromUserId, offer) {
             }
         }
         
-        // ✅ Close any existing connection first
+        // Close any existing connection first
         let peerConnection = peerConnections.get(fromUserId);
         if (peerConnection) {
             console.log('⚠️ Closing existing connection before handling offer');
             peerConnection.close();
-            peerConnections.delete(fromUserId);
+            peerConnections.delete(userId);
             
             const oldAudio = document.getElementById(`audio_${fromUserId}`);
             if (oldAudio) {
@@ -21499,22 +21499,20 @@ async function handleOffer(fromUserId, offer) {
         console.log('👤 Creating connection for:', participant.name);
         
         // Create new peer connection
-        peerConnection = new RTCPeerConnection(iceServers);
+        peerConnection = new RTCPeerConnection({
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' },
+                { urls: 'stun:stun2.l.google.com:19302' }
+            ],
+            iceCandidatePoolSize: 10
+        });
         
-        // ✅ CRITICAL: Track original states and force enable
+        // Add local audio tracks
         console.log('🎤 Adding local audio tracks (answering)');
-        const tracksToRestore = [];
-        
         localAudioStream.getTracks().forEach(track => {
-            const wasEnabled = track.enabled;
-            tracksToRestore.push({ track, wasEnabled });
-            
-            // FORCE enable for connection
-            track.enabled = true;
-            console.log('   Track:', track.kind, 'forced enabled (was:', wasEnabled, ')');
-            
             peerConnection.addTrack(track, localAudioStream);
-            console.log('   ✅ Track added');
+            console.log('   ✅ Track added:', track.kind, 'enabled:', track.enabled);
         });
         
         // Handle remote audio
@@ -21593,38 +21591,31 @@ async function handleOffer(fromUserId, offer) {
             }
         };
         
-       peerConnection.onconnectionstatechange = () => {
-    console.log(`Connection state with ${participant.name}:`, peerConnection.connectionState);
-    
-    if (peerConnection.connectionState === 'connected') {
-        console.log('✅ Peer connection established with:', participant.name);
-        
-        // ✅ FIX: Restore CURRENT mute state, not old state
-        setTimeout(() => {
-            if (localAudioStream) {
-                localAudioStream.getTracks().forEach(track => {
-                    // Use CURRENT isMicMuted state, not stored state
-                    track.enabled = !isMicMuted;
-                    console.log('🔄 Restored track to CURRENT state - enabled:', !isMicMuted, '(isMicMuted:', isMicMuted, ')');
-                });
-            }
-        }, 500);
-    } else if (peerConnection.connectionState === 'failed' || peerConnection.connectionState === 'disconnected') {
+        peerConnection.onconnectionstatechange = () => {
+            console.log(`Connection state with ${participant.name}:`, peerConnection.connectionState);
+            
+            if (peerConnection.connectionState === 'connected') {
+                console.log('✅ Peer connection established with:', participant.name);
+                startConnectionHealthCheck(fromUserId, peerConnection, participant);
+            } else if (peerConnection.connectionState === 'failed' || peerConnection.connectionState === 'disconnected') {
                 console.warn(`⚠️ Connection ${peerConnection.connectionState} with ${participant.name}`);
             }
         };
         
         peerConnection.oniceconnectionstatechange = () => {
             console.log(`ICE connection state with ${participant.name}:`, peerConnection.iceConnectionState);
+            if (peerConnection.iceConnectionState === 'failed') {
+                peerConnection.restartIce();
+            }
         };
         
         peerConnections.set(fromUserId, peerConnection);
         
-        // ✅ Set remote description (the offer)
+        // Set remote description (the offer)
         await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
         console.log('✅ Remote description set');
         
-        // ✅ Create and send answer
+        // Create and send answer
         const answer = await peerConnection.createAnswer({
             offerToReceiveAudio: true,
             offerToReceiveVideo: false
@@ -21634,7 +21625,7 @@ async function handleOffer(fromUserId, offer) {
         await sendAnswer(fromUserId, answer);
         console.log('✅ Answer sent to:', participant.name);
         
-        // ✅ Process any queued ICE candidates
+        // Process any queued ICE candidates
         if (pendingIceCandidates.has(fromUserId)) {
             const queued = pendingIceCandidates.get(fromUserId);
             console.log(`📋 Processing ${queued.length} queued ICE candidates after offer`);
@@ -21959,7 +21950,7 @@ async function handleIceCandidate(fromUserId, candidate) {
         console.error('❌ Error handling ICE candidate:', error);
     }
 }
-// ===== TOGGLE MICROPHONE =====
+// ===== TOGGLE MICROPHONE WITH SPEAKER LIMIT =====
 async function toggleMicrophone() {
     if (!localAudioStream) {
         console.error('❌ No local audio stream to toggle!');
@@ -21972,11 +21963,48 @@ async function toggleMicrophone() {
         return;
     }
     
+    // Check if coach has muted this student
+    if (coachMutedMe && isMicMuted) {
+        alert('🔇 Your coach has muted you. You cannot unmute yourself until the coach allows it.');
+        return;
+    }
+    
+    const classId = myClass ? myClass.id : liveSessionId;
+    
+    // If trying to unmute, check speaker limit
+    if (isMicMuted && !isCoach) {
+        // Count current active speakers (excluding self)
+        const participantsSnapshot = await db.collection('classes')
+            .doc(classId)
+            .collection('sessionParticipants')
+            .get();
+        
+        let activeCount = 0;
+        participantsSnapshot.forEach(doc => {
+            const data = doc.data();
+            if (!data.micMuted && data.userId !== currentUser.uid) {
+                activeCount++;
+            }
+        });
+        
+        if (activeCount >= MAX_ACTIVE_SPEAKERS) {
+            alert(`⚠️ Maximum ${MAX_ACTIVE_SPEAKERS} speakers allowed at once. Please wait for someone to mute before unmuting.`);
+            return;
+        }
+    }
+    
     // Toggle the track
     audioTrack.enabled = !audioTrack.enabled;
     isMicMuted = !audioTrack.enabled;
     
     console.log('🎤 Microphone', isMicMuted ? 'MUTED' : 'UNMUTED');
+    
+    // Update activeSpeakers set
+    if (isMicMuted) {
+        activeSpeakers.delete(currentUser.uid);
+    } else {
+        activeSpeakers.add(currentUser.uid);
+    }
     
     // Update button based on user type
     const btnId = isCoach ? 'coach-toggle-mic-btn' : 'student-toggle-mic-btn';
@@ -21993,7 +22021,6 @@ async function toggleMicrophone() {
     }
     
     // Update in Firestore
-    const classId = myClass ? myClass.id : liveSessionId;
     if (classId) {
         try {
             await db.collection('classes')
@@ -22002,14 +22029,13 @@ async function toggleMicrophone() {
                 .doc(currentUser.uid)
                 .update({ 
                     micMuted: isMicMuted,
-                    coachMuted: false
+                    lastMicUpdate: firebase.firestore.FieldValue.serverTimestamp()
                 });
         } catch (error) {
             console.error('Error updating mic status in Firestore:', error);
         }
     }
 }
-
   // ===== MUTE PARTICIPANT (COACH ONLY) =====
 async function muteParticipant(userId, participantName) {
     if (!isCoach) {
@@ -22068,13 +22094,28 @@ function updateParticipantsList() {
         return;
     }
     
+    // Count active speakers
+    let activeSpeakerCount = 0;
+    sessionParticipants.forEach(p => {
+        if (!p.micMuted) activeSpeakerCount++;
+    });
+    
     // Update participant count for coach
     if (isCoach) {
         const countEl = document.getElementById('participant-count');
         if (countEl) countEl.textContent = sessionParticipants.size;
     }
     
-    container.innerHTML = Array.from(sessionParticipants.values())
+    // Add speaker limit warning
+    const speakerWarning = activeSpeakerCount >= MAX_ACTIVE_SPEAKERS 
+        ? `<div style="background: #fff3cd; color: #856404; padding: 10px; border-radius: 5px; margin-bottom: 10px; font-weight: bold;">
+            ⚠️ Maximum speakers reached (${activeSpeakerCount}/${MAX_ACTIVE_SPEAKERS})
+           </div>`
+        : `<div style="background: #d4edda; color: #155724; padding: 10px; border-radius: 5px; margin-bottom: 10px;">
+            🎤 Active speakers: ${activeSpeakerCount}/${MAX_ACTIVE_SPEAKERS}
+           </div>`;
+    
+    container.innerHTML = speakerWarning + Array.from(sessionParticipants.values())
         .map(participant => {
             const avatarHtml = participant.photoURL 
                 ? `<div class="coach-avatar" style="width: 40px; height: 40px; background-image: url('${participant.photoURL}'); background-size: cover;"></div>`
@@ -22083,7 +22124,7 @@ function updateParticipantsList() {
             const micStatus = participant.micMuted ? '🔇' : '🎤';
             const isCurrentUser = participant.userId === currentUser.uid;
             
-            // ✅ Coach can ONLY mute (not unmute) other participants
+            // Coach can ONLY mute (not unmute) other participants
             const coachControls = isCoach && !isCurrentUser ? `
                 <button 
                     onclick="muteParticipant('${participant.userId}', '${participant.name.replace(/'/g, "\\'")}')"
@@ -22105,7 +22146,7 @@ function updateParticipantsList() {
                 </button>
             ` : '';
             
-            // ✅ Show if coach has muted them
+            // Show if coach has muted them
             const coachMutedLabel = participant.coachMuted ? 
                 '<span style="color: #dc3545; font-size: 0.8rem; font-weight: bold;">(Coach Muted)</span>' : '';
             
@@ -22126,6 +22167,7 @@ function updateParticipantsList() {
         }).join('');
 }
 
+    
 function listenForSessionParticipants() {
     const classId = myClass ? myClass.id : liveSessionId;
     
@@ -22242,7 +22284,11 @@ async function endLiveSession() {
     try {
         console.log('🛑 Ending live session...');
         
-        // ✅ CRITICAL: Stop and remove ALL audio elements first
+        // Stop all health checks
+        connectionHealthChecks.forEach(intervalId => clearInterval(intervalId));
+        connectionHealthChecks.clear();
+        
+        // Stop and remove ALL audio elements first
         document.querySelectorAll('audio').forEach(audio => {
             console.log('🗑️ Removing audio element:', audio.id);
             audio.pause();
@@ -22250,7 +22296,7 @@ async function endLiveSession() {
             audio.remove();
         });
         
-        // ✅ Stop local audio tracks
+        // Stop local audio tracks
         if (localAudioStream) {
             console.log('🛑 Stopping local audio stream');
             localAudioStream.getTracks().forEach(track => {
@@ -22260,7 +22306,7 @@ async function endLiveSession() {
             localAudioStream = null;
         }
         
-        // ✅ Close ALL peer connections
+        // Close ALL peer connections
         console.log('🛑 Closing peer connections:', peerConnections.size);
         peerConnections.forEach((pc, userId) => {
             console.log('   Closing connection with:', userId);
@@ -22272,14 +22318,17 @@ async function endLiveSession() {
         });
         peerConnections.clear();
         
-        // ✅ Clear all queued ICE candidates
+        // Clear all queued ICE candidates
         pendingIceCandidates.clear();
         console.log('🗑️ Cleared all queued ICE candidates');
         
-        // ✅ Clear remote streams
+        // Clear remote streams
         remoteStreams.clear();
         
-        // ✅ Unsubscribe from session listeners
+        // Clear active speakers
+        activeSpeakers.clear();
+        
+        // Unsubscribe from session listeners
         if (liveSessionListener) {
             console.log('🛑 Unsubscribing from session listener');
             try {
@@ -22290,7 +22339,7 @@ async function endLiveSession() {
             liveSessionListener = null;
         }
         
-        // ✅ Remove from participants in Firestore
+        // Remove from participants in Firestore
         const classId = myClass ? myClass.id : liveSessionId;
         if (classId && currentUser) {
             console.log('🗑️ Removing from session participants');
@@ -22301,7 +22350,7 @@ async function endLiveSession() {
                 .delete();
         }
         
-        // ✅ If coach, end session for everyone
+        // If coach, end session for everyone
         if (isCoachUser && myClass) {
             console.log('🛑 Coach ending session for everyone');
             
@@ -22337,15 +22386,15 @@ async function endLiveSession() {
             await signalingBatch.commit();
         }
         
-        // ✅ Clear session participants map
+        // Clear session participants map
         sessionParticipants.clear();
         
-        // ✅ Reset state variables
+        // Reset state variables
         liveSessionActive = false;
         liveSessionId = null;
         isMicMuted = false;
         
-        // ✅ Reset UI based on user type
+        // Reset UI based on user type
         if (isCoachUser) {
             const startBtn = document.getElementById('start-session-btn');
             const liveSessionContainer = document.getElementById('coach-live-session-active');
