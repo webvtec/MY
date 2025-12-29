@@ -20957,6 +20957,9 @@ async function joinLiveSession() {
     try {
         console.log('🎤 Joining live session...');
         
+        // ✅ Set cleanup flag
+        isCleaningUp = true;
+        
         // ✅ CRITICAL: Clean up any existing session first
         if (localAudioStream) {
             console.log('⚠️ Cleaning up existing audio stream');
@@ -20985,6 +20988,7 @@ async function joinLiveSession() {
         
         if (!userData.classId) {
             alert('You are not enrolled in a class');
+            isCleaningUp = false;
             return;
         }
         
@@ -20996,6 +21000,7 @@ async function joinLiveSession() {
         
         if (!classData.liveSessionActive || !classData.liveSessionId) {
             alert('❌ This session is no longer active');
+            isCleaningUp = false;
             return;
         }
         
@@ -21009,7 +21014,7 @@ async function joinLiveSession() {
             .get();
 
         if (existingParticipant.exists) {
-            console.log('🔄 Rejoining - cleaning up old participant entry');
+            console.log('🔄 Rejoining - cleaning up old participant entry and signaling');
             
             // ✅ Clean up old signaling messages FIRST
             await cleanupOldSignalingMessages(currentUser.uid);
@@ -21021,9 +21026,12 @@ async function joinLiveSession() {
                 .doc(currentUser.uid)
                 .delete();
             
-            // ✅ Wait longer for coach to detect removal and clean up
-            console.log('⏳ Waiting for coach to clean up old connection...');
-            await new Promise(resolve => setTimeout(resolve, 2000));
+            // ✅ Wait for coach to detect removal and clean up
+            console.log('⏳ Waiting 3 seconds for complete cleanup...');
+            await new Promise(resolve => setTimeout(resolve, 3000));
+            
+            // ✅ Clean up signaling AGAIN (in case coach sent messages during deletion)
+            await cleanupOldSignalingMessages(currentUser.uid);
         }
         
         // Get microphone permission with fresh stream
@@ -21043,6 +21051,9 @@ async function joinLiveSession() {
         isMicMuted = true;
         
         console.log('✅ Microphone access granted (MUTED by default)');
+        
+        // ✅ Clear cleanup flag BEFORE starting listeners
+        isCleaningUp = false;
         
         // Add to session participants (this triggers coach to create new connection)
         console.log('📝 Adding to session participants...');
@@ -21088,6 +21099,9 @@ async function joinLiveSession() {
     } catch (error) {
         console.error('❌ Error joining session:', error);
         
+        // ✅ Clear cleanup flag on error
+        isCleaningUp = false;
+        
         let errorMessage = 'Failed to join session. ';
         
         if (error.name === 'NotAllowedError') {
@@ -21125,7 +21139,8 @@ async function joinLiveSession() {
     }
 }
 
-        
+    let isCleaningUp = false; // Add this at the top with your other global variables
+    
 // ===== LISTEN FOR SESSION PARTICIPANTS =====
 function listenForSessionParticipants() {
     const classId = myClass ? myClass.id : liveSessionId;
@@ -21621,73 +21636,46 @@ async function getParticipantData(userId) {
 }
 
 
- // ===== CLEANUP OLD SIGNALING MESSAGES =====
+// ===== CLEANUP OLD SIGNALING MESSAGES =====
 async function cleanupOldSignalingMessages(userId) {
     const classId = myClass ? myClass.id : liveSessionId;
     
-    console.log('🗑️ Cleaning up old signaling messages for:', userId);
+    console.log('🗑️ Cleaning up ALL signaling messages for user:', userId);
     
     try {
-        // Delete all old offers, answers, and ICE candidates for this user
-        const [offersSnap, answersSnap, candidatesSnap] = await Promise.all([
-            db.collection('classes').doc(classId).collection('offers')
-                .where('from', '==', userId).get(),
-            db.collection('classes').doc(classId).collection('offers')
-                .where('to', '==', userId).get(),
-            db.collection('classes').doc(classId).collection('answers')
-                .where('from', '==', userId).get(),
-            db.collection('classes').doc(classId).collection('answers')
-                .where('to', '==', userId).get(),
-            db.collection('classes').doc(classId).collection('iceCandidates')
-                .where('from', '==', userId).get(),
-            db.collection('classes').doc(classId).collection('iceCandidates')
-                .where('to', '==', userId).get()
+        // Get all signaling messages related to this user
+        const [offersFrom, offersTo, answersFrom, answersTo, candidatesFrom, candidatesTo] = await Promise.all([
+            db.collection('classes').doc(classId).collection('offers').where('from', '==', userId).get(),
+            db.collection('classes').doc(classId).collection('offers').where('to', '==', userId).get(),
+            db.collection('classes').doc(classId).collection('answers').where('from', '==', userId).get(),
+            db.collection('classes').doc(classId).collection('answers').where('to', '==', userId).get(),
+            db.collection('classes').doc(classId).collection('iceCandidates').where('from', '==', userId).get(),
+            db.collection('classes').doc(classId).collection('iceCandidates').where('to', '==', userId).get()
         ]);
         
-        const batch = db.batch();
-        offersSnap.forEach(doc => batch.delete(doc.ref));
-        answersSnap.forEach(doc => batch.delete(doc.ref));
-        candidatesSnap.forEach(doc => batch.delete(doc.ref));
+        // Delete all of them
+        const deletions = [];
+        offersFrom.forEach(doc => deletions.push(doc.ref.delete()));
+        offersTo.forEach(doc => deletions.push(doc.ref.delete()));
+        answersFrom.forEach(doc => deletions.push(doc.ref.delete()));
+        answersTo.forEach(doc => deletions.push(doc.ref.delete()));
+        candidatesFrom.forEach(doc => deletions.push(doc.ref.delete()));
+        candidatesTo.forEach(doc => deletions.push(doc.ref.delete()));
         
-        await batch.commit();
-        console.log('✅ Old signaling messages cleaned up');
+        await Promise.all(deletions);
+        
+        console.log(`✅ Deleted ${deletions.length} old signaling messages`);
     } catch (error) {
         console.error('Error cleaning up signaling:', error);
     }
-}       
+}
+
         
 // ===== WEBRTC SIGNALING =====
 function listenForSignaling() {
     const classId = myClass ? myClass.id : liveSessionId;
     
     console.log('👂 Setting up signaling listeners for class:', classId);
-    
-    // ✅ Clean up old signaling messages first (older than 30 seconds)
-    const cleanupOldMessages = async () => {
-        const thirtySecondsAgo = new Date(Date.now() - 30000);
-        try {
-            const [oldOffers, oldAnswers, oldCandidates] = await Promise.all([
-                db.collection('classes').doc(classId).collection('offers')
-                    .where('createdAt', '<', thirtySecondsAgo).get(),
-                db.collection('classes').doc(classId).collection('answers')
-                    .where('createdAt', '<', thirtySecondsAgo).get(),
-                db.collection('classes').doc(classId).collection('iceCandidates')
-                    .where('createdAt', '<', thirtySecondsAgo).get()
-            ]);
-            
-            const batch = db.batch();
-            oldOffers.forEach(doc => batch.delete(doc.ref));
-            oldAnswers.forEach(doc => batch.delete(doc.ref));
-            oldCandidates.forEach(doc => batch.delete(doc.ref));
-            
-            await batch.commit();
-            console.log('🗑️ Cleaned up old signaling messages');
-        } catch (error) {
-            console.error('Error cleaning up old messages:', error);
-        }
-    };
-    
-    cleanupOldMessages();
     
     // Listen for offers
     db.collection('classes')
@@ -21698,9 +21686,15 @@ function listenForSignaling() {
             snapshot.docChanges().forEach(async change => {
                 if (change.type === 'added') {
                     const data = change.doc.data();
-                    console.log('📨 Received offer from:', data.from);
                     
-                    // ✅ Process offer
+                    // ✅ Ignore if we're cleaning up
+                    if (isCleaningUp) {
+                        console.log('⏸️ Ignoring offer during cleanup');
+                        await change.doc.ref.delete();
+                        return;
+                    }
+                    
+                    console.log('📨 Received offer from:', data.from);
                     await handleOffer(data.from, data.offer);
                     
                     // Delete processed offer
@@ -21722,9 +21716,15 @@ function listenForSignaling() {
             snapshot.docChanges().forEach(async change => {
                 if (change.type === 'added') {
                     const data = change.doc.data();
-                    console.log('📨 Received answer from:', data.from);
                     
-                    // ✅ Process answer (with error handling)
+                    // ✅ Ignore if we're cleaning up
+                    if (isCleaningUp) {
+                        console.log('⏸️ Ignoring answer during cleanup');
+                        await change.doc.ref.delete();
+                        return;
+                    }
+                    
+                    console.log('📨 Received answer from:', data.from);
                     await handleAnswer(data.from, data.answer);
                     
                     // Delete processed answer
@@ -21746,8 +21746,15 @@ function listenForSignaling() {
             snapshot.docChanges().forEach(async change => {
                 if (change.type === 'added') {
                     const data = change.doc.data();
-                    console.log('📨 Received ICE candidate from:', data.from);
                     
+                    // ✅ Ignore if we're cleaning up
+                    if (isCleaningUp) {
+                        console.log('⏸️ Ignoring ICE candidate during cleanup');
+                        await change.doc.ref.delete();
+                        return;
+                    }
+                    
+                    console.log('📨 Received ICE candidate from:', data.from);
                     await handleIceCandidate(data.from, data.candidate);
                     
                     // Delete processed candidate
@@ -21761,7 +21768,7 @@ function listenForSignaling() {
         });
 }
 
-
+        
 // ===== SEND OFFER =====
 async function sendOffer(toUserId, offer) {
     const classId = myClass ? myClass.id : liveSessionId;
