@@ -618,7 +618,11 @@ async function navigateTo(section, skipSidebarClose = false) {
 } 
 }
 
-// ===== ADMIN CONFIGURATION =====
+
+
+
+
+     // ===== ADMIN CONFIGURATION =====
 const ADMIN_EMAIL = 'carlanviroberts@gmail.com'; // ⚠️ CHANGE THIS TO YOUR ADMIN EMAIL
 let isAdmin = false;
 
@@ -677,7 +681,11 @@ function updateAdminUI() {
         console.log('⚠️ Admin link element not found in DOM');
     }
 }
-// ===== ADMIN TOURNAMENT MANAGEMENT =====
+
+// ===== ADMIN PANEL WITH SECTIONS =====
+
+let currentAdminSection = 'tournaments'; // Default section
+let currentUserSubSection = 'students'; // Default user sub-section
 
 async function loadAdminPanel() {
     if (!isAdmin) {
@@ -692,10 +700,56 @@ async function loadAdminPanel() {
     }
     
     const container = document.getElementById('admin-container');
-    container.innerHTML = '<div class="loading">Loading admin panel...</div>';
+    container.innerHTML = `
+        <div class="admin-panel">
+            <!-- Admin Navigation -->
+            <div style="display: flex; gap: 15px; margin-bottom: 30px; justify-content: center;">
+                <button class="practice-btn" id="admin-tournaments-btn" onclick="switchAdminSection('tournaments')" style="padding: 12px 30px; font-size: 1.1rem;">
+                    🏆 Tournaments
+                </button>
+                <button class="practice-btn" id="admin-users-btn" onclick="switchAdminSection('users')" style="padding: 12px 30px; font-size: 1.1rem;">
+                    👥 Users
+                </button>
+            </div>
+            
+            <!-- Content Container -->
+            <div id="admin-content-container">
+                <div class="loading">Loading...</div>
+            </div>
+        </div>
+    `;
+    
+    // Load default section
+    switchAdminSection('tournaments');
+}
+
+async function switchAdminSection(section) {
+    currentAdminSection = section;
+    
+    // Update button styles
+    const tournamentsBtn = document.getElementById('admin-tournaments-btn');
+    const usersBtn = document.getElementById('admin-users-btn');
+    
+    if (tournamentsBtn && usersBtn) {
+        tournamentsBtn.style.background = section === 'tournaments' ? 'linear-gradient(135deg, #667eea, #764ba2)' : '#6c757d';
+        usersBtn.style.background = section === 'users' ? 'linear-gradient(135deg, #667eea, #764ba2)' : '#6c757d';
+    }
+    
+    const contentContainer = document.getElementById('admin-content-container');
+    
+    if (section === 'tournaments') {
+        await loadAdminTournaments(contentContainer);
+    } else if (section === 'users') {
+        await loadAdminUsersSection(contentContainer);
+    }
+}
+
+// ===== TOURNAMENTS SECTION =====
+
+async function loadAdminTournaments(container) {
+    container.innerHTML = '<div class="loading">Loading tournaments...</div>';
     
     try {
-        // Load all tournaments
         const tournamentsSnapshot = await db.collection('tournaments')
             .orderBy('createdAt', 'desc')
             .get();
@@ -706,92 +760,655 @@ async function loadAdminPanel() {
         });
         
         container.innerHTML = `
-            <div class="admin-panel">
-                <!-- Create Tournament Button -->
-                <div style="text-align: center; margin-bottom: 30px;">
-                    <button class="practice-btn" onclick="showCreateTournamentModal()" style="font-size: 1.2rem; padding: 15px 40px; background: linear-gradient(135deg, #667eea, #764ba2);">
-                        ➕ Create New Tournament
-                    </button>
-                </div>
-                
-                <!-- Tournaments List -->
-                <h3 style="color: #0d3b66; margin-bottom: 20px;">📋 Manage Tournaments (${tournaments.length})</h3>
-                
-                ${tournaments.length === 0 ? `
-                    <div class="loading">
-                        No tournaments created yet. Click "Create New Tournament" to get started.
-                    </div>
-                ` : `
-                    <div class="coaches-table">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>🏆 Tournament</th>
-                                    <th>📅 Date</th>
-                                    <th>👥 Participants</th>
-                                    <th>⚙️ Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${tournaments.map(tournament => `
-                                    <tr>
-                                        <td>
-                                            <div style="font-weight: bold; color: #0d3b66;">${tournament.name}</div>
-                                            <div style="font-size: 0.9rem; color: #666; margin-top: 5px;">
-                                                Level: ${tournament.level} • Status: ${tournament.status}
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <div>${tournament.startDate ? new Date(tournament.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Not scheduled'}</div>
-                                            <div style="font-size: 0.85rem; color: #666; margin-top: 3px;">
-                                                ${tournament.startTime || 'Time TBD'}
-                                            </div>
-                                        </td>
-                                        <td style="text-align: center;">
-                                            <span style="background: #e3f2fd; padding: 5px 15px; border-radius: 15px; font-weight: bold; color: #0d3b66;">
-                                                ${tournament.participants || 0}
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <div style="display: flex; gap: 5px; justify-content: center;">
-                                                <button class="practice-btn" onclick="viewTournament('${tournament.id}')" style="padding: 8px 15px; font-size: 0.85rem; background: #17a2b8;">
-                                                    👁️ View
-                                                </button>
-                                                <button class="practice-btn" onclick="editTournament('${tournament.id}')" style="padding: 8px 15px; font-size: 0.85rem; background: #ffc107; color: #0d3b66;">
-                                                    ✏️ Edit
-                                                </button>
-                                                <button class="practice-btn" onclick="deleteTournament('${tournament.id}')" style="padding: 8px 15px; font-size: 0.85rem; background: #dc3545;">
-                                                    🗑️ Delete
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                `).join('')}
-                            </tbody>
-                        </table>
-                    </div>
-                `}
+            <div style="text-align: center; margin-bottom: 30px;">
+                <button class="practice-btn" onclick="showCreateTournamentModal()" style="font-size: 1.2rem; padding: 15px 40px; background: linear-gradient(135deg, #667eea, #764ba2);">
+                    ➕ Create New Tournament
+                </button>
             </div>
+            
+            <h3 style="color: #0d3b66; margin-bottom: 20px;">📋 Manage Tournaments (${tournaments.length})</h3>
+            
+            ${tournaments.length === 0 ? `
+                <div class="loading">
+                    No tournaments created yet. Click "Create New Tournament" to get started.
+                </div>
+            ` : `
+                <div class="coaches-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>🏆 Tournament</th>
+                                <th>📅 Date</th>
+                                <th>👥 Participants</th>
+                                <th>⚙️ Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${tournaments.map(tournament => `
+                                <tr>
+                                    <td>
+                                        <div style="font-weight: bold; color: #0d3b66;">${tournament.name}</div>
+                                        <div style="font-size: 0.9rem; color: #666; margin-top: 5px;">
+                                            Level: ${tournament.level} • Status: ${tournament.status}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div>${tournament.startDate ? new Date(tournament.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Not scheduled'}</div>
+                                        <div style="font-size: 0.85rem; color: #666; margin-top: 3px;">
+                                            ${tournament.startTime || 'Time TBD'}
+                                        </div>
+                                    </td>
+                                    <td style="text-align: center;">
+                                        <span style="background: #e3f2fd; padding: 5px 15px; border-radius: 15px; font-weight: bold; color: #0d3b66;">
+                                            ${tournament.participants || 0}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div style="display: flex; gap: 5px; justify-content: center;">
+                                            <button class="practice-btn" onclick="viewTournament('${tournament.id}')" style="padding: 8px 15px; font-size: 0.85rem; background: #17a2b8;">
+                                                👁️ View
+                                            </button>
+                                            <button class="practice-btn" onclick="editTournament('${tournament.id}')" style="padding: 8px 15px; font-size: 0.85rem; background: #ffc107; color: #0d3b66;">
+                                                ✏️ Edit
+                                            </button>
+                                            <button class="practice-btn" onclick="deleteTournament('${tournament.id}')" style="padding: 8px 15px; font-size: 0.85rem; background: #dc3545;">
+                                                🗑️ Delete
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `}
         `;
         
     } catch (error) {
-        console.error('Error loading admin panel:', error);
+        console.error('Error loading tournaments:', error);
         container.innerHTML = `
             <div class="feedback error">
-                ❌ Failed to load admin panel: ${error.message}
+                ❌ Failed to load tournaments: ${error.message}
             </div>
         `;
     }
 }
 
+// ===== USERS SECTION =====
+
+async function loadAdminUsersSection(container) {
+    container.innerHTML = `
+        <div>
+            <!-- User Type Navigation -->
+            <div style="display: flex; gap: 15px; margin-bottom: 30px; justify-content: center;">
+                <button class="practice-btn" id="admin-students-btn" onclick="switchUserSubSection('students')" style="padding: 10px 25px;">
+                    🎓 Students
+                </button>
+                <button class="practice-btn" id="admin-coaches-btn" onclick="switchUserSubSection('coaches')" style="padding: 10px 25px;">
+                    👨‍🏫 Coaches
+                </button>
+            </div>
+            
+            <!-- User List Container -->
+            <div id="admin-user-list-container">
+                <div class="loading">Loading users...</div>
+            </div>
+        </div>
+    `;
+    
+    // Load default sub-section
+    switchUserSubSection('students');
+}
+
+async function switchUserSubSection(subSection) {
+    currentUserSubSection = subSection;
+    
+    // Update button styles
+    const studentsBtn = document.getElementById('admin-students-btn');
+    const coachesBtn = document.getElementById('admin-coaches-btn');
+    
+    if (studentsBtn && coachesBtn) {
+        studentsBtn.style.background = subSection === 'students' ? 'linear-gradient(135deg, #667eea, #764ba2)' : '#6c757d';
+        coachesBtn.style.background = subSection === 'coaches' ? 'linear-gradient(135deg, #667eea, #764ba2)' : '#6c757d';
+    }
+    
+    const listContainer = document.getElementById('admin-user-list-container');
+    
+    if (subSection === 'students') {
+        await loadAdminStudentsList(listContainer);
+    } else if (subSection === 'coaches') {
+        await loadAdminCoachesList(listContainer);
+    }
+}
+
+// ===== STUDENTS LIST =====
+
+async function loadAdminStudentsList(container) {
+    container.innerHTML = '<div class="loading">Loading students...</div>';
+    
+    try {
+        const studentsSnapshot = await db.collection('users')
+            .where('role', '==', 'student')
+            .orderBy('createdAt', 'desc')
+            .get();
         
+        const students = [];
+        studentsSnapshot.forEach(doc => {
+            students.push({ id: doc.id, ...doc.data() });
+        });
+        
+        if (students.length === 0) {
+            container.innerHTML = `
+                <div class="loading">
+                    No students found on the platform.
+                </div>
+            `;
+            return;
+        }
+        
+        container.innerHTML = `
+            <h3 style="color: #0d3b66; margin-bottom: 20px;">🎓 All Students (${students.length})</h3>
+            
+            <div class="coaches-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>👤 Student</th>
+                            <th>📧 Email</th>
+                            <th>📅 Joined</th>
+                            <th>🔒 Status</th>
+                            <th>⚙️ Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${students.map(student => `
+                            <tr>
+                                <td>
+                                    <div style="font-weight: bold; color: #0d3b66;">${student.firstName || 'N/A'} ${student.lastName || ''}</div>
+                                    <div style="font-size: 0.85rem; color: #666;">ID: ${student.id.substring(0, 8)}...</div>
+                                </td>
+                                <td>${student.email || 'No email'}</td>
+                                <td>${student.createdAt ? new Date(student.createdAt.toDate()).toLocaleDateString() : 'N/A'}</td>
+                                <td style="text-align: center;">
+                                    ${student.subscriptionLocked ? 
+                                        '<span style="background: #ff6b6b; color: white; padding: 5px 10px; border-radius: 15px; font-size: 0.85rem;">🔒 Locked</span>' : 
+                                        '<span style="background: #51cf66; color: white; padding: 5px 10px; border-radius: 15px; font-size: 0.85rem;">✅ Active</span>'
+                                    }
+                                </td>
+                                <td>
+                                    <div style="display: flex; gap: 5px; justify-content: center;">
+                                        <button class="practice-btn" onclick="viewStudentDetailsAdmin('${student.id}')" style="padding: 8px 15px; font-size: 0.85rem; background: #17a2b8;">
+                                            👁️ View
+                                        </button>
+                                        ${student.subscriptionLocked ? 
+                                            `<button class="practice-btn" onclick="unlockStudentAccount('${student.id}')" style="padding: 8px 15px; font-size: 0.85rem; background: #51cf66;">
+                                                🔓 Unlock
+                                            </button>` :
+                                            `<button class="practice-btn" onclick="lockStudentAccount('${student.id}')" style="padding: 8px 15px; font-size: 0.85rem; background: #ffc107; color: #0d3b66;">
+                                                🔒 Lock
+                                            </button>`
+                                        }
+                                        <button class="practice-btn" onclick="deleteStudentAccount('${student.id}', '${student.firstName} ${student.lastName}')" style="padding: 8px 15px; font-size: 0.85rem; background: #dc3545;">
+                                            🗑️ Delete
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+        
+    } catch (error) {
+        console.error('Error loading students:', error);
+        container.innerHTML = `
+            <div class="feedback error">
+                ❌ Failed to load students: ${error.message}
+            </div>
+        `;
+    }
+}
+
+// ===== COACHES LIST =====
+
+async function loadAdminCoachesList(container) {
+    container.innerHTML = '<div class="loading">Loading coaches...</div>';
+    
+    try {
+        const coachesSnapshot = await db.collection('users')
+            .where('role', '==', 'coach')
+            .orderBy('createdAt', 'desc')
+            .get();
+        
+        const coaches = [];
+        coachesSnapshot.forEach(doc => {
+            coaches.push({ id: doc.id, ...doc.data() });
+        });
+        
+        if (coaches.length === 0) {
+            container.innerHTML = `
+                <div class="loading">
+                    No coaches found on the platform.
+                </div>
+            `;
+            return;
+        }
+        
+        container.innerHTML = `
+            <h3 style="color: #0d3b66; margin-bottom: 20px;">👨‍🏫 All Coaches (${coaches.length})</h3>
+            
+            <div class="coaches-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>👤 Coach</th>
+                            <th>📧 Email</th>
+                            <th>👥 Students</th>
+                            <th>📅 Joined</th>
+                            <th>🔒 Status</th>
+                            <th>⚙️ Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${coaches.map(coach => `
+                            <tr>
+                                <td>
+                                    <div style="font-weight: bold; color: #0d3b66;">${coach.firstName || 'N/A'} ${coach.lastName || ''}</div>
+                                    <div style="font-size: 0.85rem; color: #666;">ID: ${coach.id.substring(0, 8)}...</div>
+                                </td>
+                                <td>${coach.email || 'No email'}</td>
+                                <td style="text-align: center;">
+                                    <span style="background: #e3f2fd; padding: 5px 15px; border-radius: 15px; font-weight: bold; color: #0d3b66;">
+                                        ${coach.studentCount || 0}
+                                    </span>
+                                </td>
+                                <td>${coach.createdAt ? new Date(coach.createdAt.toDate()).toLocaleDateString() : 'N/A'}</td>
+                                <td style="text-align: center;">
+                                    ${coach.subscriptionLocked ? 
+                                        '<span style="background: #ff6b6b; color: white; padding: 5px 10px; border-radius: 15px; font-size: 0.85rem;">🔒 Locked</span>' : 
+                                        '<span style="background: #51cf66; color: white; padding: 5px 10px; border-radius: 15px; font-size: 0.85rem;">✅ Active</span>'
+                                    }
+                                </td>
+                                <td>
+                                    <div style="display: flex; gap: 5px; justify-content: center;">
+                                        <button class="practice-btn" onclick="viewCoachDetailsAdmin('${coach.id}')" style="padding: 8px 15px; font-size: 0.85rem; background: #17a2b8;">
+                                            👁️ View
+                                        </button>
+                                        ${coach.subscriptionLocked ? 
+                                            `<button class="practice-btn" onclick="unlockCoachAccount('${coach.id}')" style="padding: 8px 15px; font-size: 0.85rem; background: #51cf66;">
+                                                🔓 Unlock
+                                            </button>` :
+                                            `<button class="practice-btn" onclick="lockCoachAccount('${coach.id}')" style="padding: 8px 15px; font-size: 0.85rem; background: #ffc107; color: #0d3b66;">
+                                                🔒 Lock
+                                            </button>`
+                                        }
+                                        <button class="practice-btn" onclick="deleteCoachAccount('${coach.id}', '${coach.firstName} ${coach.lastName}')" style="padding: 8px 15px; font-size: 0.85rem; background: #dc3545;">
+                                            🗑️ Delete
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+        
+    } catch (error) {
+        console.error('Error loading coaches:', error);
+        container.innerHTML = `
+            <div class="feedback error">
+                ❌ Failed to load coaches: ${error.message}
+            </div>
+        `;
+    }
+}
+
+// ===== STUDENT ADMIN ACTIONS =====
+
+async function viewStudentDetailsAdmin(studentId) {
+    try {
+        const studentDoc = await db.collection('users').doc(studentId).get();
+        
+        if (!studentDoc.exists) {
+            alert('❌ Student not found');
+            return;
+        }
+        
+        const student = studentDoc.data();
+        
+        // Get student's progress data
+        const progressSnapshot = await db.collection('users').doc(studentId)
+            .collection('progress')
+            .orderBy('timestamp', 'desc')
+            .limit(10)
+            .get();
+        
+        const progressData = [];
+        progressSnapshot.forEach(doc => {
+            progressData.push(doc.data());
+        });
+        
+        const modal = document.createElement('div');
+        modal.className = 'auth-modal active';
+        modal.style.display = 'block';
+        
+        modal.innerHTML = `
+            <div class="auth-content" style="max-width: 700px;">
+                <div class="auth-header" style="background: linear-gradient(135deg, #667eea, #764ba2);">
+                    <h2 style="color: white;">👤 Student Details</h2>
+                    <button class="modal-close" onclick="this.closest('.auth-modal').remove()" style="color: white;">×</button>
+                </div>
+                <div class="auth-body">
+                    <div style="margin-bottom: 25px;">
+                        <h3 style="color: #0d3b66; margin-bottom: 15px;">📋 Basic Information</h3>
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 10px;">
+                            <p><strong>Name:</strong> ${student.firstName || 'N/A'} ${student.lastName || ''}</p>
+                            <p><strong>Email:</strong> ${student.email || 'N/A'}</p>
+                            <p><strong>User ID:</strong> ${studentId}</p>
+                            <p><strong>Account Created:</strong> ${student.createdAt ? new Date(student.createdAt.toDate()).toLocaleDateString() : 'N/A'}</p>
+                            <p><strong>Subscription Status:</strong> ${student.subscriptionLocked ? '🔒 Locked' : '✅ Active'}</p>
+                            <p><strong>Coach ID:</strong> ${student.coachId || 'No coach assigned'}</p>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-bottom: 25px;">
+                        <h3 style="color: #0d3b66; margin-bottom: 15px;">📊 Recent Activity</h3>
+                        ${progressData.length === 0 ? 
+                            '<p style="color: #666;">No practice sessions recorded yet.</p>' :
+                            `<div style="background: #f8f9fa; padding: 15px; border-radius: 10px; max-height: 200px; overflow-y: auto;">
+                                ${progressData.map(session => `
+                                    <div style="margin-bottom: 10px; padding: 10px; background: white; border-radius: 5px;">
+                                        <strong>${session.difficulty || 'Unknown'}</strong> - 
+                                        Score: ${session.score || 0}/${session.totalWords || 0} 
+                                        (${session.accuracy || 0}%)
+                                        <br>
+                                        <small style="color: #666;">${session.timestamp ? new Date(session.timestamp.toDate()).toLocaleString() : 'N/A'}</small>
+                                    </div>
+                                `).join('')}
+                            </div>`
+                        }
+                    </div>
+                    
+                    <button class="auth-submit" onclick="this.closest('.auth-modal').remove()">
+                        Close
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+    } catch (error) {
+        console.error('Error viewing student details:', error);
+        alert('❌ Failed to load student details: ' + error.message);
+    }
+}
+
+async function unlockStudentAccount(studentId) {
+    if (!confirm('Are you sure you want to unlock this student account?')) {
+        return;
+    }
+    
+    try {
+        await db.collection('users').doc(studentId).update({
+            subscriptionLocked: false,
+            unlockedByAdmin: true,
+            unlockedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        alert('✅ Student account unlocked successfully!');
+        
+        // Reload the students list
+        const listContainer = document.getElementById('admin-user-list-container');
+        if (listContainer) {
+            await loadAdminStudentsList(listContainer);
+        }
+        
+    } catch (error) {
+        console.error('Error unlocking student account:', error);
+        alert('❌ Failed to unlock account: ' + error.message);
+    }
+}
+
+async function lockStudentAccount(studentId) {
+    if (!confirm('Are you sure you want to lock this student account? They will not be able to access practice features.')) {
+        return;
+    }
+    
+    try {
+        await db.collection('users').doc(studentId).update({
+            subscriptionLocked: true,
+            lockedByAdmin: true,
+            lockedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        alert('✅ Student account locked successfully!');
+        
+        // Reload the students list
+        const listContainer = document.getElementById('admin-user-list-container');
+        if (listContainer) {
+            await loadAdminStudentsList(listContainer);
+        }
+        
+    } catch (error) {
+        console.error('Error locking student account:', error);
+        alert('❌ Failed to lock account: ' + error.message);
+    }
+}
+
+async function deleteStudentAccount(studentId, studentName) {
+    const confirmDelete = confirm(`⚠️ WARNING: Are you sure you want to permanently delete the account for "${studentName}"?\n\nThis will:\n- Delete their user account\n- Delete all their progress data\n- Remove them from their coach's student list\n\nThis action CANNOT be undone!`);
+    
+    if (!confirmDelete) {
+        return;
+    }
+    
+    const doubleConfirm = confirm(`Final confirmation: Type the student's name to confirm deletion.\n\nExpected: ${studentName}`);
+    
+    if (!doubleConfirm) {
+        return;
+    }
+    
+    try {
+        // Delete user document
+        await db.collection('users').doc(studentId).delete();
+        
+        alert('✅ Student account deleted successfully!');
+        
+        // Reload the students list
+        const listContainer = document.getElementById('admin-user-list-container');
+        if (listContainer) {
+            await loadAdminStudentsList(listContainer);
+        }
+        
+    } catch (error) {
+        console.error('Error deleting student account:', error);
+        alert('❌ Failed to delete account: ' + error.message);
+    }
+}
+
+// ===== COACH ADMIN ACTIONS =====
+
+async function viewCoachDetailsAdmin(coachId) {
+    try {
+        const coachDoc = await db.collection('users').doc(coachId).get();
+        
+        if (!coachDoc.exists) {
+            alert('❌ Coach not found');
+            return;
+        }
+        
+        const coach = coachDoc.data();
+        
+        // Get coach's students
+        const studentsSnapshot = await db.collection('users')
+            .where('coachId', '==', coachId)
+            .get();
+        
+        const students = [];
+        studentsSnapshot.forEach(doc => {
+            students.push({ id: doc.id, ...doc.data() });
+        });
+        
+        const modal = document.createElement('div');
+        modal.className = 'auth-modal active';
+        modal.style.display = 'block';
+        
+        modal.innerHTML = `
+            <div class="auth-content" style="max-width: 700px;">
+                <div class="auth-header" style="background: linear-gradient(135deg, #667eea, #764ba2);">
+                    <h2 style="color: white;">👨‍🏫 Coach Details</h2>
+                    <button class="modal-close" onclick="this.closest('.auth-modal').remove()" style="color: white;">×</button>
+                </div>
+                <div class="auth-body">
+                    <div style="margin-bottom: 25px;">
+                        <h3 style="color: #0d3b66; margin-bottom: 15px;">📋 Basic Information</h3>
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 10px;">
+                            <p><strong>Name:</strong> ${coach.firstName || 'N/A'} ${coach.lastName || ''}</p>
+                            <p><strong>Email:</strong> ${coach.email || 'N/A'}</p>
+                            <p><strong>User ID:</strong> ${coachId}</p>
+                            <p><strong>Account Created:</strong> ${coach.createdAt ? new Date(coach.createdAt.toDate()).toLocaleDateString() : 'N/A'}</p>
+                            <p><strong>Subscription Status:</strong> ${coach.subscriptionLocked ? '🔒 Locked' : '✅ Active'}</p>
+                            <p><strong>Total Students:</strong> ${students.length}</p>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-bottom: 25px;">
+                        <h3 style="color: #0d3b66; margin-bottom: 15px;">👥 Students (${students.length})</h3>
+                        ${students.length === 0 ? 
+                            '<p style="color: #666;">No students assigned to this coach.</p>' :
+                            `<div style="background: #f8f9fa; padding: 15px; border-radius: 10px; max-height: 200px; overflow-y: auto;">
+                                ${students.map(student => `
+                                    <div style="margin-bottom: 10px; padding: 10px; background: white; border-radius: 5px;">
+                                        <strong>${student.firstName || 'N/A'} ${student.lastName || ''}</strong>
+                                        <br>
+                                        <small style="color: #666;">${student.email || 'No email'}</small>
+                                    </div>
+                                `).join('')}
+                            </div>`
+                        }
+                    </div>
+                    
+                    <button class="auth-submit" onclick="this.closest('.auth-modal').remove()">
+                        Close
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+    } catch (error) {
+        console.error('Error viewing coach details:', error);
+        alert('❌ Failed to load coach details: ' + error.message);
+    }
+}
+
+
+async function unlockCoachAccount(coachId) {
+    if (!confirm('Are you sure you want to unlock this coach account?')) {
+        return;
+    }
+    
+    try {
+        await db.collection('users').doc(coachId).update({
+            subscriptionLocked: false,
+            unlockedByAdmin: true,
+            unlockedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        alert('✅ Coach account unlocked successfully!');
+        
+        // Reload the coaches list
+        const listContainer = document.getElementById('admin-user-list-container');
+        if (listContainer) {
+            await loadAdminCoachesList(listContainer);
+        }
+        
+    } catch (error) {
+        console.error('Error unlocking coach account:', error);
+        alert('❌ Failed to unlock account: ' + error.message);
+    }
+}
+
+async function lockCoachAccount(coachId) {
+    if (!confirm('Are you sure you want to lock this coach account? They will not be able to access their dashboard.')) {
+        return;
+    }
+    
+    try {
+        await db.collection('users').doc(coachId).update({
+            subscriptionLocked: true,
+            lockedByAdmin: true,
+            lockedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        alert('✅ Coach account locked successfully!');
+        
+        // Reload the coaches list
+        const listContainer = document.getElementById('admin-user-list-container');
+        if (listContainer) {
+            await loadAdminCoachesList(listContainer);
+        }
+        
+    } catch (error) {
+        console.error('Error locking coach account:', error);
+        alert('❌ Failed to lock account: ' + error.message);
+    }
+}
+
+async function deleteCoachAccount(coachId, coachName) {
+    const confirmDelete = confirm(`⚠️ WARNING: Are you sure you want to permanently delete the account for coach "${coachName}"?\n\nThis will:\n- Delete their coach account\n- Unassign all their students\n- Delete all their data\n\nThis action CANNOT be undone!`);
+    
+    if (!confirmDelete) {
+        return;
+    }
+
+    const doubleConfirm = confirm(`Final confirmation: This will also unassign all students from this coach. Continue?`);
+
+    if (!doubleConfirm) {
+        return;
+    }
+
+    try {
+        // First, unassign all students
+        const studentsSnapshot = await db.collection('users')
+            .where('coachId', '==', coachId)
+            .get();
+        
+        const batch = db.batch();
+        studentsSnapshot.forEach(doc => {
+            batch.update(doc.ref, { coachId: null });
+        });
+        
+        // Delete coach document
+        batch.delete(db.collection('users').doc(coachId));
+        
+        await batch.commit();
+        
+        alert('✅ Coach account deleted successfully and students unassigned!');
+        
+        // Reload the coaches list
+        const listContainer = document.getElementById('admin-user-list-container');
+        if (listContainer) {
+            await loadAdminCoachesList(listContainer);
+        }
+        
+    } catch (error) {
+        console.error('Error deleting coach account:', error);
+        alert('❌ Failed to delete account: ' + error.message);
+    }
+}
+
+// ===== TOURNAMENT MODAL FUNCTIONS =====
 function showCreateTournamentModal() {
     const modal = document.createElement('div');
     modal.className = 'auth-modal';
     modal.id = 'createTournamentModal';
     modal.style.display = 'block';
     modal.classList.add('active');
-    
     modal.innerHTML = `
         <div class="auth-content" style="max-width: 600px;">
             <div class="auth-header" style="background: linear-gradient(135deg, #667eea, #764ba2);">
@@ -855,7 +1472,7 @@ function showCreateTournamentModal() {
             </div>
         </div>
     `;
-    
+
     document.body.appendChild(modal);
 }
 
@@ -873,7 +1490,7 @@ async function handleCreateTournament(event) {
         alert('❌ Admin access required');
         return;
     }
-    
+
     const name = document.getElementById('tournament-name').value.trim();
     const description = document.getElementById('tournament-description').value.trim();
     const level = document.getElementById('tournament-level').value;
@@ -881,9 +1498,9 @@ async function handleCreateTournament(event) {
     const time = document.getElementById('tournament-time').value;
     const maxParticipants = parseInt(document.getElementById('tournament-max-participants').value);
     const status = document.getElementById('tournament-status').value;
-    
+
     const errorDiv = document.getElementById('create-tournament-error');
-    
+
     try {
         console.log('📝 Creating tournament:', name);
         
@@ -908,10 +1525,13 @@ async function handleCreateTournament(event) {
         
         alert('✅ Tournament created successfully!');
         
-        // ✅ Reload admin panel
-        await loadAdminPanel();
+        // Reload admin panel tournaments section
+        const contentContainer = document.getElementById('admin-content-container');
+        if (contentContainer) {
+            await loadAdminTournaments(contentContainer);
+        }
         
-        // ✅ ALSO reload tournament list if we're on tournaments page
+        // Also reload tournament list if we're on tournaments page
         const tournamentsSection = document.getElementById('tournaments-section');
         if (tournamentsSection && tournamentsSection.classList.contains('active')) {
             await loadTournamentList();
@@ -922,4 +1542,8 @@ async function handleCreateTournament(event) {
         errorDiv.textContent = 'Failed to create tournament: ' + error.message;
         errorDiv.style.display = 'block';
     }
-}     
+}
+    </script>
+</body>
+</html>
+
