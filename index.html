@@ -21087,7 +21087,8 @@ async function joinLiveSession() {
             });
         
         console.log('✅ Added to session participants');
-        
+        console.log('✅ Added to session participants as STUDENT (isCoach: false)');
+        console.log('🔍 My role - isCoach:', isCoach, 'currentUser.uid:', currentUser.uid);
         liveSessionActive = true;
         
         // Hide join button and show active session UI
@@ -21171,32 +21172,35 @@ function listenForSessionParticipants() {
                     
                     console.log('➕ Participant added:', participant.name, participant.userId);
                     
-                    if (participant.userId !== currentUser.uid) {
-                        // ✅ COACH OR STUDENT - BOTH CREATE CONNECTIONS TO OTHER USERS
-                        if (isCoach) {
-                            console.log('👑 Coach creating connection to:', participant.name);
-                            createPeerConnection(participant.userId, participant, true);
+                    // Skip ourselves
+                    if (participant.userId === currentUser.uid) {
+                        console.log('   ⏭️ Skipping self');
+                        sessionParticipants.set(participant.userId, participant);
+                        return;
+                    }
+                    
+                    // ✅ EVERYONE CREATES CONNECTIONS TO EVERYONE
+                    if (isCoach) {
+                        // Coach initiates all connections
+                        console.log('👑 Coach creating connection to:', participant.name);
+                        await createPeerConnection(participant.userId, participant, true);
+                    } else {
+                        // Student connecting to others
+                        console.log('👥 Student needs to connect to:', participant.name);
+                        
+                        // Check if participant is coach
+                        if (participant.isCoach) {
+                            console.log('   → Participant is COACH, waiting for their offer');
+                            // Coach will initiate, we wait
                         } else {
-                            // ✅ STUDENTS CREATE CONNECTIONS TO OTHER STUDENTS TOO!
-                            console.log('👥 Student creating connection to:', participant.name);
-                            
-                            // Check if this is the coach or another student
-                            const isParticipantCoach = await checkIfUserIsCoach(participant.userId);
-                            
-                            if (isParticipantCoach) {
-                                console.log('   → Connecting to COACH, waiting for offer');
-                                // Wait for coach to initiate
+                            console.log('   → Participant is STUDENT, checking who initiates...');
+                            // Student-to-student: Compare UIDs to avoid duplicate connections
+                            if (currentUser.uid < participant.userId) {
+                                console.log('   → ✅ I INITIATE (my UID is lower)');
+                                await createPeerConnection(participant.userId, participant, true);
                             } else {
-                                console.log('   → Connecting to STUDENT, initiating connection');
-                                // Student-to-student: Use userId comparison to decide who initiates
-                                // Lower userId initiates to avoid duplicate connections
-                                if (currentUser.uid < participant.userId) {
-                                    console.log('   → I initiate (my UID is lower)');
-                                    createPeerConnection(participant.userId, participant, true);
-                                } else {
-                                    console.log('   → They initiate (their UID is lower)');
-                                    // Wait for their offer
-                                }
+                                console.log('   → ⏳ THEY INITIATE (their UID is lower), waiting for offer');
+                                // They will initiate, we wait for offer
                             }
                         }
                     }
@@ -21583,6 +21587,33 @@ async function createPeerConnection(userId, participant, isInitiator = true) {
 async function handleOffer(fromUserId, offer) {
     try {
         console.log('📨 Handling offer from user:', fromUserId);
+        
+        // ✅ Check if we're already trying to connect to this user
+        if (peerConnections.has(fromUserId)) {
+            const existingPc = peerConnections.get(fromUserId);
+            
+            // If we're in a negotiation state, let the lower UID win
+            if (existingPc.signalingState !== 'stable') {
+                console.log('⚠️ Simultaneous connection attempt detected');
+                
+                // Compare UIDs - lower UID's offer wins
+                if (currentUser.uid < fromUserId) {
+                    console.log('   → My UID is lower, ignoring their offer (I already sent mine)');
+                    return;
+                } else {
+                    console.log('   → Their UID is lower, accepting their offer and closing mine');
+                    existingPc.close();
+                    peerConnections.delete(fromUserId);
+                    
+                    const oldAudio = document.getElementById(`audio_${fromUserId}`);
+                    if (oldAudio) {
+                        oldAudio.pause();
+                        oldAudio.srcObject = null;
+                        oldAudio.remove();
+                    }
+                }
+            }
+        }
         
         // Ensure we have a local audio stream
         if (!localAudioStream || localAudioStream.getTracks().length === 0) {
