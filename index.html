@@ -22450,7 +22450,7 @@ async function recruitStudent(studentId, studentName) {
 }    
 
 
-   // ===== ADMIN CONFIGURATION =====
+  // ===== ADMIN CONFIGURATION =====
 const ADMIN_EMAIL = 'carlanviroberts@gmail.com'; // ⚠️ CHANGE THIS TO YOUR ADMIN EMAIL
 let isAdmin = false;
 
@@ -23134,6 +23134,7 @@ async function viewCoachDetailsAdmin(coachId) {
     }
 }
 
+
 async function unlockCoachAccount(coachId) {
     if (!confirm('Are you sure you want to unlock this coach account?')) {
         return;
@@ -23143,225 +23144,234 @@ async function unlockCoachAccount(coachId) {
         await db.collection('users').doc(coachId).update({
             subscriptionLocked: false,
             unlockedByAdmin: true,
-        unlockedAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    
-    alert('✅ Coach account unlocked successfully!');
-    
-    // Reload the coaches list
-    const listContainer = document.getElementById('admin-user-list-container');
-    if (listContainer) {
-        await loadAdminCoachesList(listContainer);
+            unlockedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        alert('✅ Coach account unlocked successfully!');
+        
+        // Reload the coaches list
+        const listContainer = document.getElementById('admin-user-list-container');
+        if (listContainer) {
+            await loadAdminCoachesList(listContainer);
+        }
+        
+    } catch (error) {
+        console.error('Error unlocking coach account:', error);
+        alert('❌ Failed to unlock account: ' + error.message);
     }
-    
-} catch (error) {
-    console.error('Error unlocking coach account:', error);
-    alert('❌ Failed to unlock account: ' + error.message);
 }
-}
+
 async function lockCoachAccount(coachId) {
-if (!confirm('Are you sure you want to lock this coach account? They will not be able to access their dashboard.')) {
-return;
-}
-try {
-    await db.collection('users').doc(coachId).update({
-        subscriptionLocked: true,
-        lockedByAdmin: true,
-        lockedAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    
-    alert('✅ Coach account locked successfully!');
-    
-    // Reload the coaches list
-    const listContainer = document.getElementById('admin-user-list-container');
-    if (listContainer) {
-        await loadAdminCoachesList(listContainer);
+    if (!confirm('Are you sure you want to lock this coach account? They will not be able to access their dashboard.')) {
+        return;
     }
     
-} catch (error) {
-    console.error('Error locking coach account:', error);
-    alert('❌ Failed to lock account: ' + error.message);
+    try {
+        await db.collection('users').doc(coachId).update({
+            subscriptionLocked: true,
+            lockedByAdmin: true,
+            lockedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        alert('✅ Coach account locked successfully!');
+        
+        // Reload the coaches list
+        const listContainer = document.getElementById('admin-user-list-container');
+        if (listContainer) {
+            await loadAdminCoachesList(listContainer);
+        }
+        
+    } catch (error) {
+        console.error('Error locking coach account:', error);
+        alert('❌ Failed to lock account: ' + error.message);
+    }
 }
-}
+
 async function deleteCoachAccount(coachId, coachName) {
-const confirmDelete = confirm(⚠️ WARNING: Are you sure you want to permanently delete the account for coach "${coachName}"?\n\nThis will:\n- Delete their coach account\n- Unassign all their students\n- Delete all their data\n\nThis action CANNOT be undone!);
-if (!confirmDelete) {
-    return;
-}
-
-const doubleConfirm = confirm(`Final confirmation: This will also unassign all students from this coach. Continue?`);
-
-if (!doubleConfirm) {
-    return;
-}
-
-try {
-    // First, unassign all students
-    const studentsSnapshot = await db.collection('users')
-        .where('coachId', '==', coachId)
-        .get();
+    const confirmDelete = confirm(`⚠️ WARNING: Are you sure you want to permanently delete the account for coach "${coachName}"?\n\nThis will:\n- Delete their coach account\n- Unassign all their students\n- Delete all their data\n\nThis action CANNOT be undone!`);
     
-    const batch = db.batch();
-    studentsSnapshot.forEach(doc => {
-        batch.update(doc.ref, { coachId: null });
-    });
-    
-    // Delete coach document
-    batch.delete(db.collection('users').doc(coachId));
-    
-    await batch.commit();
-    
-    alert('✅ Coach account deleted successfully and students unassigned!');
-    
-    // Reload the coaches list
-    const listContainer = document.getElementById('admin-user-list-container');
-    if (listContainer) {
-        await loadAdminCoachesList(listContainer);
+    if (!confirmDelete) {
+        return;
     }
-    
-} catch (error) {
-    console.error('Error deleting coach account:', error);
-    alert('❌ Failed to delete account: ' + error.message);
+
+    const doubleConfirm = confirm(`Final confirmation: This will also unassign all students from this coach. Continue?`);
+
+    if (!doubleConfirm) {
+        return;
+    }
+
+    try {
+        // First, unassign all students
+        const studentsSnapshot = await db.collection('users')
+            .where('coachId', '==', coachId)
+            .get();
+        
+        const batch = db.batch();
+        studentsSnapshot.forEach(doc => {
+            batch.update(doc.ref, { coachId: null });
+        });
+        
+        // Delete coach document
+        batch.delete(db.collection('users').doc(coachId));
+        
+        await batch.commit();
+        
+        alert('✅ Coach account deleted successfully and students unassigned!');
+        
+        // Reload the coaches list
+        const listContainer = document.getElementById('admin-user-list-container');
+        if (listContainer) {
+            await loadAdminCoachesList(listContainer);
+        }
+        
+    } catch (error) {
+        console.error('Error deleting coach account:', error);
+        alert('❌ Failed to delete account: ' + error.message);
+    }
 }
-}
-// ===== TOURNAMENT MODAL FUNCTIONS (EXISTING) =====
+
+// ===== TOURNAMENT MODAL FUNCTIONS =====
 function showCreateTournamentModal() {
-const modal = document.createElement('div');
-modal.className = 'auth-modal';
-modal.id = 'createTournamentModal';
-modal.style.display = 'block';
-modal.classList.add('active');
-modal.innerHTML = `
-    <div class="auth-content" style="max-width: 600px;">
-        <div class="auth-header" style="background: linear-gradient(135deg, #667eea, #764ba2);">
-            <h2 style="color: white;">➕ Create New Tournament</h2>
-            <button class="modal-close" onclick="closeCreateTournamentModal()" style="color: white;">×</button>
+    const modal = document.createElement('div');
+    modal.className = 'auth-modal';
+    modal.id = 'createTournamentModal';
+    modal.style.display = 'block';
+    modal.classList.add('active');
+    modal.innerHTML = `
+        <div class="auth-content" style="max-width: 600px;">
+            <div class="auth-header" style="background: linear-gradient(135deg, #667eea, #764ba2);">
+                <h2 style="color: white;">➕ Create New Tournament</h2>
+                <button class="modal-close" onclick="closeCreateTournamentModal()" style="color: white;">×</button>
+            </div>
+            <div class="auth-body">
+                <form id="create-tournament-form" onsubmit="handleCreateTournament(event)">
+                    <div class="form-group">
+                        <label>Tournament Name *</label>
+                        <input type="text" id="tournament-name" required placeholder="e.g., Summer Spelling Championship 2025">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Description *</label>
+                        <textarea id="tournament-description" required rows="3" style="width: 100%; padding: 12px; border: 2px solid #0d3b66; border-radius: 5px; font-family: Georgia, serif; font-size: 1rem;" placeholder="Describe the tournament..."></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Difficulty Level *</label>
+                        <select id="tournament-level" required style="width: 100%; padding: 12px; border: 2px solid #0d3b66; border-radius: 5px; font-size: 1rem;">
+                            <option value="">Select level</option>
+                            <option value="foundation">🌱 Foundation</option>
+                            <option value="challenge">🎯 Challenge</option>
+                            <option value="advanced">🚀 Advanced</option>
+                            <option value="championship">🏆 Championship</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Start Date *</label>
+                        <input type="date" id="tournament-date" required style="width: 100%; padding: 12px; border: 2px solid #0d3b66; border-radius: 5px; font-size: 1rem;">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Start Time *</label>
+                        <input type="time" id="tournament-time" required style="width: 100%; padding: 12px; border: 2px solid #0d3b66; border-radius: 5px; font-size: 1rem;">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Max Participants</label>
+                        <input type="number" id="tournament-max-participants" min="10" max="100" value="50" style="width: 100%; padding: 12px; border: 2px solid #0d3b66; border-radius: 5px; font-size: 1rem;">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Status *</label>
+                        <select id="tournament-status" required style="width: 100%; padding: 12px; border: 2px solid #0d3b66; border-radius: 5px; font-size: 1rem;">
+                            <option value="upcoming">📅 Upcoming (Open for Registration)</option>
+                            <option value="active">▶️ Active (In Progress)</option>
+                            <option value="completed">✅ Completed</option>
+                            <option value="cancelled">❌ Cancelled</option>
+                        </select>
+                    </div>
+                    
+                    <button type="submit" class="auth-submit" style="background: linear-gradient(135deg, #667eea, #764ba2);">
+                        ✅ Create Tournament
+                    </button>
+                    
+                    <div id="create-tournament-error" class="feedback error" style="display: none; margin-top: 15px;"></div>
+                </form>
+            </div>
         </div>
-        <div class="auth-body">
-            <form id="create-tournament-form" onsubmit="handleCreateTournament(event)">
-                <div class="form-group">
-                    <label>Tournament Name *</label>
-                    <input type="text" id="tournament-name" required placeholder="e.g., Summer Spelling Championship 2025">
-                </div>
-                
-                <div class="form-group">
-                    <label>Description *</label>
-                    <textarea id="tournament-description" required rows="3" style="width: 100%; padding: 12px; border: 2px solid #0d3b66; border-radius: 5px; font-family: Georgia, serif; font-size: 1rem;" placeholder="Describe the tournament..."></textarea>
-                </div>
-                
-                <div class="form-group">
-                    <label>Difficulty Level *</label>
-                    <select id="tournament-level" required style="width: 100%; padding: 12px; border: 2px solid #0d3b66; border-radius: 5px; font-size: 1rem;">
-                        <option value="">Select level</option>
-                        <option value="foundation">🌱 Foundation</option>
-                        <option value="challenge">🎯 Challenge</option>
-                        <option value="advanced">🚀 Advanced</option>
-                        <option value="championship">🏆 Championship</option>
-                    </select>
-                </div>
-                
-                <div class="form-group">
-                    <label>Start Date *</label>
-                    <input type="date" id="tournament-date" required style="width: 100%; padding: 12px; border: 2px solid #0d3b66; border-radius: 5px; font-size: 1rem;">
-                </div>
-                
-                <div class="form-group">
-                    <label>Start Time *</label>
-                    <input type="time" id="tournament-time" required style="width: 100%; padding: 12px; border: 2px solid #0d3b66; border-radius: 5px; font-size: 1rem;">
-                </div>
-                
-                <div class="form-group">
-                    <label>Max Participants</label>
-                    <input type="number" id="tournament-max-participants" min="10" max="100" value="50" style="width: 100%; padding: 12px; border: 2px solid #0d3b66; border-radius: 5px; font-size: 1rem;">
-                </div>
-                
-                <div class="form-group">
-                    <label>Status *</label>
-                    <select id="tournament-status" required style="width: 100%; padding: 12px; border: 2px solid #0d3b66; border-radius: 5px; font-size: 1rem;">
-                        <option value="upcoming">📅 Upcoming (Open for Registration)</option>
-                        <option value="active">▶️ Active (In Progress)</option>
-                        <option value="completed">✅ Completed</option>
-                        <option value="cancelled">❌ Cancelled</option>
-                    </select>
-                </div>
-                
-                <button type="submit" class="auth-submit" style="background: linear-gradient(135deg, #667eea, #764ba2);">
-                    ✅ Create Tournament
-                </button>
-                
-                <div id="create-tournament-error" class="feedback error" style="display: none; margin-top: 15px;"></div>
-            </form>
-        </div>
-    </div>
-`;
+    `;
 
-document.body.appendChild(modal);
+    document.body.appendChild(modal);
 }
+
 function closeCreateTournamentModal() {
-const modal = document.getElementById('createTournamentModal');
-if (modal) {
-modal.remove();
+    const modal = document.getElementById('createTournamentModal');
+    if (modal) {
+        modal.remove();
+    }
 }
-}
+
 async function handleCreateTournament(event) {
-event.preventDefault();
-if (!isAdmin) {
-    alert('❌ Admin access required');
-    return;
-}
-
-const name = document.getElementById('tournament-name').value.trim();
-const description = document.getElementById('tournament-description').value.trim();
-const level = document.getElementById('tournament-level').value;
-const date = document.getElementById('tournament-date').value;
-const time = document.getElementById('tournament-time').value;
-const maxParticipants = parseInt(document.getElementById('tournament-max-participants').value);
-const status = document.getElementById('tournament-status').value;
-
-const errorDiv = document.getElementById('create-tournament-error');
-
-try {
-    console.log('📝 Creating tournament:', name);
+    event.preventDefault();
     
-    // Create tournament in Firestore
-    const tournamentRef = await db.collection('tournaments').add({
-        name: name,
-        description: description,
-        level: level,
-        startDate: date,
-        startTime: time,
-        maxParticipants: maxParticipants,
-        status: status,
-        participants: 0,
-        registeredUsers: [],
-        createdBy: currentUser.uid,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    
-    console.log('✅ Tournament created:', tournamentRef.id);
-    
-    closeCreateTournamentModal();
-    
-    alert('✅ Tournament created successfully!');
-    
-    // Reload admin panel tournaments section
-    const contentContainer = document.getElementById('admin-content-container');
-    if (contentContainer) {
-        await loadAdminTournaments(contentContainer);
+    if (!isAdmin) {
+        alert('❌ Admin access required');
+        return;
     }
-    
-    // Also reload tournament list if we're on tournaments page
-    const tournamentsSection = document.getElementById('tournaments-section');
-    if (tournamentsSection && tournamentsSection.classList.contains('active')) {
-        await loadTournamentList();
+
+    const name = document.getElementById('tournament-name').value.trim();
+    const description = document.getElementById('tournament-description').value.trim();
+    const level = document.getElementById('tournament-level').value;
+    const date = document.getElementById('tournament-date').value;
+    const time = document.getElementById('tournament-time').value;
+    const maxParticipants = parseInt(document.getElementById('tournament-max-participants').value);
+    const status = document.getElementById('tournament-status').value;
+
+    const errorDiv = document.getElementById('create-tournament-error');
+
+    try {
+        console.log('📝 Creating tournament:', name);
+        
+        // Create tournament in Firestore
+        const tournamentRef = await db.collection('tournaments').add({
+            name: name,
+            description: description,
+            level: level,
+            startDate: date,
+            startTime: time,
+            maxParticipants: maxParticipants,
+            status: status,
+            participants: 0,
+            registeredUsers: [],
+            createdBy: currentUser.uid,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        console.log('✅ Tournament created:', tournamentRef.id);
+        
+        closeCreateTournamentModal();
+        
+        alert('✅ Tournament created successfully!');
+        
+        // Reload admin panel tournaments section
+        const contentContainer = document.getElementById('admin-content-container');
+        if (contentContainer) {
+            await loadAdminTournaments(contentContainer);
+        }
+        
+        // Also reload tournament list if we're on tournaments page
+        const tournamentsSection = document.getElementById('tournaments-section');
+        if (tournamentsSection && tournamentsSection.classList.contains('active')) {
+            await loadTournamentList();
+        }
+        
+    } catch (error) {
+        console.error('❌ Error creating tournament:', error);
+        errorDiv.textContent = 'Failed to create tournament: ' + error.message;
+        errorDiv.style.display = 'block';
     }
-    
-} catch (error) {
-    console.error('❌ Error creating tournament:', error);
-    errorDiv.textContent = 'Failed to create tournament: ' + error.message;
-    errorDiv.style.display = 'block';
-}
 }
     </script>
 </body>
 </html>
+
