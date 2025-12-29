@@ -20890,7 +20890,7 @@ async function startLiveSession() {
         }
         
         // Add/update coach as participant
-        await db.collection('classes')
+       await db.collection('classes')
             .doc(myClass.id)
             .collection('sessionParticipants')
             .doc(currentUser.uid)
@@ -20900,12 +20900,22 @@ async function startLiveSession() {
                 email: currentUser.email,
                 photoURL: currentUser.photoURL || null,
                 joinedAt: firebase.firestore.FieldValue.serverTimestamp(),
-                micMuted: true, // ✅ Start muted
-                coachMuted: false
+                micMuted: true,
+                coachMuted: false,
+                isCoach: true // ✅ Add coach flag
             });
         
         liveSessionActive = true;
         isCoach = true;
+        
+        // ✅ Store coach flag in participant data
+        await db.collection('classes')
+            .doc(myClass.id)
+            .collection('sessionParticipants')
+            .doc(currentUser.uid)
+            .update({
+                isCoach: true
+            });
         
         // Show live session UI for COACH
         const startBtn = document.getElementById('start-session-btn');
@@ -21071,8 +21081,9 @@ async function joinLiveSession() {
                 email: userData.email,
                 photoURL: userData.photoURL || null,
                 joinedAt: firebase.firestore.FieldValue.serverTimestamp(),
-                micMuted: true, // ✅ Start muted
-                coachMuted: false
+                micMuted: true,
+                coachMuted: false,
+                isCoach: false // ✅ Add student flag
             });
         
         console.log('✅ Added to session participants');
@@ -21161,32 +21172,32 @@ function listenForSessionParticipants() {
                     console.log('➕ Participant added:', participant.name, participant.userId);
                     
                     if (participant.userId !== currentUser.uid) {
+                        // ✅ COACH OR STUDENT - BOTH CREATE CONNECTIONS TO OTHER USERS
                         if (isCoach) {
                             console.log('👑 Coach creating connection to:', participant.name);
-                            
-                            // ✅ Close any existing connection first
-                            if (peerConnections.has(participant.userId)) {
-                                console.log('🗑️ Closing old connection before creating new one');
-                                const oldPc = peerConnections.get(participant.userId);
-                                oldPc.close();
-                                peerConnections.delete(participant.userId);
-                            }
-                            
-                            // ✅ Clear any pending candidates
-                            if (pendingIceCandidates.has(participant.userId)) {
-                                pendingIceCandidates.delete(participant.userId);
-                            }
-                            
-                            // ✅ CRITICAL: Clean up old signaling messages
-                            await cleanupOldSignalingMessages(participant.userId);
-                            
-                            // ✅ Small delay to ensure cleanup completes
-                            await new Promise(resolve => setTimeout(resolve, 500));
-                            
-                            // Create new connection
                             createPeerConnection(participant.userId, participant, true);
                         } else {
-                            console.log('👨‍🎓 Student waiting for offer from coach');
+                            // ✅ STUDENTS CREATE CONNECTIONS TO OTHER STUDENTS TOO!
+                            console.log('👥 Student creating connection to:', participant.name);
+                            
+                            // Check if this is the coach or another student
+                            const isParticipantCoach = await checkIfUserIsCoach(participant.userId);
+                            
+                            if (isParticipantCoach) {
+                                console.log('   → Connecting to COACH, waiting for offer');
+                                // Wait for coach to initiate
+                            } else {
+                                console.log('   → Connecting to STUDENT, initiating connection');
+                                // Student-to-student: Use userId comparison to decide who initiates
+                                // Lower userId initiates to avoid duplicate connections
+                                if (currentUser.uid < participant.userId) {
+                                    console.log('   → I initiate (my UID is lower)');
+                                    createPeerConnection(participant.userId, participant, true);
+                                } else {
+                                    console.log('   → They initiate (their UID is lower)');
+                                    // Wait for their offer
+                                }
+                            }
                         }
                     }
                     
@@ -21218,6 +21229,16 @@ function listenForSessionParticipants() {
                                     audioTrack.enabled = false;
                                     isMicMuted = true;
                                     
+                                    // Update all peer connections
+                                    peerConnections.forEach((pc) => {
+                                        const senders = pc.getSenders();
+                                        senders.forEach(sender => {
+                                            if (sender.track && sender.track.kind === 'audio') {
+                                                sender.track.enabled = false;
+                                            }
+                                        });
+                                    });
+                                    
                                     const btn = document.getElementById('student-toggle-mic-btn');
                                     if (btn) {
                                         btn.textContent = '🔇 Unmute';
@@ -21239,6 +21260,22 @@ function listenForSessionParticipants() {
     
     // Listen for WebRTC signaling
     listenForSignaling();
+}
+
+
+// ===== CHECK IF USER IS COACH =====
+async function checkIfUserIsCoach(userId) {
+    try {
+        const classId = myClass ? myClass.id : liveSessionId;
+        const classDoc = await db.collection('classes').doc(classId).get();
+        const classData = classDoc.data();
+        
+        // Check if this user is the coach of the class
+        return classData && classData.coachId === userId;
+    } catch (error) {
+        console.error('Error checking if user is coach:', error);
+        return false;
+    }
 }
 
 
