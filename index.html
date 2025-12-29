@@ -21010,6 +21010,10 @@ async function joinLiveSession() {
 
         if (existingParticipant.exists) {
             console.log('🔄 Rejoining - cleaning up old participant entry');
+            
+            // ✅ Clean up old signaling messages FIRST
+            await cleanupOldSignalingMessages(currentUser.uid);
+            
             // Delete old entry to force clean reconnection
             await db.collection('classes')
                 .doc(userData.classId)
@@ -21132,7 +21136,7 @@ function listenForSessionParticipants() {
         .doc(classId)
         .collection('sessionParticipants')
         .onSnapshot(snapshot => {
-            snapshot.docChanges().forEach(change => {
+            snapshot.docChanges().forEach(async change => {
                 if (change.type === 'added') {
                     const participant = change.doc.data();
                     
@@ -21141,9 +21145,8 @@ function listenForSessionParticipants() {
                     if (participant.userId !== currentUser.uid) {
                         if (isCoach) {
                             console.log('👑 Coach creating connection to:', participant.name);
-                            // ✅ Always create fresh connection for new/rejoining participants
                             
-                            // Close any existing connection first
+                            // ✅ Close any existing connection first
                             if (peerConnections.has(participant.userId)) {
                                 console.log('🗑️ Closing old connection before creating new one');
                                 const oldPc = peerConnections.get(participant.userId);
@@ -21151,10 +21154,16 @@ function listenForSessionParticipants() {
                                 peerConnections.delete(participant.userId);
                             }
                             
-                            // Clear any pending candidates
+                            // ✅ Clear any pending candidates
                             if (pendingIceCandidates.has(participant.userId)) {
                                 pendingIceCandidates.delete(participant.userId);
                             }
+                            
+                            // ✅ CRITICAL: Clean up old signaling messages
+                            await cleanupOldSignalingMessages(participant.userId);
+                            
+                            // ✅ Small delay to ensure cleanup completes
+                            await new Promise(resolve => setTimeout(resolve, 500));
                             
                             // Create new connection
                             createPeerConnection(participant.userId, participant, true);
@@ -21184,7 +21193,6 @@ function listenForSessionParticipants() {
                         coachMutedMe = participant.coachMuted || false;
                         
                         if (coachMutedMe && !wasCoachMuted) {
-                            // Coach just muted me
                             console.log('🔇 Coach muted you');
                             if (localAudioStream) {
                                 const audioTrack = localAudioStream.getAudioTracks()[0];
@@ -21201,7 +21209,6 @@ function listenForSessionParticipants() {
                             }
                             alert('🔇 Your coach has muted you');
                         } else if (!coachMutedMe && wasCoachMuted) {
-                            // Coach unmuted me
                             console.log('🔊 Coach unmuted you');
                             alert('🔊 Your coach has unmuted you. You can now speak.');
                         }
@@ -21216,6 +21223,7 @@ function listenForSessionParticipants() {
     listenForSignaling();
 }
 
+        
 // ===== CREATE PEER CONNECTION =====
 async function createPeerConnection(userId, participant, isInitiator = true) {
     try {
@@ -21611,6 +21619,42 @@ async function getParticipantData(userId) {
     }
     return { userId, name: 'Unknown', email: '' };
 }
+
+
+ // ===== CLEANUP OLD SIGNALING MESSAGES =====
+async function cleanupOldSignalingMessages(userId) {
+    const classId = myClass ? myClass.id : liveSessionId;
+    
+    console.log('🗑️ Cleaning up old signaling messages for:', userId);
+    
+    try {
+        // Delete all old offers, answers, and ICE candidates for this user
+        const [offersSnap, answersSnap, candidatesSnap] = await Promise.all([
+            db.collection('classes').doc(classId).collection('offers')
+                .where('from', '==', userId).get(),
+            db.collection('classes').doc(classId).collection('offers')
+                .where('to', '==', userId).get(),
+            db.collection('classes').doc(classId).collection('answers')
+                .where('from', '==', userId).get(),
+            db.collection('classes').doc(classId).collection('answers')
+                .where('to', '==', userId).get(),
+            db.collection('classes').doc(classId).collection('iceCandidates')
+                .where('from', '==', userId).get(),
+            db.collection('classes').doc(classId).collection('iceCandidates')
+                .where('to', '==', userId).get()
+        ]);
+        
+        const batch = db.batch();
+        offersSnap.forEach(doc => batch.delete(doc.ref));
+        answersSnap.forEach(doc => batch.delete(doc.ref));
+        candidatesSnap.forEach(doc => batch.delete(doc.ref));
+        
+        await batch.commit();
+        console.log('✅ Old signaling messages cleaned up');
+    } catch (error) {
+        console.error('Error cleaning up signaling:', error);
+    }
+}       
         
 // ===== WEBRTC SIGNALING =====
 function listenForSignaling() {
