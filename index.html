@@ -21516,19 +21516,19 @@ async function handleAnswer(fromUserId, answer) {
         const peerConnection = peerConnections.get(fromUserId);
         
         if (!peerConnection) {
-            console.error('❌ No peer connection found for:', fromUserId);
+            console.warn('⚠️ No peer connection found for:', fromUserId, '- ignoring answer');
             return;
         }
         
         const currentState = peerConnection.signalingState;
         console.log('   Current signaling state:', currentState);
         
-        // âœ… Only process answer if we're waiting for one
+        // ✅ Only process answer if we're waiting for one
         if (currentState === 'have-local-offer') {
             await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
             console.log('✅ Answer processed from:', fromUserId);
             
-            // âœ… Process any queued ICE candidates now that remote description is set
+            // ✅ Process any queued ICE candidates now that remote description is set
             if (pendingIceCandidates.has(fromUserId)) {
                 const queued = pendingIceCandidates.get(fromUserId);
                 console.log(`📋 Processing ${queued.length} queued ICE candidates after answer`);
@@ -21545,16 +21545,18 @@ async function handleAnswer(fromUserId, answer) {
                 pendingIceCandidates.delete(fromUserId);
             }
         } else if (currentState === 'stable') {
-            console.log('✅ Already connected, ignoring answer');
+            console.log('⚠️ Already in stable state - ignoring duplicate/stale answer');
+        } else if (currentState === 'have-remote-offer') {
+            console.warn('⚠️ Wrong role - we should be answering, not receiving answer. Ignoring.');
         } else {
-            console.warn('⚠️ Unexpected state:', currentState);
+            console.warn('⚠️ Unexpected signaling state:', currentState, '- ignoring answer');
         }
         
     } catch (error) {
-        console.error('❌ Error handling answer:', error);
+        // ✅ Catch and log without crashing
+        console.error('❌ Error handling answer (non-fatal):', error.message);
     }
 }
-
         
 async function getParticipantData(userId) {
     const classId = myClass ? myClass.id : liveSessionId;
@@ -21576,6 +21578,33 @@ function listenForSignaling() {
     
     console.log('👂 Setting up signaling listeners for class:', classId);
     
+    // ✅ Clean up old signaling messages first (older than 30 seconds)
+    const cleanupOldMessages = async () => {
+        const thirtySecondsAgo = new Date(Date.now() - 30000);
+        try {
+            const [oldOffers, oldAnswers, oldCandidates] = await Promise.all([
+                db.collection('classes').doc(classId).collection('offers')
+                    .where('createdAt', '<', thirtySecondsAgo).get(),
+                db.collection('classes').doc(classId).collection('answers')
+                    .where('createdAt', '<', thirtySecondsAgo).get(),
+                db.collection('classes').doc(classId).collection('iceCandidates')
+                    .where('createdAt', '<', thirtySecondsAgo).get()
+            ]);
+            
+            const batch = db.batch();
+            oldOffers.forEach(doc => batch.delete(doc.ref));
+            oldAnswers.forEach(doc => batch.delete(doc.ref));
+            oldCandidates.forEach(doc => batch.delete(doc.ref));
+            
+            await batch.commit();
+            console.log('🗑️ Cleaned up old signaling messages');
+        } catch (error) {
+            console.error('Error cleaning up old messages:', error);
+        }
+    };
+    
+    cleanupOldMessages();
+    
     // Listen for offers
     db.collection('classes')
         .doc(classId)
@@ -21586,10 +21615,16 @@ function listenForSignaling() {
                 if (change.type === 'added') {
                     const data = change.doc.data();
                     console.log('📨 Received offer from:', data.from);
+                    
+                    // ✅ Process offer
                     await handleOffer(data.from, data.offer);
                     
                     // Delete processed offer
-                    change.doc.ref.delete().catch(e => console.error('Error deleting offer:', e));
+                    try {
+                        await change.doc.ref.delete();
+                    } catch (e) {
+                        console.error('Error deleting offer:', e);
+                    }
                 }
             });
         });
@@ -21604,10 +21639,16 @@ function listenForSignaling() {
                 if (change.type === 'added') {
                     const data = change.doc.data();
                     console.log('📨 Received answer from:', data.from);
+                    
+                    // ✅ Process answer (with error handling)
                     await handleAnswer(data.from, data.answer);
                     
                     // Delete processed answer
-                    change.doc.ref.delete().catch(e => console.error('Error deleting answer:', e));
+                    try {
+                        await change.doc.ref.delete();
+                    } catch (e) {
+                        console.error('Error deleting answer:', e);
+                    }
                 }
             });
         });
@@ -21622,10 +21663,15 @@ function listenForSignaling() {
                 if (change.type === 'added') {
                     const data = change.doc.data();
                     console.log('📨 Received ICE candidate from:', data.from);
+                    
                     await handleIceCandidate(data.from, data.candidate);
                     
                     // Delete processed candidate
-                    change.doc.ref.delete().catch(e => console.error('Error deleting candidate:', e));
+                    try {
+                        await change.doc.ref.delete();
+                    } catch (e) {
+                        console.error('Error deleting candidate:', e);
+                    }
                 }
             });
         });
