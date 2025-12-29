@@ -22233,14 +22233,13 @@ async function toggleMicrophone() {
                 .doc(currentUser.uid)
                 .update({ 
                     micMuted: isMicMuted,
-                    coachMuted: false // ✅ Clear coach mute flag when student unmutes themselves
+                    coachMuted: false
                 });
         } catch (error) {
             console.error('Error updating mic status in Firestore:', error);
         }
     }
 }
-
 
   // ===== MUTE PARTICIPANT (COACH ONLY) =====
 async function muteParticipant(userId, participantName) {
