@@ -21244,7 +21244,7 @@ async function createPeerConnection(userId, participant, isInitiator = true) {
     try {
         console.log('🔗 Creating peer connection with:', participant.name, 'isInitiator:', isInitiator);
         
-        // âœ… CRITICAL: Ensure we have a local audio stream
+        // ✅ CRITICAL: Ensure we have a local audio stream
         if (!localAudioStream || localAudioStream.getTracks().length === 0) {
             console.error('❌ No local audio stream available! Re-requesting...');
             try {
@@ -21255,6 +21255,10 @@ async function createPeerConnection(userId, participant, isInitiator = true) {
                         autoGainControl: true
                     } 
                 });
+                // Apply muted state to new stream
+                localAudioStream.getAudioTracks().forEach(track => {
+                    track.enabled = !isMicMuted;
+                });
                 console.log('✅ Re-acquired microphone access');
             } catch (error) {
                 console.error('❌ Failed to re-acquire microphone:', error);
@@ -21262,21 +21266,31 @@ async function createPeerConnection(userId, participant, isInitiator = true) {
             }
         }
         
-        // âœ… Close existing connection if it exists
+        // ✅ Close existing connection if it exists
         if (peerConnections.has(userId)) {
             console.log('⚠️ Closing existing connection before creating new one');
             const oldPc = peerConnections.get(userId);
             oldPc.close();
             peerConnections.delete(userId);
+            
+            // ✅ Remove old audio element
+            const oldAudio = document.getElementById(`audio_${userId}`);
+            if (oldAudio) {
+                oldAudio.pause();
+                oldAudio.srcObject = null;
+                oldAudio.remove();
+            }
         }
         
         const peerConnection = new RTCPeerConnection(iceServers);
         
-        // âœ… CRITICAL: Add local audio tracks FIRST
+        // ✅ CRITICAL: Add local audio tracks FIRST with explicit sender storage
         console.log('📤 Adding local audio tracks to peer connection');
+        const senders = [];
         localAudioStream.getTracks().forEach(track => {
             console.log('   Track:', track.kind, 'enabled:', track.enabled, 'readyState:', track.readyState);
-            peerConnection.addTrack(track, localAudioStream);
+            const sender = peerConnection.addTrack(track, localAudioStream);
+            senders.push(sender);
         });
         
         peerConnection.ontrack = (event) => {
@@ -21284,6 +21298,7 @@ async function createPeerConnection(userId, participant, isInitiator = true) {
             console.log('   Track kind:', event.track.kind);
             console.log('   Track enabled:', event.track.enabled);
             console.log('   Track readyState:', event.track.readyState);
+            console.log('   Track muted:', event.track.muted);
             
             if (event.streams.length === 0) {
                 console.error('❌ No streams in track event!');
@@ -21304,36 +21319,59 @@ async function createPeerConnection(userId, participant, isInitiator = true) {
                 oldAudio.remove();
             }
             
-            const audioElement = document.createElement('audio');
-            audioElement.id = `audio_${userId}`;
-            audioElement.autoplay = true;
-            audioElement.playsInline = true;
-            audioElement.volume = 1.0;
-            audioElement.srcObject = remoteStream;
-            
-            let container = document.getElementById('remote-audio-container');
-            if (!container) {
-                console.warn('⚠️ remote-audio-container not found, creating it');
-                container = document.createElement('div');
-                container.id = 'remote-audio-container';
-                container.style.display = 'none';
-                document.body.appendChild(container);
-            }
-            container.appendChild(audioElement);
-            
-            console.log('✅ Audio element created and added');
-            
-            audioElement.play()
-                .then(() => {
-                    console.log('✅ Audio playing successfully for:', participant.name);
-                })
-                .catch(err => {
-                    console.error('❌ Error playing audio:', err);
-                    alert(`Click OK to enable audio from ${participant.name}`);
-                    audioElement.play()
-                        .then(() => console.log('✅ Audio playing after user interaction'))
-                        .catch(e => console.error('❌ Still failed:', e));
-                });
+            // ✅ Wait a moment for track to fully initialize
+            setTimeout(() => {
+                const audioElement = document.createElement('audio');
+                audioElement.id = `audio_${userId}`;
+                audioElement.autoplay = true;
+                audioElement.playsInline = true;
+                audioElement.volume = 1.0;
+                audioElement.srcObject = remoteStream;
+                
+                // ✅ Add event listeners for debugging
+                audioElement.onloadedmetadata = () => {
+                    console.log('✅ Audio metadata loaded for:', participant.name);
+                };
+                
+                audioElement.onplay = () => {
+                    console.log('✅ Audio started playing for:', participant.name);
+                };
+                
+                audioElement.onerror = (e) => {
+                    console.error('❌ Audio element error:', e);
+                };
+                
+                let container = document.getElementById('remote-audio-container');
+                if (!container) {
+                    console.warn('⚠️ remote-audio-container not found, creating it');
+                    container = document.createElement('div');
+                    container.id = 'remote-audio-container';
+                    container.style.display = 'none';
+                    document.body.appendChild(container);
+                }
+                container.appendChild(audioElement);
+                
+                console.log('✅ Audio element created and added');
+                
+                // ✅ Force play with better error handling
+                const playPromise = audioElement.play();
+                if (playPromise !== undefined) {
+                    playPromise
+                        .then(() => {
+                            console.log('✅ Audio playing successfully for:', participant.name);
+                        })
+                        .catch(err => {
+                            console.error('❌ Error playing audio:', err);
+                            // Try user interaction fallback
+                            if (err.name === 'NotAllowedError') {
+                                alert(`Click OK to enable audio from ${participant.name}`);
+                                audioElement.play()
+                                    .then(() => console.log('✅ Audio playing after user interaction'))
+                                    .catch(e => console.error('❌ Still failed:', e));
+                            }
+                        });
+                }
+            }, 100); // Small delay to ensure track is ready
         };
         
         peerConnection.onicecandidate = (event) => {
@@ -21350,7 +21388,6 @@ async function createPeerConnection(userId, participant, isInitiator = true) {
                 console.log('✅ Peer connection established with:', participant.name);
             } else if (peerConnection.connectionState === 'failed') {
                 console.error('❌ Connection failed with:', participant.name);
-                // âœ… Don't restart ICE automatically - let them rejoin
                 console.log('⚠️ Connection failed - participant should rejoin');
             } else if (peerConnection.connectionState === 'disconnected') {
                 console.warn('⚠️ Connection disconnected with:', participant.name);
@@ -21381,6 +21418,8 @@ async function createPeerConnection(userId, participant, isInitiator = true) {
         throw error;
     }
 }
+
+        
 // ===== HANDLE OFFER =====
 async function handleOffer(fromUserId, offer) {
     try {
@@ -21397,6 +21436,10 @@ async function handleOffer(fromUserId, offer) {
                         autoGainControl: true
                     } 
                 });
+                // Apply muted state
+                localAudioStream.getAudioTracks().forEach(track => {
+                    track.enabled = !isMicMuted;
+                });
                 console.log('✅ Re-acquired microphone for handling offer');
             } catch (error) {
                 console.error('❌ Failed to re-acquire microphone:', error);
@@ -21410,6 +21453,14 @@ async function handleOffer(fromUserId, offer) {
             console.log('⚠️ Closing existing connection before handling offer');
             peerConnection.close();
             peerConnections.delete(fromUserId);
+            
+            // ✅ Remove old audio element
+            const oldAudio = document.getElementById(`audio_${fromUserId}`);
+            if (oldAudio) {
+                oldAudio.pause();
+                oldAudio.srcObject = null;
+                oldAudio.remove();
+            }
         }
         
         // ✅ Clear any queued candidates for this user
@@ -21448,6 +21499,9 @@ async function handleOffer(fromUserId, offer) {
         peerConnection.ontrack = (event) => {
             console.log('📥 Received track from:', participant.name);
             console.log('   Track kind:', event.track.kind);
+            console.log('   Track enabled:', event.track.enabled);
+            console.log('   Track readyState:', event.track.readyState);
+            console.log('   Track muted:', event.track.muted);
             console.log('   Streams:', event.streams.length);
             
             if (event.streams.length === 0) {
@@ -21456,6 +21510,7 @@ async function handleOffer(fromUserId, offer) {
             }
             
             const remoteStream = event.streams[0];
+            console.log('   Stream audio tracks:', remoteStream.getAudioTracks().length);
             remoteStreams.set(fromUserId, remoteStream);
             
             let audioElement = document.getElementById(`audio_${fromUserId}`);
@@ -21466,30 +21521,51 @@ async function handleOffer(fromUserId, offer) {
                 audioElement.remove();
             }
             
-            audioElement = document.createElement('audio');
-            audioElement.id = `audio_${fromUserId}`;
-            audioElement.autoplay = true;
-            audioElement.playsInline = true;
-            audioElement.volume = 1.0;
-            audioElement.srcObject = remoteStream;
-            
-            let container = document.getElementById('remote-audio-container');
-            if (!container) {
-                console.warn('⚠️ Container not found, creating it');
-                container = document.createElement('div');
-                container.id = 'remote-audio-container';
-                container.style.display = 'none';
-                document.body.appendChild(container);
-            }
-            container.appendChild(audioElement);
-            
-            audioElement.play()
-                .then(() => console.log('✅ Audio playing from:', participant.name))
-                .catch(err => {
-                    console.error('❌ Playback error:', err);
-                    alert(`Click OK to enable audio from ${participant.name}`);
-                    audioElement.play();
-                });
+            // ✅ Wait a moment for track to fully initialize
+            setTimeout(() => {
+                audioElement = document.createElement('audio');
+                audioElement.id = `audio_${fromUserId}`;
+                audioElement.autoplay = true;
+                audioElement.playsInline = true;
+                audioElement.volume = 1.0;
+                audioElement.srcObject = remoteStream;
+                
+                // ✅ Add event listeners
+                audioElement.onloadedmetadata = () => {
+                    console.log('✅ Audio metadata loaded for:', participant.name);
+                };
+                
+                audioElement.onplay = () => {
+                    console.log('✅ Audio started playing for:', participant.name);
+                };
+                
+                audioElement.onerror = (e) => {
+                    console.error('❌ Audio element error:', e);
+                };
+                
+                let container = document.getElementById('remote-audio-container');
+                if (!container) {
+                    console.warn('⚠️ Container not found, creating it');
+                    container = document.createElement('div');
+                    container.id = 'remote-audio-container';
+                    container.style.display = 'none';
+                    document.body.appendChild(container);
+                }
+                container.appendChild(audioElement);
+                
+                const playPromise = audioElement.play();
+                if (playPromise !== undefined) {
+                    playPromise
+                        .then(() => console.log('✅ Audio playing from:', participant.name))
+                        .catch(err => {
+                            console.error('❌ Playback error:', err);
+                            if (err.name === 'NotAllowedError') {
+                                alert(`Click OK to enable audio from ${participant.name}`);
+                                audioElement.play();
+                            }
+                        });
+                }
+            }, 100);
         };
         
         peerConnection.onicecandidate = (event) => {
@@ -21506,26 +21582,6 @@ async function handleOffer(fromUserId, offer) {
                 console.log('✅ Peer connection established with:', participant.name);
             } else if (peerConnection.connectionState === 'failed' || peerConnection.connectionState === 'disconnected') {
                 console.warn(`⚠️ Connection ${peerConnection.connectionState} with ${participant.name}`);
-                
-                // ✅ Only auto-reconnect if still in session
-                setTimeout(() => {
-                    const stillExists = sessionParticipants.has(fromUserId);
-                    const currentPc = peerConnections.get(fromUserId);
-                    
-                    // Only reconnect if: participant still exists, this is still the current connection, and we're the coach
-                    if (stillExists && currentPc === peerConnection && isCoach) {
-                        console.log('🔄 Coach attempting to reconnect with:', participant.name);
-                        
-                        // Close old connection
-                        peerConnection.close();
-                        peerConnections.delete(fromUserId);
-                        
-                        // Create new connection with fresh offer
-                        createPeerConnection(fromUserId, participant, true);
-                    } else if (stillExists && !isCoach) {
-                        console.log('👨‍🎓 Student waiting for new offer from coach after disconnect');
-                    }
-                }, 2000);
             }
         };
         
