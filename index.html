@@ -21284,22 +21284,21 @@ async function createPeerConnection(userId, participant, isInitiator = true) {
         
         const peerConnection = new RTCPeerConnection(iceServers);
         
-        // ✅ CRITICAL FIX: Always send audio track as enabled to peer connection
-        // The mute button should only affect LOCAL audio, not what others hear
-        console.log('📤 Adding local audio tracks to peer connection (ALWAYS ENABLED for transmission)');
+        // ✅ CRITICAL FIX: Store current mute state, enable tracks for connection, then restore
+        const originalMuteState = isMicMuted;
         
+        console.log('📤 Adding local audio tracks to peer connection');
+        console.log('   Original mute state:', originalMuteState);
+        
+        // ✅ FORCE ENABLE tracks temporarily for WebRTC negotiation
         localAudioStream.getTracks().forEach(track => {
-            console.log('   Track:', track.kind, 'current enabled:', track.enabled, 'readyState:', track.readyState);
-            
-            // ✅ Add track to peer connection
-            const sender = peerConnection.addTrack(track, localAudioStream);
-            
-            // ✅ Store sender so we can control it later
-            if (!peerConnection.audioSenders) {
-                peerConnection.audioSenders = [];
-            }
-            peerConnection.audioSenders.push(sender);
-            
+            track.enabled = true; // Force enable
+            console.log('   Track:', track.kind, 'FORCED enabled for connection setup');
+        });
+        
+        // Add tracks to peer connection
+        localAudioStream.getTracks().forEach(track => {
+            peerConnection.addTrack(track, localAudioStream);
             console.log('   ✅ Track added to peer connection');
         });
         
@@ -21396,6 +21395,16 @@ async function createPeerConnection(userId, participant, isInitiator = true) {
             
             if (peerConnection.connectionState === 'connected') {
                 console.log('✅ Peer connection established with:', participant.name);
+                
+                // ✅ RESTORE original mute state AFTER connection is established
+                setTimeout(() => {
+                    if (originalMuteState) {
+                        console.log('🔇 Restoring muted state after connection established');
+                        localAudioStream.getTracks().forEach(track => {
+                            track.enabled = false;
+                        });
+                    }
+                }, 500);
             } else if (peerConnection.connectionState === 'failed') {
                 console.error('❌ Connection failed with:', participant.name);
                 console.log('⚠️ Connection failed - participant should rejoin');
@@ -21497,11 +21506,21 @@ async function handleOffer(fromUserId, offer) {
         // Create new peer connection
         peerConnection = new RTCPeerConnection(iceServers);
         
-        // ✅ CRITICAL: Add local audio tracks FIRST before setting descriptions
+        // ✅ CRITICAL FIX: Store mute state and enable tracks
+        const originalMuteState = isMicMuted;
+        
         console.log('📤 Adding local audio tracks (answering)');
+        console.log('   Original mute state:', originalMuteState);
+        
+        // ✅ FORCE ENABLE tracks for connection setup
         localAudioStream.getTracks().forEach(track => {
-            console.log('   Track:', track.kind, 'enabled:', track.enabled, 'readyState:', track.readyState);
+            track.enabled = true; // Force enable
+            console.log('   Track:', track.kind, 'FORCED enabled for answer');
+        });
+        
+        localAudioStream.getTracks().forEach(track => {
             peerConnection.addTrack(track, localAudioStream);
+            console.log('   ✅ Track added');
         });
         
         // Handle remote audio
@@ -21589,6 +21608,16 @@ async function handleOffer(fromUserId, offer) {
             
             if (peerConnection.connectionState === 'connected') {
                 console.log('✅ Peer connection established with:', participant.name);
+                
+                // ✅ RESTORE mute state after connection
+                setTimeout(() => {
+                    if (originalMuteState) {
+                        console.log('🔇 Restoring muted state after connection established');
+                        localAudioStream.getTracks().forEach(track => {
+                            track.enabled = false;
+                        });
+                    }
+                }, 500);
             } else if (peerConnection.connectionState === 'failed' || peerConnection.connectionState === 'disconnected') {
                 console.warn(`⚠️ Connection ${peerConnection.connectionState} with ${participant.name}`);
             }
