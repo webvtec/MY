@@ -4987,7 +4987,11 @@ let remoteStreams = new Map(); // userId -> MediaStream
 let isMicMuted = false;
 let sessionParticipants = new Map(); // userId -> {name, email, photoURL}
 let isCoach = false; // Track if current user is coach
-let coachMutedMe = false; // ✅ NEW: Track if coach has muted this student
+let coachMutedMe = false; // Track if coach has muted this student
+let isCleaningUp = false; // Prevent duplicate operations during cleanup
+let activeSpeakers = new Set(); // Track currently unmuted users
+const MAX_ACTIVE_SPEAKERS = 5; // Maximum simultaneous speakers allowed
+let connectionHealthChecks = new Map(); // userId -> intervalId for health monitoring
 
         
 // ===== ICE CANDIDATE QUEUE =====
