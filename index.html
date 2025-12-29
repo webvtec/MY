@@ -22709,6 +22709,7 @@ async function switchUserSubSection(subSection) {
     }
 }
 
+
 // ===== STUDENTS LIST =====
 
 async function loadAdminStudentsList(container) {
@@ -22716,7 +22717,7 @@ async function loadAdminStudentsList(container) {
     
     try {
         const studentsSnapshot = await db.collection('users')
-            .where('userType', '==', 'student')  // ✅ CHANGED FROM 'role' TO 'userType'
+            .where('userType', '==', 'student')
             .orderBy('createdAt', 'desc')
             .get();
         
@@ -22750,7 +22751,7 @@ async function loadAdminStudentsList(container) {
                     </thead>
                     <tbody>
                         ${students.map(student => `
-                            <tr>
+                            <tr onclick="viewStudentDetailsAdmin('${student.id}')" style="cursor: pointer;">
                                 <td>
                                     <div style="font-weight: bold; color: #0d3b66;">${student.name || student.firstName || 'N/A'} ${student.lastName || ''}</div>
                                     <div style="font-size: 0.85rem; color: #666;">ID: ${student.id.substring(0, 8)}...</div>
@@ -22763,11 +22764,8 @@ async function loadAdminStudentsList(container) {
                                         '<span style="background: #51cf66; color: white; padding: 5px 10px; border-radius: 15px; font-size: 0.85rem;">✅ Active</span>'
                                     }
                                 </td>
-                                <td>
+                                <td onclick="event.stopPropagation();">
                                     <div style="display: flex; gap: 5px; justify-content: center;">
-                                        <button class="practice-btn" onclick="viewStudentDetailsAdmin('${student.id}')" style="padding: 8px 15px; font-size: 0.85rem; background: #17a2b8;">
-                                            👁️ View
-                                        </button>
                                         ${student.subscriptionLocked ? 
                                             `<button class="practice-btn" onclick="unlockStudentAccount('${student.id}')" style="padding: 8px 15px; font-size: 0.85rem; background: #51cf66;">
                                                 🔓 Unlock
@@ -22805,7 +22803,7 @@ async function loadAdminCoachesList(container) {
     
     try {
         const coachesSnapshot = await db.collection('users')
-            .where('userType', '==', 'coach')  // ✅ CHANGED FROM 'role' TO 'userType'
+            .where('userType', '==', 'coach')
             .orderBy('createdAt', 'desc')
             .get();
         
@@ -22840,7 +22838,7 @@ async function loadAdminCoachesList(container) {
                     </thead>
                     <tbody>
                         ${coaches.map(coach => `
-                            <tr>
+                            <tr onclick="viewCoachDetailsAdmin('${coach.id}')" style="cursor: pointer;">
                                 <td>
                                     <div style="font-weight: bold; color: #0d3b66;">${coach.name || coach.firstName || 'N/A'} ${coach.lastName || ''}</div>
                                     <div style="font-size: 0.85rem; color: #666;">ID: ${coach.id.substring(0, 8)}...</div>
@@ -22858,11 +22856,8 @@ async function loadAdminCoachesList(container) {
                                         '<span style="background: #51cf66; color: white; padding: 5px 10px; border-radius: 15px; font-size: 0.85rem;">✅ Active</span>'
                                     }
                                 </td>
-                                <td>
+                                <td onclick="event.stopPropagation();">
                                     <div style="display: flex; gap: 5px; justify-content: center;">
-                                        <button class="practice-btn" onclick="viewCoachDetailsAdmin('${coach.id}')" style="padding: 8px 15px; font-size: 0.85rem; background: #17a2b8;">
-                                            👁️ View
-                                        </button>
                                         ${coach.subscriptionLocked ? 
                                             `<button class="practice-btn" onclick="unlockCoachAccount('${coach.id}')" style="padding: 8px 15px; font-size: 0.85rem; background: #51cf66;">
                                                 🔓 Unlock
@@ -22918,6 +22913,21 @@ async function viewStudentDetailsAdmin(studentId) {
             progressData.push(doc.data());
         });
         
+        // Format subscription info
+        const subscriptionExpiry = student.subscriptionExpiry?.toDate();
+        const subscriptionType = student.subscriptionType || 'trial';
+        const now = new Date();
+        let subscriptionStatus = '';
+        
+        if (!subscriptionExpiry) {
+            subscriptionStatus = '🔒 No Subscription';
+        } else if (now > subscriptionExpiry) {
+            subscriptionStatus = `🔒 Expired on ${subscriptionExpiry.toLocaleDateString()}`;
+        } else {
+            const daysLeft = Math.ceil((subscriptionExpiry - now) / (1000 * 60 * 60 * 24));
+            subscriptionStatus = `${subscriptionType === 'trial' ? '🎁 Trial' : '✅ Active'} - Expires ${subscriptionExpiry.toLocaleDateString()} (${daysLeft} days left)`;
+        }
+        
         const modal = document.createElement('div');
         modal.className = 'auth-modal active';
         modal.style.display = 'block';
@@ -22932,11 +22942,14 @@ async function viewStudentDetailsAdmin(studentId) {
                     <div style="margin-bottom: 25px;">
                         <h3 style="color: #0d3b66; margin-bottom: 15px;">📋 Basic Information</h3>
                         <div style="background: #f8f9fa; padding: 15px; border-radius: 10px;">
-                            <p><strong>Name:</strong> ${student.firstName || 'N/A'} ${student.lastName || ''}</p>
+                            <p><strong>Name:</strong> ${student.name || student.firstName || 'N/A'} ${student.lastName || ''}</p>
                             <p><strong>Email:</strong> ${student.email || 'N/A'}</p>
                             <p><strong>User ID:</strong> ${studentId}</p>
+                            <p><strong>Student ID:</strong> ${student.studentId || `WB-2025-${studentId.slice(-4).toUpperCase()}`}</p>
                             <p><strong>Account Created:</strong> ${student.createdAt ? new Date(student.createdAt.toDate()).toLocaleDateString() : 'N/A'}</p>
-                            <p><strong>Subscription Status:</strong> ${student.subscriptionLocked ? '🔒 Locked' : '✅ Active'}</p>
+                            <p><strong>Account Status:</strong> ${student.subscriptionLocked ? '🔒 Locked' : '✅ Active'}</p>
+                            <p><strong>Subscription:</strong> ${subscriptionStatus}</p>
+                            <p><strong>Coins:</strong> 🪙 ${student.coins || 0}</p>
                             <p><strong>Coach ID:</strong> ${student.coachId || 'No coach assigned'}</p>
                         </div>
                     </div>
@@ -22975,7 +22988,7 @@ async function viewStudentDetailsAdmin(studentId) {
 }
 
 async function unlockStudentAccount(studentId) {
-    if (!confirm('Are you sure you want to unlock this student account?')) {
+    if (!confirm('Are you sure you want to unlock this student account? This will remove the subscription lock.')) {
         return;
     }
     
@@ -22986,7 +22999,7 @@ async function unlockStudentAccount(studentId) {
             unlockedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
         
-        alert('✅ Student account unlocked successfully!');
+        alert('✅ Student account unlocked successfully! The subscription modal has been removed.');
         
         // Reload the students list
         const listContainer = document.getElementById('admin-user-list-container');
@@ -23001,7 +23014,7 @@ async function unlockStudentAccount(studentId) {
 }
 
 async function lockStudentAccount(studentId) {
-    if (!confirm('Are you sure you want to lock this student account? They will not be able to access practice features.')) {
+    if (!confirm('Are you sure you want to lock this student account? This will show the subscription modal and prevent access to practice features.')) {
         return;
     }
     
@@ -23012,7 +23025,7 @@ async function lockStudentAccount(studentId) {
             lockedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
         
-        alert('✅ Student account locked successfully!');
+        alert('✅ Student account locked successfully! They will see the subscription modal on next login.');
         
         // Reload the students list
         const listContainer = document.getElementById('admin-user-list-container');
@@ -23094,11 +23107,11 @@ async function viewCoachDetailsAdmin(coachId) {
                     <div style="margin-bottom: 25px;">
                         <h3 style="color: #0d3b66; margin-bottom: 15px;">📋 Basic Information</h3>
                         <div style="background: #f8f9fa; padding: 15px; border-radius: 10px;">
-                            <p><strong>Name:</strong> ${coach.firstName || 'N/A'} ${coach.lastName || ''}</p>
+                            <p><strong>Name:</strong> ${coach.name || coach.firstName || 'N/A'} ${coach.lastName || ''}</p>
                             <p><strong>Email:</strong> ${coach.email || 'N/A'}</p>
                             <p><strong>User ID:</strong> ${coachId}</p>
                             <p><strong>Account Created:</strong> ${coach.createdAt ? new Date(coach.createdAt.toDate()).toLocaleDateString() : 'N/A'}</p>
-                            <p><strong>Subscription Status:</strong> ${coach.subscriptionLocked ? '🔒 Locked' : '✅ Active'}</p>
+                            <p><strong>Account Status:</strong> ${coach.subscriptionLocked ? '🔒 Locked' : '✅ Active'}</p>
                             <p><strong>Total Students:</strong> ${students.length}</p>
                         </div>
                     </div>
@@ -23110,7 +23123,7 @@ async function viewCoachDetailsAdmin(coachId) {
                             `<div style="background: #f8f9fa; padding: 15px; border-radius: 10px; max-height: 200px; overflow-y: auto;">
                                 ${students.map(student => `
                                     <div style="margin-bottom: 10px; padding: 10px; background: white; border-radius: 5px;">
-                                        <strong>${student.firstName || 'N/A'} ${student.lastName || ''}</strong>
+                                        <strong>${student.name || student.firstName || 'N/A'} ${student.lastName || ''}</strong>
                                         <br>
                                         <small style="color: #666;">${student.email || 'No email'}</small>
                                     </div>
@@ -23133,7 +23146,6 @@ async function viewCoachDetailsAdmin(coachId) {
         alert('❌ Failed to load coach details: ' + error.message);
     }
 }
-
 
 async function unlockCoachAccount(coachId) {
     if (!confirm('Are you sure you want to unlock this coach account?')) {
