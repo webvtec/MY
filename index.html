@@ -21301,20 +21301,23 @@ async function createPeerConnection(userId, participant, isInitiator = true) {
         });
         
         // ✅ Restore original enabled state after connection is established
-        peerConnection.onconnectionstatechange = () => {
-            console.log(`Connection state with ${participant.name}:`, peerConnection.connectionState);
-            
-            if (peerConnection.connectionState === 'connected') {
-                console.log('✅ Peer connection established with:', participant.name);
-                
-                // Restore original track states after short delay
-                setTimeout(() => {
-                    tracksToRestore.forEach(({ track, wasEnabled }) => {
-                        track.enabled = wasEnabled;
-                        console.log('🔄 Restored track enabled state to:', wasEnabled);
-                    });
-                }, 500);
-            } else if (peerConnection.connectionState === 'failed') {
+       peerConnection.onconnectionstatechange = () => {
+    console.log(`Connection state with ${participant.name}:`, peerConnection.connectionState);
+    
+    if (peerConnection.connectionState === 'connected') {
+        console.log('✅ Peer connection established with:', participant.name);
+        
+        // ✅ FIX: Restore CURRENT mute state, not old state
+        setTimeout(() => {
+            if (localAudioStream) {
+                localAudioStream.getTracks().forEach(track => {
+                    // Use CURRENT isMicMuted state, not stored state
+                    track.enabled = !isMicMuted;
+                    console.log('🔄 Restored track to CURRENT state - enabled:', !isMicMuted, '(isMicMuted:', isMicMuted, ')');
+                });
+            }
+        }, 500);
+    } else if (peerConnection.connectionState === 'failed') {
                 console.error('❌ Connection failed with:', participant.name);
             } else if (peerConnection.connectionState === 'disconnected') {
                 console.warn('⚠️ Connection disconnected with:', participant.name);
@@ -21590,20 +21593,23 @@ async function handleOffer(fromUserId, offer) {
             }
         };
         
-        peerConnection.onconnectionstatechange = () => {
-            console.log(`Connection state with ${participant.name}:`, peerConnection.connectionState);
-            
-            if (peerConnection.connectionState === 'connected') {
-                console.log('✅ Peer connection established with:', participant.name);
-                
-                // Restore mute state after connection
-                setTimeout(() => {
-                    tracksToRestore.forEach(({ track, wasEnabled }) => {
-                        track.enabled = wasEnabled;
-                        console.log('🔄 Restored track enabled state to:', wasEnabled);
-                    });
-                }, 500);
-            } else if (peerConnection.connectionState === 'failed' || peerConnection.connectionState === 'disconnected') {
+       peerConnection.onconnectionstatechange = () => {
+    console.log(`Connection state with ${participant.name}:`, peerConnection.connectionState);
+    
+    if (peerConnection.connectionState === 'connected') {
+        console.log('✅ Peer connection established with:', participant.name);
+        
+        // ✅ FIX: Restore CURRENT mute state, not old state
+        setTimeout(() => {
+            if (localAudioStream) {
+                localAudioStream.getTracks().forEach(track => {
+                    // Use CURRENT isMicMuted state, not stored state
+                    track.enabled = !isMicMuted;
+                    console.log('🔄 Restored track to CURRENT state - enabled:', !isMicMuted, '(isMicMuted:', isMicMuted, ')');
+                });
+            }
+        }, 500);
+    } else if (peerConnection.connectionState === 'failed' || peerConnection.connectionState === 'disconnected') {
                 console.warn(`⚠️ Connection ${peerConnection.connectionState} with ${participant.name}`);
             }
         };
