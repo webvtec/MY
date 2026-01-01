@@ -4731,6 +4731,107 @@
     </div>
 </div>
 
+
+  <!-- Organization Profile Completion Modal -->
+<div id="orgProfileModal" class="auth-modal">
+    <div class="auth-content" style="max-width: 600px;">
+        <div class="auth-header" style="background: linear-gradient(135deg, #667eea, #764ba2);">
+            <h2 style="color: white;">🏢 Complete Organization Profile</h2>
+            <p style="color: white; opacity: 0.9; margin: 10px 0 0 0;">Required information to continue</p>
+        </div>
+        <div class="auth-body">
+            <form id="org-profile-form" onsubmit="handleOrgProfileCompletion(event)">
+                <div class="form-group">
+                    <label>Organization Name *</label>
+                    <input type="text" id="org-name" required placeholder="e.g., Springfield Elementary School">
+                </div>
+                <div class="form-group">
+                    <label>Organization Type *</label>
+                    <select id="org-type" required style="width: 100%; padding: 12px; border: 2px solid #0d3b66; border-radius: 5px; font-size: 1rem;">
+                        <option value="">Select type</option>
+                        <option value="school">🏫 School</option>
+                        <option value="university">🎓 University</option>
+                        <option value="tutoring">📚 Tutoring Center</option>
+                        <option value="homeschool">🏠 Homeschool Group</option>
+                        <option value="nonprofit">🤝 Non-Profit Organization</option>
+                        <option value="other">🏢 Other Educational Institution</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Contact Person Name *</label>
+                    <input type="text" id="org-contact-name" required placeholder="Full name of primary contact">
+                </div>
+                <div class="form-group">
+                    <label>Contact Email *</label>
+                    <input type="email" id="org-contact-email" required readonly style="background: #f0f0f0;">
+                    <small style="color: #666;">This is your Google account email</small>
+                </div>
+                <div class="form-group">
+                    <label>Phone Number *</label>
+                    <input type="tel" id="org-phone" required placeholder="+1 (555) 123-4567">
+                </div>
+                <div class="form-group">
+                    <label>Address / Location *</label>
+                    <textarea id="org-address" required rows="3" style="width: 100%; padding: 12px; border: 2px solid #0d3b66; border-radius: 5px; font-family: Georgia, serif; font-size: 1rem;" placeholder="Full address of organization"></textarea>
+                </div>
+                <button type="submit" class="auth-submit" style="background: linear-gradient(135deg, #667eea, #764ba2);">✅ Complete Profile</button>
+                <div id="org-profile-error" class="feedback error" style="display: none; margin-top: 15px;"></div>
+            </form>
+            <div style="text-align: center; margin-top: 20px;">
+                <button onclick="signOutAndSwitchAccount()" style="background: none; border: none; color: #dc3545; cursor: pointer; text-decoration: underline;">Sign out and use different account</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Student Modal (for Parent/Org) -->
+<div id="addStudentModal" class="auth-modal">
+    <div class="auth-content" style="max-width: 500px;">
+        <div class="auth-header" style="background: linear-gradient(135deg, #667eea, #764ba2);">
+            <h2 style="color: white;">➕ Add Student</h2>
+            <button class="modal-close" onclick="closeAddStudentModal()" style="color: white;">×</button>
+        </div>
+        <div class="auth-body">
+            <form id="add-student-form" onsubmit="handleAddStudent(event)">
+                <div class="form-group">
+                    <label>Student ID *</label>
+                    <input type="text" id="add-student-id" required placeholder="WB-2025-XXXX" pattern="WB-2025-[A-Z0-9]{4}" style="text-transform: uppercase;">
+                    <small style="color: #666;">Format: WB-2025-XXXX</small>
+                </div>
+                <div class="form-group">
+                    <label>Student Name *</label>
+                    <input type="text" id="add-student-name" required placeholder="Full name of student">
+                </div>
+                <div class="form-group">
+                    <label>Student Age *</label>
+                    <input type="number" id="add-student-age" required min="5" max="18" placeholder="Age">
+                </div>
+                <button type="submit" class="auth-submit">✅ Add Student</button>
+                <div id="add-student-error" class="feedback error" style="display: none; margin-top: 15px;"></div>
+                <div id="add-student-success" class="feedback success" style="display: none; margin-top: 15px;"></div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Guardian Dashboard Section - Add to parent-dashboard-section -->
+<div class="dashboard-section" id="guardian-students-section" style="display: none;">
+    <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h2 style="margin: 0;">👥 Manage Students</h2>
+        <button class="practice-btn" onclick="showAddStudentModal()" style="padding: 10px 20px;">➕ Add Student</button>
+    </div>
+    <div id="guardian-students-container">
+        <div class="loading">Loading students...</div>
+    </div>
+</div>
+
+<div class="dashboard-section" id="guardian-support-section" style="display: none;">
+    <div class="info-box" style="background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 20px; border-radius: 15px;">
+        <h3 style="color: white; margin-top: 0;">📞 Enable Coach Booking</h3>
+        <p style="margin: 10px 0;">Students cannot book coaches until admin approval. Contact support to enable booking permissions.</p>
+        <p style="margin: 10px 0 0 0;"><strong>Support Email:</strong> support@wordbizacademy.com</p>
+    </div>
+</div>  
     
     <script>
         // ===== FIREBASE CONFIGURATION =====
@@ -20442,42 +20543,48 @@ async function checkForActiveSession() {
     }
 }  
 
+
+
+
+        
+
    // ===== BOOK COACH (STUDENT) =====
 async function bookCoach(coachId, coachName) {
     if (!currentUser) {
         alert('Please sign in to book a coach');
         return;
     }
-    
-    if (!confirm(`Book ${coachName} as your coach?\n\nThis will add you to their class.`)) {
-        return;
-    }
-    
     try {
-        // Get coach's class
-        const classQuery = await db.collection('classes')
-            .where('coachId', '==', coachId)
-            .limit(1)
-            .get();
-        
+        const userDoc = await db.collection('users').doc(currentUser.uid).get();
+        const userData = userDoc.data();
+        if (!userData.hasGuardian) {
+            alert('❌ Coach booking unavailable.\n\nYou need a guardian (parent or organization) to book coaches.\n\nAsk your guardian to:\n1. Sign up on the platform\n2. Add you as their student\n3. Contact support to enable booking');
+            return;
+        }
+        if (!userData.bookingEnabled) {
+            alert('❌ Coach booking unavailable.\n\nYour guardian must contact support to enable booking permissions.\n\nSupport Email: support@wordbizacademy.com');
+            return;
+        }
+        const bookingExpiry = userData.bookingExpiry?.toDate();
+        const now = new Date();
+        if (bookingExpiry && now > bookingExpiry) {
+            alert('❌ Your booking permission has expired.\n\nYour guardian must contact support to renew booking access.\n\nSupport Email: support@wordbizacademy.com');
+            return;
+        }
+        if (!confirm(`Book ${coachName} as your coach?\n\nThis will add you to their class.`)) {
+            return;
+        }
+        const classQuery = await db.collection('classes').where('coachId', '==', coachId).limit(1).get();
         if (classQuery.empty) {
             alert('❌ Coach class not found. Please try again later.');
             return;
         }
-        
         const classDoc = classQuery.docs[0];
         const classId = classDoc.id;
-        
-        // Check if student already has a coach
-        const userDoc = await db.collection('users').doc(currentUser.uid).get();
-        const userData = userDoc.data();
-        
         if (userData.classId && userData.classId !== classId) {
             if (!confirm('You are already in another class. Switch to this coach?')) {
                 return;
             }
-            
-            // Remove from old class count
             try {
                 const oldClassDoc = await db.collection('classes').doc(userData.classId).get();
                 if (oldClassDoc.exists) {
@@ -20490,33 +20597,26 @@ async function bookCoach(coachId, coachName) {
                 console.error('Error updating old class count:', error);
             }
         }
-        
-        // Update student with classId
         await db.collection('users').doc(currentUser.uid).update({
             classId: classId,
             coachId: coachId
         });
-        
-        // Update class student count
         const currentCount = classDoc.data().studentCount || 0;
         await db.collection('classes').doc(classId).update({
             studentCount: currentCount + 1
         });
-        
         alert(`✅ Successfully booked ${coachName}!\n\nYou can now access your class from the "MY CLASS" button.`);
         closeCoachDetailModal();
-        
-        // Show MY CLASS button
         const myClassBtn = document.getElementById('myClassBtn');
         if (myClassBtn) {
             myClassBtn.style.display = 'block';
         }
-        
     } catch (error) {
         console.error('Error booking coach:', error);
         alert('Failed to book coach: ' + error.message);
     }
 }
+        
 
 // ===== RECRUIT STUDENT (COACH) =====
 async function recruitStudent(studentId, studentName) {
@@ -20639,6 +20739,38 @@ function updateAdminUI() {
         console.log('✅ Admin link display set to:', isAdmin ? 'block' : 'none');
     } else {
         console.log('⚠️ Admin link element not found in DOM');
+    }
+}
+
+
+// ===== ADMIN BOOKING CONTROL FUNCTIONS =====
+async function toggleStudentBooking(studentId, currentStatus) {
+    if (!isAdmin) {
+        alert('Admin access required');
+        return;
+    }
+    const action = currentStatus ? 'disable' : 'enable';
+    if (!confirm(`${action.charAt(0).toUpperCase() + action.slice(1)} coach booking for this student?`)) {
+        return;
+    }
+    try {
+        const updateData = { bookingEnabled: !currentStatus };
+        if (!currentStatus) {
+            const expiryDate = new Date();
+            expiryDate.setDate(expiryDate.getDate() + 30);
+            updateData.bookingExpiry = firebase.firestore.Timestamp.fromDate(expiryDate);
+        } else {
+            updateData.bookingExpiry = firebase.firestore.FieldValue.delete();
+        }
+        await db.collection('users').doc(studentId).update(updateData);
+        alert(`✅ Coach booking ${action}d successfully!${!currentStatus ? '\n\nBooking will expire in 30 days.' : ''}`);
+        const listContainer = document.getElementById('admin-user-list-container');
+        if (listContainer) {
+            await loadAdminStudentsList(listContainer);
+        }
+    } catch (error) {
+        console.error('Error toggling booking:', error);
+        alert('Failed to update booking status: ' + error.message);
     }
 }
 
@@ -20821,85 +20953,91 @@ async function loadAdminTournaments(container) {
 
 async function loadAdminStudentsList(container) {
     container.innerHTML = '<div class="loading">Loading students...</div>';
-    
     try {
-        const studentsSnapshot = await db.collection('users')
-            .where('userType', '==', 'student')
-            .orderBy('createdAt', 'desc')
-            .get();
-        
+        const studentsSnapshot = await db.collection('users').where('userType', '==', 'student').orderBy('createdAt', 'desc').get();
         const students = [];
         studentsSnapshot.forEach(doc => {
             students.push({ id: doc.id, ...doc.data() });
         });
-        
         if (students.length === 0) {
-            container.innerHTML = `
-                <div class="loading">
-                    No students found on the platform.
-                </div>
-            `;
+            container.innerHTML = '<div class="loading">No students found on the platform.</div>';
             return;
         }
-        
         container.innerHTML = `
             <h3 style="color: #0d3b66; margin-bottom: 20px;">🎓 All Students (${students.length})</h3>
-            
             <div class="coaches-table">
                 <table>
                     <thead>
                         <tr>
                             <th>👤 Student</th>
                             <th>📧 Email</th>
+                            <th>👥 Guardian</th>
+                            <th>🎯 Booking</th>
                             <th>📅 Joined</th>
                             <th>🔒 Status</th>
                             <th>⚙️ Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        ${students.map(student => `
-                            <tr onclick="viewStudentDetailsAdmin('${student.id}')" style="cursor: pointer;">
-                                <td>
-                                    <div style="font-weight: bold; color: #0d3b66;">${student.name || student.firstName || 'N/A'} ${student.lastName || ''}</div>
-                                    <div style="font-size: 0.85rem; color: #666;">ID: ${student.id.substring(0, 8)}...</div>
-                                </td>
-                                <td>${student.email || 'No email'}</td>
-                                <td>${student.createdAt ? new Date(student.createdAt.toDate()).toLocaleDateString() : 'N/A'}</td>
-                                <td style="text-align: center;">
-                                    ${student.subscriptionLocked ? 
-                                        '<span style="background: #ff6b6b; color: white; padding: 5px 10px; border-radius: 15px; font-size: 0.85rem;">🔒 Locked</span>' : 
-                                        '<span style="background: #51cf66; color: white; padding: 5px 10px; border-radius: 15px; font-size: 0.85rem;">✅ Active</span>'
-                                    }
-                                </td>
-                                <td onclick="event.stopPropagation();">
-                                    <div style="display: flex; gap: 5px; justify-content: center;">
-                                        ${student.subscriptionLocked ? 
-                                            `<button class="practice-btn" onclick="unlockStudentAccount('${student.id}')" style="padding: 8px 15px; font-size: 0.85rem; background: #51cf66;">
-                                                🔓 Unlock
-                                            </button>` :
-                                            `<button class="practice-btn" onclick="lockStudentAccount('${student.id}')" style="padding: 8px 15px; font-size: 0.85rem; background: #ffc107; color: #0d3b66;">
-                                                🔒 Lock
-                                            </button>`
+                        ${students.map(student => {
+                            const hasGuardian = student.hasGuardian || false;
+                            const bookingEnabled = student.bookingEnabled || false;
+                            const bookingExpiry = student.bookingExpiry?.toDate();
+                            const now = new Date();
+                            let bookingStatus = '❌ Disabled';
+                            let bookingColor = '#ff6b6b';
+                            if (bookingEnabled && bookingExpiry && now < bookingExpiry) {
+                                const daysLeft = Math.ceil((bookingExpiry - now) / (1000 * 60 * 60 * 24));
+                                bookingStatus = `✅ ${daysLeft}d left`;
+                                bookingColor = '#51cf66';
+                            } else if (bookingEnabled && bookingExpiry && now >= bookingExpiry) {
+                                bookingStatus = '⏰ Expired';
+                                bookingColor = '#ffc107';
+                            }
+                            return `
+                                <tr onclick="viewStudentDetailsAdmin('${student.id}')" style="cursor: pointer;">
+                                    <td>
+                                        <div style="font-weight: bold; color: #0d3b66;">${student.name || student.firstName || 'N/A'} ${student.lastName || ''}</div>
+                                        <div style="font-size: 0.85rem; color: #666;">ID: ${student.id.substring(0, 8)}...</div>
+                                    </td>
+                                    <td>${student.email || 'No email'}</td>
+                                    <td style="text-align: center;">
+                                        ${hasGuardian ? 
+                                            `<span style="background: #51cf66; color: white; padding: 5px 10px; border-radius: 15px; font-size: 0.85rem;">✅ Yes</span>` : 
+                                            `<span style="background: #868e96; color: white; padding: 5px 10px; border-radius: 15px; font-size: 0.85rem;">❌ No</span>`
                                         }
-                                        <button class="practice-btn" onclick="deleteStudentAccount('${student.id}', '${(student.name || student.firstName || 'Student') + ' ' + (student.lastName || '')}')" style="padding: 8px 15px; font-size: 0.85rem; background: #dc3545;">
-                                            🗑️ Delete
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                        `).join('')}
+                                    </td>
+                                    <td style="text-align: center;" onclick="event.stopPropagation();">
+                                        <span style="background: ${bookingColor}; color: white; padding: 5px 10px; border-radius: 15px; font-size: 0.85rem; cursor: pointer;" onclick="toggleStudentBooking('${student.id}', ${bookingEnabled})">
+                                            ${bookingStatus}
+                                        </span>
+                                    </td>
+                                    <td>${student.createdAt ? new Date(student.createdAt.toDate()).toLocaleDateString() : 'N/A'}</td>
+                                    <td style="text-align: center;">
+                                        ${student.subscriptionLocked ? 
+                                            '<span style="background: #ff6b6b; color: white; padding: 5px 10px; border-radius: 15px; font-size: 0.85rem;">🔒 Locked</span>' : 
+                                            '<span style="background: #51cf66; color: white; padding: 5px 10px; border-radius: 15px; font-size: 0.85rem;">✅ Active</span>'
+                                        }
+                                    </td>
+                                    <td onclick="event.stopPropagation();">
+                                        <div style="display: flex; gap: 5px; justify-content: center;">
+                                            ${student.subscriptionLocked ? 
+                                                `<button class="practice-btn" onclick="unlockStudentAccount('${student.id}')" style="padding: 8px 15px; font-size: 0.85rem; background: #51cf66;">🔓 Unlock</button>` :
+                                                `<button class="practice-btn" onclick="lockStudentAccount('${student.id}')" style="padding: 8px 15px; font-size: 0.85rem; background: #ffc107; color: #0d3b66;">🔒 Lock</button>`
+                                            }
+                                            <button class="practice-btn" onclick="deleteStudentAccount('${student.id}', '${(student.name || student.firstName || 'Student') + ' ' + (student.lastName || '')}')" style="padding: 8px 15px; font-size: 0.85rem; background: #dc3545;">🗑️ Delete</button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('')}
                     </tbody>
                 </table>
             </div>
         `;
-        
     } catch (error) {
         console.error('Error loading students:', error);
-        container.innerHTML = `
-            <div class="feedback error">
-                ❌ Failed to load students: ${error.message}
-            </div>
-        `;
+        container.innerHTML = '<div class="feedback error">❌ Failed to load students: ' + error.message</div>';
     }
 }
 
@@ -21810,36 +21948,40 @@ async function signUpWithGoogle(userType) {
     try {
         const result = await auth.signInWithPopup(provider);
         const user = result.user;
-        
         const userRef = db.collection('users').doc(user.uid);
-        
-        // ✅ Generate student ID if signing up as student
         const userData = {
-            name: user.displayName,
             email: user.email,
             photoURL: user.photoURL || null,
             userType: userType,
             profileComplete: false,
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         };
-        
+        if (userType !== 'organization') {
+            userData.name = user.displayName;
+        }
         if (userType === 'student') {
             userData.studentId = generateStudentId(user.uid);
+            userData.hasGuardian = false;
+            userData.bookingEnabled = false;
         }
-        
         await userRef.set(userData);
-        
         closeAuthModal();
-        showVerificationModal({
-            name: user.displayName,
-            email: user.email,
-            userType: userType
-        });
+        if (userType === 'organization') {
+            showOrgProfileModal(user);
+        } else {
+            showVerificationModal({
+                name: user.displayName,
+                email: user.email,
+                userType: userType
+            });
+        }
     } catch (error) {
         console.error('Google sign-up error:', error);
         const errorDiv = document.getElementById(`signup-${userType}-error`);
-        errorDiv.textContent = error.message;
-        errorDiv.style.display = 'block';
+        if (errorDiv) {
+            errorDiv.textContent = error.message;
+            errorDiv.style.display = 'block';
+        }
     }
 }
         
@@ -22784,57 +22926,63 @@ function generateStudentId(userId) {
  // ===== PARENT DASHBOARD FUNCTIONS =====
 async function loadParentDashboard() {
     if (!currentUser) return;
-    
     try {
         const userDoc = await db.collection('users').doc(currentUser.uid).get();
         const userData = userDoc.data();
-        
-        if (userData.userType !== 'parent') {
-            alert('Access denied. Parent accounts only.');
+        if (userData.userType !== 'parent' && userData.userType !== 'organization') {
+            alert('Access denied. Parent/Organization accounts only.');
             navigateTo('home');
             return;
         }
-        
-        // Update parent profile
-        document.getElementById('parent-dashboard-name').textContent = userData.name || 'Parent';
+        const isOrganization = userData.userType === 'organization';
+        const displayName = isOrganization ? userData.organizationName : userData.name;
+        document.getElementById('parent-dashboard-name').textContent = displayName || (isOrganization ? 'Organization' : 'Parent');
         document.getElementById('parent-dashboard-email').textContent = userData.email || '';
-        
         const parentAvatar = document.getElementById('parent-dashboard-avatar');
         if (currentUser.photoURL) {
             parentAvatar.style.backgroundImage = `url(${currentUser.photoURL})`;
             parentAvatar.textContent = '';
         } else {
             parentAvatar.style.backgroundImage = 'none';
-            parentAvatar.textContent = userData.name.charAt(0).toUpperCase();
+            parentAvatar.textContent = displayName ? displayName.charAt(0).toUpperCase() : (isOrganization ? 'O' : 'P');
         }
-        
-        // Update profile fields
-        document.getElementById('parent-display-name').textContent = userData.name;
-        document.getElementById('parent-edit-name').value = userData.name;
-        document.getElementById('parent-display-email').textContent = userData.email;
-        document.getElementById('parent-display-phone').textContent = userData.phone || 'Not set';
-        document.getElementById('parent-edit-phone').value = userData.phone || '';
-        document.getElementById('parent-display-country').textContent = userData.country || 'Not set';
-        document.getElementById('parent-edit-country').value = userData.country || '';
-        
+        if (isOrganization) {
+            document.getElementById('parent-display-name').textContent = userData.organizationName || 'Organization';
+            document.getElementById('parent-edit-name').value = userData.organizationName || '';
+            document.getElementById('parent-display-phone').textContent = userData.phone || 'Not set';
+            document.getElementById('parent-edit-phone').value = userData.phone || '';
+            document.getElementById('parent-display-country').textContent = userData.address || 'Not set';
+            document.getElementById('parent-edit-country').value = userData.address || '';
+        } else {
+            document.getElementById('parent-display-name').textContent = userData.name;
+            document.getElementById('parent-edit-name').value = userData.name;
+            document.getElementById('parent-display-email').textContent = userData.email;
+            document.getElementById('parent-display-phone').textContent = userData.phone || 'Not set';
+            document.getElementById('parent-edit-phone').value = userData.phone || '';
+            document.getElementById('parent-display-country').textContent = userData.country || 'Not set';
+            document.getElementById('parent-edit-country').value = userData.country || '';
+        }
         if (userData.createdAt) {
             const joinDate = userData.createdAt.toDate();
-            document.getElementById('parent-display-joined').textContent = 
-                joinDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+            document.getElementById('parent-display-joined').textContent = joinDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
         }
-        
-        // Load child information
-        await loadChildAccountStatus(userData.linkedStudentId);
-        
-        // Load transaction history
+        if (userData.linkedStudentId) {
+            await loadChildAccountStatus(userData.linkedStudentId);
+        } else {
+            const childContainer = document.getElementById('child-status-container');
+            if (childContainer) childContainer.style.display = 'none';
+        }
+        document.getElementById('guardian-students-section').style.display = 'block';
+        document.getElementById('guardian-support-section').style.display = 'block';
+        await loadGuardianStudents();
         await loadTransactionHistory();
-        
     } catch (error) {
         console.error('Error loading parent dashboard:', error);
         alert('Failed to load dashboard: ' + error.message);
     }
 }
 
+        
 async function loadChildAccountStatus(childId) {
     const container = document.getElementById('child-status-container');
     
@@ -23700,7 +23848,208 @@ function backspaceKey() {
     if (input.disabled) return;
     input.value = input.value.slice(0, -1);
 }          
-               
+
+
+
+  // ===== ORGANIZATION PROFILE FUNCTIONS =====
+function showOrgProfileModal(user) {
+    const modal = document.getElementById('orgProfileModal');
+    document.getElementById('org-contact-email').value = user.email;
+    modal.classList.add('active');
+}
+
+function closeOrgProfileModal() {
+    document.getElementById('orgProfileModal').classList.remove('active');
+}
+
+async function handleOrgProfileCompletion(event) {
+    event.preventDefault();
+    if (!currentUser) {
+        alert('Session expired. Please sign in again.');
+        return;
+    }
+    const orgName = document.getElementById('org-name').value.trim();
+    const orgType = document.getElementById('org-type').value;
+    const contactName = document.getElementById('org-contact-name').value.trim();
+    const contactEmail = document.getElementById('org-contact-email').value.trim();
+    const phone = document.getElementById('org-phone').value.trim();
+    const address = document.getElementById('org-address').value.trim();
+    const errorDiv = document.getElementById('org-profile-error');
+    if (!orgName || !orgType || !contactName || !phone || !address) {
+        errorDiv.textContent = 'All fields are required.';
+        errorDiv.style.display = 'block';
+        return;
+    }
+    try {
+        await db.collection('users').doc(currentUser.uid).update({
+            organizationName: orgName,
+            organizationType: orgType,
+            contactName: contactName,
+            contactEmail: contactEmail,
+            phone: phone,
+            address: address,
+            profileComplete: true,
+            name: orgName
+        });
+        await currentUser.updateProfile({ displayName: orgName });
+        errorDiv.style.display = 'none';
+        closeOrgProfileModal();
+        alert(`✅ Organization profile completed!\n\nOrganization: ${orgName}\n\nYou can now manage students from your dashboard.`);
+        updateUIForAuthenticatedUser(currentUser);
+        navigateTo('parent-dashboard');
+        await loadParentDashboard();
+    } catch (error) {
+        console.error('Error completing organization profile:', error);
+        errorDiv.textContent = 'Failed to complete profile: ' + error.message;
+        errorDiv.style.display = 'block';
+    }
+}
+
+
+    // ===== GUARDIAN STUDENT MANAGEMENT =====
+function showAddStudentModal() {
+    document.getElementById('addStudentModal').classList.add('active');
+    document.getElementById('add-student-form').reset();
+    document.getElementById('add-student-error').style.display = 'none';
+    document.getElementById('add-student-success').style.display = 'none';
+}
+
+function closeAddStudentModal() {
+    document.getElementById('addStudentModal').classList.remove('active');
+}
+
+async function handleAddStudent(event) {
+    event.preventDefault();
+    if (!currentUser) {
+        alert('Please sign in first');
+        return;
+    }
+    const studentId = document.getElementById('add-student-id').value.trim().toUpperCase();
+    const studentName = document.getElementById('add-student-name').value.trim();
+    const studentAge = parseInt(document.getElementById('add-student-age').value);
+    const errorDiv = document.getElementById('add-student-error');
+    const successDiv = document.getElementById('add-student-success');
+    errorDiv.style.display = 'none';
+    successDiv.style.display = 'none';
+    const studentIdPattern = /^WB-2025-[A-Z0-9]{4}$/;
+    if (!studentIdPattern.test(studentId)) {
+        errorDiv.textContent = '❌ Invalid student ID format. Must be WB-2025-XXXX';
+        errorDiv.style.display = 'block';
+        return;
+    }
+    try {
+        const studentQuery = await db.collection('users').where('studentId', '==', studentId).where('userType', '==', 'student').get();
+        if (studentQuery.empty) {
+            errorDiv.textContent = '❌ Student ID not found. Please verify the ID is correct.';
+            errorDiv.style.display = 'block';
+            return;
+        }
+        const studentDoc = studentQuery.docs[0];
+        const studentData = studentDoc.data();
+        if (studentData.name.toLowerCase() !== studentName.toLowerCase()) {
+            errorDiv.textContent = `❌ Student name does not match. Registered name: ${studentData.name}`;
+            errorDiv.style.display = 'block';
+            return;
+        }
+        if (studentData.guardianId) {
+            errorDiv.textContent = '❌ This student already has a guardian linked.';
+            errorDiv.style.display = 'block';
+            return;
+        }
+        const guardianDoc = await db.collection('users').doc(currentUser.uid).get();
+        const guardianData = guardianDoc.data();
+        const guardianName = guardianData.userType === 'organization' ? guardianData.organizationName : guardianData.name;
+        await db.collection('users').doc(studentDoc.id).update({
+            guardianId: currentUser.uid,
+            guardianName: guardianName,
+            guardianEmail: currentUser.email,
+            hasGuardian: true,
+            guardianLinkedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        successDiv.textContent = `✅ Student "${studentName}" successfully added!`;
+        successDiv.style.display = 'block';
+        document.getElementById('add-student-form').reset();
+        setTimeout(() => {
+            closeAddStudentModal();
+            loadGuardianStudents();
+        }, 2000);
+    } catch (error) {
+        console.error('Error adding student:', error);
+        errorDiv.textContent = 'Failed to add student: ' + error.message;
+        errorDiv.style.display = 'block';
+    }
+}
+
+async function loadGuardianStudents() {
+    if (!currentUser) return;
+    const container = document.getElementById('guardian-students-container');
+    try {
+        container.innerHTML = '<div class="loading">Loading students...</div>';
+        const studentsSnapshot = await db.collection('users').where('guardianId', '==', currentUser.uid).where('userType', '==', 'student').get();
+        if (studentsSnapshot.empty) {
+            container.innerHTML = `
+                <div class="loading">
+                    <p style="margin-bottom: 15px;">No students added yet.</p>
+                    <button class="practice-btn" onclick="showAddStudentModal()" style="padding: 10px 20px;">➕ Add Your First Student</button>
+                </div>
+            `;
+            return;
+        }
+        let html = '<div class="coaches-table"><table><thead><tr><th>👤 Student</th><th>🆔 Student ID</th><th>📅 Age</th><th>🎯 Booking Status</th><th>⚙️ Actions</th></tr></thead><tbody>';
+        studentsSnapshot.forEach(doc => {
+            const student = doc.data();
+            const studentId = student.studentId || `WB-2025-${doc.id.slice(-4).toUpperCase()}`;
+            const bookingEnabled = student.bookingEnabled || false;
+            const bookingExpiry = student.bookingExpiry?.toDate();
+            const now = new Date();
+            let bookingStatus = '❌ Disabled';
+            let bookingClass = 'error';
+            if (bookingEnabled && bookingExpiry && now < bookingExpiry) {
+                const daysLeft = Math.ceil((bookingExpiry - now) / (1000 * 60 * 60 * 24));
+                bookingStatus = `✅ Active (${daysLeft} days left)`;
+                bookingClass = 'success';
+            } else if (bookingEnabled && bookingExpiry && now >= bookingExpiry) {
+                bookingStatus = '⏰ Expired';
+                bookingClass = 'warning';
+            }
+            html += `
+                <tr>
+                    <td><div style="font-weight: bold; color: #0d3b66;">${student.name || 'Student'}</div><div style="font-size: 0.85rem; color: #666;">${student.email || 'No email'}</div></td>
+                    <td style="font-family: monospace; font-weight: bold;">${studentId}</td>
+                    <td style="text-align: center;">${student.age || 'N/A'}</td>
+                    <td style="text-align: center;"><span class="feedback ${bookingClass}" style="display: inline-block; padding: 5px 10px; font-size: 0.85rem;">${bookingStatus}</span></td>
+                    <td style="text-align: center;"><button class="practice-btn" onclick="removeGuardianStudent('${doc.id}', '${student.name}')" style="padding: 8px 15px; font-size: 0.85rem; background: #dc3545;">🗑️ Remove</button></td>
+                </tr>
+            `;
+        });
+        html += '</tbody></table></div>';
+        container.innerHTML = html;
+    } catch (error) {
+        console.error('Error loading guardian students:', error);
+        container.innerHTML = '<div class="feedback error">❌ Failed to load students</div>';
+    }
+}
+
+async function removeGuardianStudent(studentId, studentName) {
+    if (!confirm(`Remove ${studentName} from your students list?\n\nThis will unlink them from your account.`)) {
+        return;
+    }
+    try {
+        await db.collection('users').doc(studentId).update({
+            guardianId: firebase.firestore.FieldValue.delete(),
+            guardianName: firebase.firestore.FieldValue.delete(),
+            guardianEmail: firebase.firestore.FieldValue.delete(),
+            hasGuardian: false,
+            bookingEnabled: false,
+            bookingExpiry: firebase.firestore.FieldValue.delete()
+        });
+        alert(`✅ ${studentName} has been removed from your students list.`);
+        await loadGuardianStudents();
+    } catch (error) {
+        console.error('Error removing student:', error);
+        alert('Failed to remove student: ' + error.message);
+    }
+}
     </script>
 </body>
 </html>
