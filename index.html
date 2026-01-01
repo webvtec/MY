@@ -4025,7 +4025,7 @@
 </div>
 
 
-  <!-- Parent Dashboard Section -->
+ <!-- Parent Dashboard Section -->
 <div id="parent-dashboard-section" class="content-section">
     <div class="parent-dashboard-container">
         
@@ -4039,7 +4039,7 @@
                     <p style="font-size: 0.9rem; opacity: 0.8; margin-top: 5px;">Parent Account</p>
                 </div>
             </div>
-        </div> <!-- Added missing closing div for dashboard-welcome-card -->
+        </div> 
 
         <!-- Guardian Students Section -->
         <div class="dashboard-section" id="guardian-students-section" style="display: none;">
@@ -4060,10 +4060,6 @@
                 <p style="margin: 10px 0 0 0;"><strong>Support Email:</strong> support@wordbizacademy.com</p>
             </div>
         </div>
-
-    </div> <!-- Added missing closing div for parent-dashboard-container -->
-</div> <!-- Added missing closing div for parent-dashboard-section -->
-
 
         <!-- Child Account Status -->
         <div id="child-status-container" class="loading">
@@ -4157,8 +4153,8 @@
                 </div>
             </div>
         </div>
-    </div>
-</div>
+    </div> <!-- Closes parent-dashboard-container -->
+</div> <!-- Closes parent-dashboard-section -->
 
 <!-- Payment Modal -->
 <div class="payment-modal" id="paymentModal">
@@ -4193,18 +4189,6 @@
                     ⚠️ <strong>Note:</strong> Payment will immediately reopen your child's account for 30 days. They will be able to resume learning right away.
                 </p>
             </div>
-
-            <!-- PayPal Button Container -->
-            <div id="paypal-button-container"></div>
-
-            <div style="text-align: center; margin-top: 20px;">
-                <button class="practice-btn" onclick="closePaymentModal()" style="background: #6c757d;">
-                    Cancel
-                </button>
-            </div>
-
-            <div id="payment-error" class="feedback error" style="display:none; margin-top:15px;"></div>
-            <div id="payment-success" class="feedback success" style="display:none; margin-top:15px;"></div>
         </div>
     </div>
 </div>
