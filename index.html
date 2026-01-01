@@ -4736,49 +4736,43 @@
 <div id="orgProfileModal" class="auth-modal">
     <div class="auth-content" style="max-width: 600px;">
         <div class="auth-header" style="background: linear-gradient(135deg, #667eea, #764ba2);">
-            <h2 style="color: white;">🏢 Complete Organization Profile</h2>
-            <p style="color: white; opacity: 0.9; margin: 10px 0 0 0;">Required information to continue</p>
+            <h2 style="color: white;">🏢 Complete Your Profile</h2>
+            <p style="color: white; opacity: 0.9; margin: 10px 0 0 0;">Please complete your profile to continue using WordBiz</p>
         </div>
         <div class="auth-body">
             <form id="org-profile-form" onsubmit="handleOrgProfileCompletion(event)">
                 <div class="form-group">
-                    <label>Organization Name *</label>
+                    <label>Organization/School Name *</label>
                     <input type="text" id="org-name" required placeholder="e.g., Springfield Elementary School">
                 </div>
+                
                 <div class="form-group">
-                    <label>Organization Type *</label>
-                    <select id="org-type" required style="width: 100%; padding: 12px; border: 2px solid #0d3b66; border-radius: 5px; font-size: 1rem;">
-                        <option value="">Select type</option>
-                        <option value="school">🏫 School</option>
-                        <option value="university">🎓 University</option>
-                        <option value="tutoring">📚 Tutoring Center</option>
-                        <option value="homeschool">🏠 Homeschool Group</option>
-                        <option value="nonprofit">🤝 Non-Profit Organization</option>
-                        <option value="other">🏢 Other Educational Institution</option>
-                    </select>
+                    <label>Administrator Email *</label>
+                    <input type="email" id="org-contact-email" required readonly style="background: #f0f0f0; cursor: not-allowed;">
+                    <small style="color: #666;">This is your Google account email and cannot be changed</small>
                 </div>
+                
                 <div class="form-group">
-                    <label>Contact Person Name *</label>
-                    <input type="text" id="org-contact-name" required placeholder="Full name of primary contact">
-                </div>
-                <div class="form-group">
-                    <label>Contact Email *</label>
-                    <input type="email" id="org-contact-email" required readonly style="background: #f0f0f0;">
-                    <small style="color: #666;">This is your Google account email</small>
-                </div>
-                <div class="form-group">
-                    <label>Phone Number *</label>
+                    <label>Contact Phone *</label>
                     <input type="tel" id="org-phone" required placeholder="+1 (555) 123-4567">
                 </div>
+                
                 <div class="form-group">
-                    <label>Address / Location *</label>
+                    <label>Address *</label>
                     <textarea id="org-address" required rows="3" style="width: 100%; padding: 12px; border: 2px solid #0d3b66; border-radius: 5px; font-family: Georgia, serif; font-size: 1rem;" placeholder="Full address of organization"></textarea>
                 </div>
-                <button type="submit" class="auth-submit" style="background: linear-gradient(135deg, #667eea, #764ba2);">✅ Complete Profile</button>
+                
+                <button type="submit" class="auth-submit" style="background: linear-gradient(135deg, #667eea, #764ba2);">
+                    ✅ Complete Profile
+                </button>
+                
                 <div id="org-profile-error" class="feedback error" style="display: none; margin-top: 15px;"></div>
             </form>
+            
             <div style="text-align: center; margin-top: 20px;">
-                <button onclick="signOutAndSwitchAccount()" style="background: none; border: none; color: #dc3545; cursor: pointer; text-decoration: underline;">Sign out and use different account</button>
+                <button onclick="signOutAndSwitchAccount()" style="background: none; border: none; color: #dc3545; cursor: pointer; text-decoration: underline; font-size: 0.95rem;">
+                    🔄 Sign Out & Use Different Account
+                </button>
             </div>
         </div>
     </div>
@@ -5151,7 +5145,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 
-   auth.onAuthStateChanged(async user => {
+  auth.onAuthStateChanged(async user => {
     if (user) {
         currentUser = user;
         
@@ -5171,7 +5165,7 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('📄 Firestore photoURL:', userData.photoURL);
         
         if (user.photoURL && !userData.photoURL) {
-            console.log('📄 Syncing photoURL to Firestore...');
+            console.log('📝 Syncing photoURL to Firestore...');
             await userRef.update({
                 photoURL: user.photoURL
             });
@@ -5180,7 +5174,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // ✅ INITIALIZE SPELLING STATS IF NOT EXISTS
         if (!userData.spellingStats) {
-            console.log('📄 Initializing spelling stats...');
+            console.log('📝 Initializing spelling stats...');
             await userRef.update({
                 spellingStats: {
                     totalChallenges: 0,
@@ -5224,13 +5218,21 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // ✅ CHECK USER TYPE AND HANDLE ACCORDINGLY
         if (userData.userType === 'parent') {
-            // Parent user - no profile completion needed
             if (!userData.profileComplete) {
                 await userRef.update({ profileComplete: true });
             }
             updateUIForAuthenticatedUser(user);
-            
-            // Navigate to parent dashboard
+            navigateTo('parent-dashboard');
+            return;
+        }
+        
+        // ✅ ORGANIZATION HANDLING - SHOW ORG MODAL IF INCOMPLETE
+        if (userData.userType === 'organization') {
+            if (!userData.profileComplete) {
+                showOrgProfileModal(user);
+                return;
+            }
+            updateUIForAuthenticatedUser(user);
             navigateTo('parent-dashboard');
             return;
         }
@@ -5259,7 +5261,7 @@ document.addEventListener('DOMContentLoaded', function() {
         ]);
         
         // ✅ Initialize presence immediately on login (only for students/coaches)
-        if (userData.userType !== 'parent') {
+        if (userData.userType !== 'parent' && userData.userType !== 'organization') {
             await initializeOnlinePresence();
         }
         
@@ -5283,8 +5285,7 @@ document.addEventListener('DOMContentLoaded', function() {
         updateAdminUI();
     }
 });
-    });
-        
+ });       
         
     
 // ===== NAVIGATION =====
@@ -23864,47 +23865,55 @@ function closeOrgProfileModal() {
 
 async function handleOrgProfileCompletion(event) {
     event.preventDefault();
+    
     if (!currentUser) {
         alert('Session expired. Please sign in again.');
         return;
     }
+    
     const orgName = document.getElementById('org-name').value.trim();
-    const orgType = document.getElementById('org-type').value;
-    const contactName = document.getElementById('org-contact-name').value.trim();
     const contactEmail = document.getElementById('org-contact-email').value.trim();
     const phone = document.getElementById('org-phone').value.trim();
     const address = document.getElementById('org-address').value.trim();
+    
     const errorDiv = document.getElementById('org-profile-error');
-    if (!orgName || !orgType || !contactName || !phone || !address) {
+    
+    if (!orgName || !phone || !address) {
         errorDiv.textContent = 'All fields are required.';
         errorDiv.style.display = 'block';
         return;
     }
+    
     try {
+        // Update Firestore
         await db.collection('users').doc(currentUser.uid).update({
             organizationName: orgName,
-            organizationType: orgType,
-            contactName: contactName,
             contactEmail: contactEmail,
             phone: phone,
             address: address,
             profileComplete: true,
-            name: orgName
+            name: orgName // Set organization name as display name
         });
+        
+        // Update Firebase Auth profile
         await currentUser.updateProfile({ displayName: orgName });
+        
         errorDiv.style.display = 'none';
         closeOrgProfileModal();
+        
         alert(`✅ Organization profile completed!\n\nOrganization: ${orgName}\n\nYou can now manage students from your dashboard.`);
+        
+        // Refresh UI
         updateUIForAuthenticatedUser(currentUser);
         navigateTo('parent-dashboard');
         await loadParentDashboard();
+        
     } catch (error) {
         console.error('Error completing organization profile:', error);
         errorDiv.textContent = 'Failed to complete profile: ' + error.message;
         errorDiv.style.display = 'block';
     }
 }
-
 
     // ===== GUARDIAN STUDENT MANAGEMENT =====
 function showAddStudentModal() {
