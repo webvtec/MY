@@ -21003,8 +21003,8 @@ async function loadAdminStudentsList(container) {
                                     <td>${student.email || 'No email'}</td>
                                     <td style="text-align: center;">
                                         ${hasGuardian ? 
-                                            `<span style="background: #51cf66; color: white; padding: 5px 10px; border-radius: 15px; font-size: 0.85rem;">✅ Yes</span>` : 
-                                            `<span style="background: #868e96; color: white; padding: 5px 10px; border-radius: 15px; font-size: 0.85rem;">❌ No</span>`
+                                            '<span style="background: #51cf66; color: white; padding: 5px 10px; border-radius: 15px; font-size: 0.85rem;">✅ Yes</span>' : 
+                                            '<span style="background: #868e96; color: white; padding: 5px 10px; border-radius: 15px; font-size: 0.85rem;">❌ No</span>'
                                         }
                                     </td>
                                     <td style="text-align: center;" onclick="event.stopPropagation();">
@@ -21037,7 +21037,7 @@ async function loadAdminStudentsList(container) {
         `;
     } catch (error) {
         console.error('Error loading students:', error);
-        container.innerHTML = '<div class="feedback error">❌ Failed to load students: ' + error.message</div>';
+        container.innerHTML = '<div class="feedback error">❌ Failed to load students: ' + error.message + '</div>';
     }
 }
 
