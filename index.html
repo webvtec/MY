@@ -4025,9 +4025,10 @@
 </div>
 
 
-    <!-- Parent Dashboard Section -->
+  <!-- Parent Dashboard Section -->
 <div id="parent-dashboard-section" class="content-section">
     <div class="parent-dashboard-container">
+        
         <!-- Welcome Header -->
         <div class="dashboard-welcome-card">
             <div class="dashboard-profile-section">
@@ -4038,7 +4039,31 @@
                     <p style="font-size: 0.9rem; opacity: 0.8; margin-top: 5px;">Parent Account</p>
                 </div>
             </div>
+        </div> <!-- Added missing closing div for dashboard-welcome-card -->
+
+        <!-- Guardian Students Section -->
+        <div class="dashboard-section" id="guardian-students-section" style="display: none;">
+            <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="margin: 0;">👥 Manage Students</h2>
+                <button class="practice-btn" onclick="showAddStudentModal()" style="padding: 10px 20px;">➕ Add Student</button>
+            </div>
+            <div id="guardian-students-container">
+                <div class="loading">Loading students...</div>
+            </div>
         </div>
+
+        <!-- Guardian Support Section -->
+        <div class="dashboard-section" id="guardian-support-section" style="display: none;">
+            <div class="info-box" style="background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 20px; border-radius: 15px;">
+                <h3 style="color: white; margin-top: 0;">📞 Enable Coach Booking</h3>
+                <p style="margin: 10px 0;">Students cannot book coaches until admin approval. Contact support to enable booking permissions.</p>
+                <p style="margin: 10px 0 0 0;"><strong>Support Email:</strong> support@wordbizacademy.com</p>
+            </div>
+        </div>
+
+    </div> <!-- Added missing closing div for parent-dashboard-container -->
+</div> <!-- Added missing closing div for parent-dashboard-section -->
+
 
         <!-- Child Account Status -->
         <div id="child-status-container" class="loading">
@@ -4808,24 +4833,6 @@
     </div>
 </div>
 
-<!-- Guardian Dashboard Section - Add to parent-dashboard-section -->
-<div class="dashboard-section" id="guardian-students-section" style="display: none;">
-    <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-        <h2 style="margin: 0;">👥 Manage Students</h2>
-        <button class="practice-btn" onclick="showAddStudentModal()" style="padding: 10px 20px;">➕ Add Student</button>
-    </div>
-    <div id="guardian-students-container">
-        <div class="loading">Loading students...</div>
-    </div>
-</div>
-
-<div class="dashboard-section" id="guardian-support-section" style="display: none;">
-    <div class="info-box" style="background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 20px; border-radius: 15px;">
-        <h3 style="color: white; margin-top: 0;">📞 Enable Coach Booking</h3>
-        <p style="margin: 10px 0;">Students cannot book coaches until admin approval. Contact support to enable booking permissions.</p>
-        <p style="margin: 10px 0 0 0;"><strong>Support Email:</strong> support@wordbizacademy.com</p>
-    </div>
-</div>  
     
     <script>
         // ===== FIREBASE CONFIGURATION =====
