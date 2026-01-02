@@ -20741,31 +20741,44 @@ async function toggleStudentBooking(studentId, currentStatus) {
         alert('Admin access required');
         return;
     }
+    
     const action = currentStatus ? 'disable' : 'enable';
     if (!confirm(`${action.charAt(0).toUpperCase() + action.slice(1)} coach booking for this student?`)) {
         return;
     }
+    
     try {
-        const updateData = { bookingEnabled: !currentStatus };
+        const updateData = { 
+            bookingEnabled: !currentStatus 
+        };
+        
         if (!currentStatus) {
+            // Enabling booking - set expiry to 30 days
             const expiryDate = new Date();
             expiryDate.setDate(expiryDate.getDate() + 30);
             updateData.bookingExpiry = firebase.firestore.Timestamp.fromDate(expiryDate);
         } else {
+            // Disabling booking - remove expiry
             updateData.bookingExpiry = firebase.firestore.FieldValue.delete();
         }
+        
         await db.collection('users').doc(studentId).update(updateData);
+        
         alert(`✅ Coach booking ${action}d successfully!${!currentStatus ? '\n\nBooking will expire in 30 days.' : ''}`);
+        
+        // Reload the students list
         const listContainer = document.getElementById('admin-user-list-container');
         if (listContainer) {
             await loadAdminStudentsList(listContainer);
         }
+        
     } catch (error) {
         console.error('Error toggling booking:', error);
         alert('Failed to update booking status: ' + error.message);
     }
 }
 
+        
 // ===== ADMIN PANEL WITH SECTIONS =====
 
 let currentAdminSection = 'tournaments'; // Default section
@@ -20946,19 +20959,26 @@ async function loadAdminTournaments(container) {
 async function loadAdminStudentsList(container) {
     container.innerHTML = '<div class="loading">Loading students...</div>';
     try {
-        const studentsSnapshot = await db.collection('users').where('userType', '==', 'student').orderBy('createdAt', 'desc').get();
+        const studentsSnapshot = await db.collection('users')
+            .where('userType', '==', 'student')
+            .orderBy('createdAt', 'desc')
+            .get();
+        
         const students = [];
         studentsSnapshot.forEach(doc => {
             students.push({ id: doc.id, ...doc.data() });
         });
+        
         if (students.length === 0) {
             container.innerHTML = '<div class="loading">No students found on the platform.</div>';
             return;
         }
-        container.innerHTML = `
+        
+        // Desktop view
+        let desktopHTML = `
             <h3 style="color: #0d3b66; margin-bottom: 20px;">🎓 All Students (${students.length})</h3>
-            <div class="coaches-table">
-                <table>
+            <div class="coaches-table" style="display: none;">
+                <table id="students-desktop-table">
                     <thead>
                         <tr>
                             <th>👤 Student</th>
@@ -20971,68 +20991,133 @@ async function loadAdminStudentsList(container) {
                         </tr>
                     </thead>
                     <tbody>
-                        ${students.map(student => {
-                            const hasGuardian = student.hasGuardian || false;
-                            const bookingEnabled = student.bookingEnabled || false;
-                            const bookingExpiry = student.bookingExpiry?.toDate();
-                            const now = new Date();
-                            let bookingStatus = '❌ Disabled';
-                            let bookingColor = '#ff6b6b';
-                            if (bookingEnabled && bookingExpiry && now < bookingExpiry) {
-                                const daysLeft = Math.ceil((bookingExpiry - now) / (1000 * 60 * 60 * 24));
-                                bookingStatus = `✅ ${daysLeft}d left`;
-                                bookingColor = '#51cf66';
-                            } else if (bookingEnabled && bookingExpiry && now >= bookingExpiry) {
-                                bookingStatus = '⏰ Expired';
-                                bookingColor = '#ffc107';
-                            }
-                            return `
-                                <tr onclick="viewStudentDetailsAdmin('${student.id}')" style="cursor: pointer;">
-                                    <td>
-                                        <div style="font-weight: bold; color: #0d3b66;">${student.name || student.firstName || 'N/A'} ${student.lastName || ''}</div>
-                                        <div style="font-size: 0.85rem; color: #666;">ID: ${student.id.substring(0, 8)}...</div>
-                                    </td>
-                                    <td>${student.email || 'No email'}</td>
-                                    <td style="text-align: center;">
-                                        ${hasGuardian ? 
-                                            '<span style="background: #51cf66; color: white; padding: 5px 10px; border-radius: 15px; font-size: 0.85rem;">✅ Yes</span>' : 
-                                            '<span style="background: #868e96; color: white; padding: 5px 10px; border-radius: 15px; font-size: 0.85rem;">❌ No</span>'
-                                        }
-                                    </td>
-                                    <td style="text-align: center;" onclick="event.stopPropagation();">
-                                        <span style="background: ${bookingColor}; color: white; padding: 5px 10px; border-radius: 15px; font-size: 0.85rem; cursor: pointer;" onclick="toggleStudentBooking('${student.id}', ${bookingEnabled})">
-                                            ${bookingStatus}
-                                        </span>
-                                    </td>
-                                    <td>${student.createdAt ? new Date(student.createdAt.toDate()).toLocaleDateString() : 'N/A'}</td>
-                                    <td style="text-align: center;">
-                                        ${student.subscriptionLocked ? 
-                                            '<span style="background: #ff6b6b; color: white; padding: 5px 10px; border-radius: 15px; font-size: 0.85rem;">🔒 Locked</span>' : 
-                                            '<span style="background: #51cf66; color: white; padding: 5px 10px; border-radius: 15px; font-size: 0.85rem;">✅ Active</span>'
-                                        }
-                                    </td>
-                                    <td onclick="event.stopPropagation();">
-                                        <div style="display: flex; gap: 5px; justify-content: center;">
-                                            ${student.subscriptionLocked ? 
-                                                `<button class="practice-btn" onclick="unlockStudentAccount('${student.id}')" style="padding: 8px 15px; font-size: 0.85rem; background: #51cf66;">🔓 Unlock</button>` :
-                                                `<button class="practice-btn" onclick="lockStudentAccount('${student.id}')" style="padding: 8px 15px; font-size: 0.85rem; background: #ffc107; color: #0d3b66;">🔒 Lock</button>`
-                                            }
-                                            <button class="practice-btn" onclick="deleteStudentAccount('${student.id}', '${(student.name || student.firstName || 'Student') + ' ' + (student.lastName || '')}')" style="padding: 8px 15px; font-size: 0.85rem; background: #dc3545;">🗑️ Delete</button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            `;
-                        }).join('')}
-                    </tbody>
-                </table>
-            </div>
         `;
+        
+        // Mobile view
+        let mobileHTML = '<div id="students-mobile-list" style="display: none;">';
+        
+        students.forEach(student => {
+            const hasGuardian = student.hasGuardian || false;
+            const bookingEnabled = student.bookingEnabled || false;
+            const bookingExpiry = student.bookingExpiry?.toDate();
+            const now = new Date();
+            
+            let bookingStatus = '❌ Disabled';
+            let bookingColor = '#ff6b6b';
+            
+            if (bookingEnabled && bookingExpiry && now < bookingExpiry) {
+                const daysLeft = Math.ceil((bookingExpiry - now) / (1000 * 60 * 60 * 24));
+                bookingStatus = `✅ ${daysLeft}d left`;
+                bookingColor = '#51cf66';
+            } else if (bookingEnabled && bookingExpiry && now >= bookingExpiry) {
+                bookingStatus = '⏰ Expired';
+                bookingColor = '#ffc107';
+            }
+            
+            // Desktop row
+            desktopHTML += `
+                <tr onclick="viewStudentDetailsAdmin('${student.id}')" style="cursor: pointer;">
+                    <td>
+                        <div style="font-weight: bold; color: #0d3b66;">${student.name || student.firstName || 'N/A'} ${student.lastName || ''}</div>
+                        <div style="font-size: 0.85rem; color: #666;">ID: ${student.id.substring(0, 8)}...</div>
+                    </td>
+                    <td>${student.email || 'No email'}</td>
+                    <td style="text-align: center;">
+                        ${hasGuardian ? 
+                            '<span style="background: #51cf66; color: white; padding: 5px 10px; border-radius: 15px; font-size: 0.85rem;">✅ Yes</span>' : 
+                            '<span style="background: #868e96; color: white; padding: 5px 10px; border-radius: 15px; font-size: 0.85rem;">❌ No</span>'
+                        }
+                    </td>
+                    <td style="text-align: center;" onclick="event.stopPropagation();">
+                        <span style="background: ${bookingColor}; color: white; padding: 5px 10px; border-radius: 15px; font-size: 0.85rem; cursor: pointer;" 
+                            onclick="toggleStudentBooking('${student.id}', ${bookingEnabled})">
+                            ${bookingStatus}
+                        </span>
+                    </td>
+                    <td>${student.createdAt ? new Date(student.createdAt.toDate()).toLocaleDateString() : 'N/A'}</td>
+                    <td style="text-align: center;">
+                        ${student.subscriptionLocked ? 
+                            '<span style="background: #ff6b6b; color: white; padding: 5px 10px; border-radius: 15px; font-size: 0.85rem;">🔒 Locked</span>' : 
+                            '<span style="background: #51cf66; color: white; padding: 5px 10px; border-radius: 15px; font-size: 0.85rem;">✅ Active</span>'
+                        }
+                    </td>
+                    <td onclick="event.stopPropagation();">
+                        <button class="practice-btn" onclick="viewStudentDetailsAdmin('${student.id}')" 
+                            style="padding: 8px 15px; font-size: 0.85rem; background: #17a2b8; margin: 2px;">
+                            👁️ View
+                        </button>
+                    </td>
+                </tr>
+            `;
+            
+            // Mobile card
+            mobileHTML += `
+                <div class="student-card-mobile" style="background: white; border-radius: 10px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
+                        <div>
+                            <div style="font-weight: bold; color: #0d3b66; font-size: 1.1rem;">${student.name || student.firstName || 'N/A'} ${student.lastName || ''}</div>
+                            <div style="font-size: 0.85rem; color: #666; margin-top: 3px;">${student.email || 'No email'}</div>
+                        </div>
+                        ${student.subscriptionLocked ? 
+                            '<span style="background: #ff6b6b; color: white; padding: 5px 10px; border-radius: 15px; font-size: 0.8rem;">🔒 Locked</span>' : 
+                            '<span style="background: #51cf66; color: white; padding: 5px 10px; border-radius: 15px; font-size: 0.8rem;">✅ Active</span>'
+                        }
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 15px 0; padding: 10px; background: #f8f9fa; border-radius: 5px;">
+                        <div>
+                            <div style="font-size: 0.75rem; color: #666;">Guardian</div>
+                            <div style="font-size: 0.9rem; font-weight: bold;">
+                                ${hasGuardian ? '✅ Yes' : '❌ No'}
+                            </div>
+                        </div>
+                        <div>
+                            <div style="font-size: 0.75rem; color: #666;">Booking</div>
+                            <div style="font-size: 0.9rem; font-weight: bold; color: ${bookingColor};">
+                                ${bookingStatus}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button class="practice-btn" onclick="viewStudentDetailsAdmin('${student.id}')" 
+                        style="width: 100%; padding: 12px; font-size: 0.95rem; background: #17a2b8;">
+                        👁️ View Details
+                    </button>
+                </div>
+            `;
+        });
+        
+        desktopHTML += '</tbody></table></div>';
+        mobileHTML += '</div>';
+        
+        container.innerHTML = desktopHTML + mobileHTML;
+        
+        // Show appropriate view based on screen size
+        const updateView = () => {
+            const desktopTable = document.getElementById('students-desktop-table');
+            const mobileList = document.getElementById('students-mobile-list');
+            
+            if (desktopTable && mobileList) {
+                if (window.innerWidth > 768) {
+                    desktopTable.parentElement.style.display = 'block';
+                    mobileList.style.display = 'none';
+                } else {
+                    desktopTable.parentElement.style.display = 'none';
+                    mobileList.style.display = 'block';
+                }
+            }
+        };
+        
+        updateView();
+        window.addEventListener('resize', updateView);
+        
     } catch (error) {
         console.error('Error loading students:', error);
         container.innerHTML = '<div class="feedback error">❌ Failed to load students: ' + error.message + '</div>';
     }
 }
 
+        
 // ===== COACHES LIST =====
 
 async function loadAdminCoachesList(container) {
@@ -21214,6 +21299,18 @@ async function viewStudentDetailsAdmin(studentId) {
             subscriptionStatus = `${subscriptionType === 'trial' ? '🎁 Trial' : '✅ Active'} - Expires ${subscriptionExpiry.toLocaleDateString()} (${daysLeft} days left)`;
         }
         
+        // Booking status
+        const bookingEnabled = student.bookingEnabled || false;
+        const bookingExpiry = student.bookingExpiry?.toDate();
+        let bookingStatus = '❌ Disabled';
+        
+        if (bookingEnabled && bookingExpiry && now < bookingExpiry) {
+            const daysLeft = Math.ceil((bookingExpiry - now) / (1000 * 60 * 60 * 24));
+            bookingStatus = `✅ Active (${daysLeft} days left)`;
+        } else if (bookingEnabled && bookingExpiry && now >= bookingExpiry) {
+            bookingStatus = '⏰ Expired';
+        }
+        
         const modal = document.createElement('div');
         modal.className = 'auth-modal active';
         modal.style.display = 'block';
@@ -21237,6 +21334,28 @@ async function viewStudentDetailsAdmin(studentId) {
                             <p><strong>Subscription:</strong> ${subscriptionStatus}</p>
                             <p><strong>Coins:</strong> 🪙 ${student.coins || 0}</p>
                             <p><strong>Coach ID:</strong> ${student.coachId || 'No coach assigned'}</p>
+                            <p><strong>Has Guardian:</strong> ${student.hasGuardian ? '✅ Yes' : '❌ No'}</p>
+                            <p><strong>Booking Status:</strong> ${bookingStatus}</p>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-bottom: 25px;">
+                        <h3 style="color: #0d3b66; margin-bottom: 15px;">⚙️ Admin Actions</h3>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            ${student.subscriptionLocked ? 
+                                `<button class="practice-btn" onclick="unlockStudentAccount('${studentId}'); this.closest('.auth-modal').remove();" style="background: #51cf66; width: 100%;">🔓 Unlock Account</button>` :
+                                `<button class="practice-btn" onclick="lockStudentAccount('${studentId}'); this.closest('.auth-modal').remove();" style="background: #ffc107; color: #0d3b66; width: 100%;">🔒 Lock Account</button>`
+                            }
+                            
+                            <button class="practice-btn" onclick="toggleStudentBooking('${studentId}', ${bookingEnabled}); this.closest('.auth-modal').remove();" 
+                                style="background: ${bookingEnabled ? '#ff6b6b' : '#51cf66'}; width: 100%;">
+                                ${bookingEnabled ? '❌ Disable Booking' : '✅ Enable Booking'}
+                            </button>
+                            
+                            <button class="practice-btn" onclick="deleteStudentAccount('${studentId}', '${(student.name || student.firstName || 'Student') + ' ' + (student.lastName || '')}'); this.closest('.auth-modal').remove();" 
+                                style="background: #dc3545; width: 100%; grid-column: 1 / -1;">
+                                🗑️ Delete Account
+                            </button>
                         </div>
                     </div>
                     
@@ -21273,6 +21392,7 @@ async function viewStudentDetailsAdmin(studentId) {
     }
 }
 
+    
 async function unlockStudentAccount(studentId) {
     if (!confirm('Are you sure you want to unlock this student account?\n\nThis will:\n✅ Remove the subscription lock\n✅ Hide the subscription modal\n✅ Grant full access to all features')) {
         return;
@@ -22835,7 +22955,7 @@ async function handleParentSignUp(event) {
         submitBtn.textContent = '✅ Create Parent Account';
     }
 }        
-     async function updateUIForAuthenticatedUser(user) {
+    async function updateUIForAuthenticatedUser(user) {
     const displayName = user.displayName || user.email.split('@')[0];
     const photoURL = user.photoURL;
     
@@ -22845,13 +22965,15 @@ async function handleParentSignUp(event) {
     
     if (photoURL) {
         sidebarAvatar.style.backgroundImage = `url(${photoURL})`;
+        sidebarAvatar.style.backgroundSize = 'cover';
+        sidebarAvatar.style.backgroundPosition = 'center';
         sidebarAvatar.textContent = '';
     } else {
         sidebarAvatar.style.backgroundImage = 'none';
         sidebarAvatar.textContent = displayName.charAt(0).toUpperCase();
     }
     
-    // ✅ SHOW MY PROFILE BUTTON BASED ON USER TYPE
+    // Show MY PROFILE button based on user type
     const myProfileBtn = document.getElementById('myProfileBtn');
     
     try {
@@ -22860,27 +22982,44 @@ async function handleParentSignUp(event) {
         
         if (userData && userData.userType === 'parent') {
             myProfileBtn.innerHTML = '👨‍👩‍👧 PARENT DASHBOARD';
-            myProfileBtn.onclick = () => goToParentDashboard();
+            myProfileBtn.onclick = () => {
+                navigateTo('parent-dashboard');
+                loadParentDashboard();
+            };
+        } else if (userData && userData.userType === 'organization') {
+            myProfileBtn.innerHTML = '🏢 ORGANIZATION DASHBOARD';
+            myProfileBtn.onclick = () => {
+                navigateTo('parent-dashboard');
+                loadParentDashboard();
+            };
         } else if (userData && userData.userType === 'coach') {
             myProfileBtn.innerHTML = '👨‍🏫 MY PROFILE';
-            myProfileBtn.onclick = () => goToUserDashboard();
+            myProfileBtn.onclick = () => {
+                navigateTo('student-dashboard');
+                loadUserDashboard();
+            };
         } else {
             myProfileBtn.innerHTML = '👤 MY PROFILE';
-            myProfileBtn.onclick = () => goToUserDashboard();
+            myProfileBtn.onclick = () => {
+                navigateTo('student-dashboard');
+                loadUserDashboard();
+            };
         }
         
         myProfileBtn.style.display = 'block';
     } catch (error) {
         console.error('Error loading user type:', error);
         myProfileBtn.innerHTML = '👤 MY PROFILE';
-        myProfileBtn.onclick = () => goToUserDashboard();
+        myProfileBtn.onclick = () => {
+            navigateTo('student-dashboard');
+            loadUserDashboard();
+        };
         myProfileBtn.style.display = 'block';
     }
     
     document.getElementById('sidebar-signin').style.display = 'none';
     document.getElementById('sidebar-signout').style.display = 'block';
 }
-
         
       function updateUIForGuestUser() {
     document.getElementById('sidebarUserName').textContent = 'Guest';
@@ -22921,53 +23060,76 @@ async function loadParentDashboard() {
     try {
         const userDoc = await db.collection('users').doc(currentUser.uid).get();
         const userData = userDoc.data();
+        
         if (userData.userType !== 'parent' && userData.userType !== 'organization') {
             alert('Access denied. Parent/Organization accounts only.');
             navigateTo('home');
             return;
         }
+        
         const isOrganization = userData.userType === 'organization';
-        const displayName = isOrganization ? userData.organizationName : userData.name;
+        const displayName = isOrganization ? (userData.organizationName || userData.name) : userData.name;
+        
+        // Update header
         document.getElementById('parent-dashboard-name').textContent = displayName || (isOrganization ? 'Organization' : 'Parent');
         document.getElementById('parent-dashboard-email').textContent = userData.email || '';
+        
+        // Fix avatar centering
         const parentAvatar = document.getElementById('parent-dashboard-avatar');
         if (currentUser.photoURL) {
             parentAvatar.style.backgroundImage = `url(${currentUser.photoURL})`;
+            parentAvatar.style.backgroundSize = 'cover';
+            parentAvatar.style.backgroundPosition = 'center';
             parentAvatar.textContent = '';
         } else {
             parentAvatar.style.backgroundImage = 'none';
             parentAvatar.textContent = displayName ? displayName.charAt(0).toUpperCase() : (isOrganization ? 'O' : 'P');
         }
+        
+        // Update profile section
         if (isOrganization) {
-            document.getElementById('parent-display-name').textContent = userData.organizationName || 'Organization';
-            document.getElementById('parent-edit-name').value = userData.organizationName || '';
+            document.getElementById('parent-display-name').textContent = userData.organizationName || userData.name || 'Organization';
+            document.getElementById('parent-edit-name').value = userData.organizationName || userData.name || '';
             document.getElementById('parent-display-phone').textContent = userData.phone || 'Not set';
             document.getElementById('parent-edit-phone').value = userData.phone || '';
             document.getElementById('parent-display-country').textContent = userData.address || 'Not set';
             document.getElementById('parent-edit-country').value = userData.address || '';
         } else {
-            document.getElementById('parent-display-name').textContent = userData.name;
-            document.getElementById('parent-edit-name').value = userData.name;
-            document.getElementById('parent-display-email').textContent = userData.email;
+            document.getElementById('parent-display-name').textContent = userData.name || 'Parent';
+            document.getElementById('parent-edit-name').value = userData.name || '';
             document.getElementById('parent-display-phone').textContent = userData.phone || 'Not set';
             document.getElementById('parent-edit-phone').value = userData.phone || '';
             document.getElementById('parent-display-country').textContent = userData.country || 'Not set';
             document.getElementById('parent-edit-country').value = userData.country || '';
         }
+        
+        // Fix email display
+        document.getElementById('parent-display-email').textContent = userData.email || currentUser.email || 'Not set';
+        
+        // Show join date
         if (userData.createdAt) {
             const joinDate = userData.createdAt.toDate();
-            document.getElementById('parent-display-joined').textContent = joinDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-        }
-        if (userData.linkedStudentId) {
-            await loadChildAccountStatus(userData.linkedStudentId);
+            document.getElementById('parent-display-joined').textContent = joinDate.toLocaleDateString('en-US', { 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+            });
         } else {
-            const childContainer = document.getElementById('child-status-container');
-            if (childContainer) childContainer.style.display = 'none';
+            document.getElementById('parent-display-joined').textContent = 'Recently joined';
         }
+        
+        // Hide transaction history section completely
+        const transactionSection = document.querySelector('.dashboard-section:has(#transaction-history-container)');
+        if (transactionSection) {
+            transactionSection.style.display = 'none';
+        }
+        
+        // Show guardian students section
         document.getElementById('guardian-students-section').style.display = 'block';
         document.getElementById('guardian-support-section').style.display = 'block';
+        
         await loadGuardianStudents();
-        await loadTransactionHistory();
+        
     } catch (error) {
         console.error('Error loading parent dashboard:', error);
         alert('Failed to load dashboard: ' + error.message);
@@ -23983,47 +24145,92 @@ async function handleAddStudent(event) {
 async function loadGuardianStudents() {
     if (!currentUser) return;
     const container = document.getElementById('guardian-students-container');
+    
     try {
         container.innerHTML = '<div class="loading">Loading students...</div>';
-        const studentsSnapshot = await db.collection('users').where('guardianId', '==', currentUser.uid).where('userType', '==', 'student').get();
+        
+        const studentsSnapshot = await db.collection('users')
+            .where('guardianId', '==', currentUser.uid)
+            .where('userType', '==', 'student')
+            .get();
+        
         if (studentsSnapshot.empty) {
             container.innerHTML = `
                 <div class="loading">
                     <p style="margin-bottom: 15px;">No students added yet.</p>
-                    <button class="practice-btn" onclick="showAddStudentModal()" style="padding: 10px 20px;">➕ Add Your First Student</button>
+                    <button class="practice-btn" onclick="showAddStudentModal()" style="padding: 10px 20px;">
+                        ➕ Add Students
+                    </button>
                 </div>
             `;
             return;
         }
-        let html = '<div class="coaches-table"><table><thead><tr><th>👤 Student</th><th>🆔 Student ID</th><th>📅 Age</th><th>🎯 Booking Status</th><th>⚙️ Actions</th></tr></thead><tbody>';
+        
+        let html = `
+            <div style="text-align: right; margin-bottom: 15px;">
+                <button class="practice-btn" onclick="showAddStudentModal()" style="padding: 10px 20px;">
+                    ➕ Add Students
+                </button>
+            </div>
+            <div class="coaches-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>👤 Student</th>
+                            <th>🆔 Student ID</th>
+                            <th>📅 Age</th>
+                            <th>🎯 Booking Status</th>
+                            <th>⚙️ Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+        
         studentsSnapshot.forEach(doc => {
             const student = doc.data();
             const studentId = student.studentId || `WB-2025-${doc.id.slice(-4).toUpperCase()}`;
             const bookingEnabled = student.bookingEnabled || false;
             const bookingExpiry = student.bookingExpiry?.toDate();
             const now = new Date();
+            
             let bookingStatus = '❌ Disabled';
             let bookingClass = 'error';
+            
             if (bookingEnabled && bookingExpiry && now < bookingExpiry) {
-                const daysLeft = Math.ceil((bookingExpiry - now) / (1000 * 60 * 60 * 24));
+                const daysLeft = Math.ceil((bookingExpiry - now) / (1000 / 60 / 60 / 24));
                 bookingStatus = `✅ Active (${daysLeft} days left)`;
                 bookingClass = 'success';
             } else if (bookingEnabled && bookingExpiry && now >= bookingExpiry) {
                 bookingStatus = '⏰ Expired';
                 bookingClass = 'warning';
             }
+            
             html += `
                 <tr>
-                    <td><div style="font-weight: bold; color: #0d3b66;">${student.name || 'Student'}</div><div style="font-size: 0.85rem; color: #666;">${student.email || 'No email'}</div></td>
+                    <td>
+                        <div style="font-weight: bold; color: #0d3b66;">${student.name || 'Student'}</div>
+                        <div style="font-size: 0.85rem; color: #666;">${student.email || 'No email'}</div>
+                    </td>
                     <td style="font-family: monospace; font-weight: bold;">${studentId}</td>
                     <td style="text-align: center;">${student.age || 'N/A'}</td>
-                    <td style="text-align: center;"><span class="feedback ${bookingClass}" style="display: inline-block; padding: 5px 10px; font-size: 0.85rem;">${bookingStatus}</span></td>
-                    <td style="text-align: center;"><button class="practice-btn" onclick="removeGuardianStudent('${doc.id}', '${student.name}')" style="padding: 8px 15px; font-size: 0.85rem; background: #dc3545;">🗑️ Remove</button></td>
+                    <td style="text-align: center;">
+                        <span class="feedback ${bookingClass}" style="display: inline-block; padding: 5px 10px; font-size: 0.85rem;">
+                            ${bookingStatus}
+                        </span>
+                    </td>
+                    <td style="text-align: center;">
+                        <button class="practice-btn" onclick="removeGuardianStudent('${doc.id}', '${student.name}')" 
+                            style="padding: 8px 15px; font-size: 0.85rem; background: #dc3545;">
+                            🗑️ Remove
+                        </button>
+                    </td>
                 </tr>
             `;
         });
+        
         html += '</tbody></table></div>';
         container.innerHTML = html;
+        
     } catch (error) {
         console.error('Error loading guardian students:', error);
         container.innerHTML = '<div class="feedback error">❌ Failed to load students</div>';
