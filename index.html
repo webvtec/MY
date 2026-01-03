@@ -21994,16 +21994,16 @@ async function handleSignUp(event, userType) {
         if (additionalData.age && additionalData.country) {
             additionalData.profileComplete = true;
         }
-  } else if (userType === 'coach') {
-    name = document.getElementById('signup-coach-name').value;
-    email = document.getElementById('signup-coach-email').value;
-    password = document.getElementById('signup-coach-password').value;
-    errorDiv = document.getElementById('signup-coach-error');
-    additionalData.organization = document.getElementById('signup-coach-organization').value;
-    additionalData.profileComplete = true;
-    additionalData.classAccessLocked = true;
-    additionalData.lockReason = 'New account - Admin approval required';
-} else if (userType === 'organization') {
+    } else if (userType === 'coach') {
+        name = document.getElementById('signup-coach-name').value;
+        email = document.getElementById('signup-coach-email').value;
+        password = document.getElementById('signup-coach-password').value;
+        errorDiv = document.getElementById('signup-coach-error');
+        additionalData.organization = document.getElementById('signup-coach-organization').value;
+        additionalData.profileComplete = true;
+        additionalData.classAccessLocked = true;
+        additionalData.lockReason = 'New account - Admin approval required';
+    } else if (userType === 'organization') {
         name = document.getElementById('signup-org-name').value;
         email = document.getElementById('signup-org-email').value;
         password = document.getElementById('signup-org-password').value;
