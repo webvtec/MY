@@ -24244,13 +24244,7 @@ async function loadGuardianStudents() {
         
         const students = await Promise.all(studentPromises);
         
-        let html = `
-            <div style="text-align: right; margin-bottom: 15px;">
-                <button class="practice-btn" onclick="showAddStudentModal()" style="padding: 10px 20px;">
-                    ➕ Add Student
-                </button>
-            </div>
-        `;
+        let html = '';
         
         if (students.length === 0) {
             html += `
@@ -24361,7 +24355,7 @@ async function loadGuardianStudents() {
         container.innerHTML = '<div class="feedback error">❌ Failed to load students</div>';
     }
 }
-
+        
 // Helper function to get full student data including coach info
 async function getStudentFullData(studentId, studentData) {
     const now = new Date();
