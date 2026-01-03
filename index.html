@@ -21216,17 +21216,17 @@ async function loadAdminCoachesList(container) {
                                     </span>
                                 </td>
                                 <td>${coach.createdAt ? new Date(coach.createdAt.toDate()).toLocaleDateString() : 'N/A'}</td>
-                               <td style="text-align: center;">
-                               ${coach.classAccessLocked ? 
-                                '<span style="background: #ff6b6b; color: white; padding: 5px 10px; border-radius: 15px; font-size: 0.85rem;">🔒 Class Locked</span>' : 
-                              coach.subscriptionLocked ?
-                               '<span style="background: #ffc107; color: #0d3b66; padding: 5px 10px; border-radius: 15px; font-size: 0.85rem;">⚠️ Account Locked</span>' :
-                                '<span style="background: #51cf66; color: white; padding: 5px 10px; border-radius: 15px; font-size: 0.85rem;">✅ Active</span>'
-                                 }
-</                               td>
+                                <td style="text-align: center;">
+                                    ${coach.classAccessLocked ? 
+                                        '<span style="background: #ff6b6b; color: white; padding: 5px 10px; border-radius: 15px; font-size: 0.85rem;">🔒 Class Locked</span>' : 
+                                        coach.subscriptionLocked ?
+                                        '<span style="background: #ffc107; color: #0d3b66; padding: 5px 10px; border-radius: 15px; font-size: 0.85rem;">⚠️ Account Locked</span>' :
+                                        '<span style="background: #51cf66; color: white; padding: 5px 10px; border-radius: 15px; font-size: 0.85rem;">✅ Active</span>'
+                                    }
+                                </td>
                                 <td onclick="event.stopPropagation();">
                                     <div style="display: flex; gap: 5px; justify-content: center;">
-                                        ${coach.subscriptionLocked ? 
+                                        ${coach.classAccessLocked ? 
                                             `<button class="practice-btn" onclick="unlockCoachAccount('${coach.id}')" style="padding: 8px 15px; font-size: 0.85rem; background: #51cf66;">
                                                 🔓 Unlock
                                             </button>` :
