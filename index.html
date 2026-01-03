@@ -23142,7 +23142,11 @@ async function loadParentDashboard() {
         // Update user type display
         const userTypeElement = document.getElementById('parent-display-usertype');
         if (userTypeElement) {
-            userTypeElement.textContent = isOrganization ? 'Organization Account' : 'Parent Account';
+            if (isOrganization) {
+                userTypeElement.textContent = '🏢 Organization Account';
+            } else {
+                userTypeElement.textContent = '👨‍👩‍👧 Parent Account';
+            }
         }
         
         // Show join date
@@ -23619,8 +23623,8 @@ async function loadUserDashboard() {
         // ✅ CHECK IF USER IS A COACH
         const isCoach = userData?.userType === 'coach';
         
-        // Update dashboard header
-        const displayName = userData?.name || currentUser.displayName || isCoach ? 'Coach' : 'Student';
+        // ✅ FIXED: Added parentheses to fix coach name display
+        const displayName = userData?.name || currentUser.displayName || (isCoach ? 'Coach' : 'Student');
         document.getElementById('dashboard-name').textContent = displayName;
         document.getElementById('dashboard-email').textContent = userData?.email || currentUser.email || '';
         
@@ -23668,37 +23672,38 @@ async function loadUserDashboard() {
         document.getElementById('display-country').textContent = userData?.country || 'Not specified';
         document.getElementById('edit-country').value = userData?.country || '';
         
+        // ✅ FIXED: Show proper user type
         document.getElementById('display-usertype').textContent = 
-            userData?.userType ? userData.userType.charAt(0).toUpperCase() + userData.userType.slice(1) : 'Student';
+            userData?.userType ? userData.userType.charAt(0).toUpperCase() + userData.userType.slice(1) + ' Account' : 'Student Account';
         
        // ===== COACH-SPECIFIC RESTRICTIONS =====
-if (isCoach) {
-    // Hide edit button for coaches
-    document.getElementById('edit-profile-btn').style.display = 'none';
-    
-    // Hide delete account option for coaches
-    const deleteAccountOption = document.querySelector('.setting-item[onclick="confirmDeleteAccount()"]');
-    if (deleteAccountOption) {
-        deleteAccountOption.style.display = 'none';
-    }
-    
-    // ✅ HIDE ONLY SPELLING INCORRECT AND QUIZ INCORRECT FOR COACHES
-    const allStatCards = document.querySelectorAll('.dashboard-card');
-    allStatCards.forEach(card => {
-        const label = card.querySelector('.card-label');
-        if (label) {
-            const text = label.textContent;
-            if (text.includes('MISTAKES') || text.includes('INCORRECT')) {
-                card.style.display = 'none';
+        if (isCoach) {
+            // Hide edit button for coaches
+            document.getElementById('edit-profile-btn').style.display = 'none';
+            
+            // Hide delete account option for coaches
+            const deleteAccountOption = document.querySelector('.setting-item[onclick="confirmDeleteAccount()"]');
+            if (deleteAccountOption) {
+                deleteAccountOption.style.display = 'none';
             }
-        }
-    });
-    
-    // ✅ HIDE SUBSCRIPTION STATUS FOR COACHES
-    const subscriptionSection = document.querySelector('.dashboard-section:has(#sub-status-icon)');
-    if (subscriptionSection) {
-        subscriptionSection.style.display = 'none';
-    }
+            
+            // ✅ HIDE ONLY SPELLING INCORRECT AND QUIZ INCORRECT FOR COACHES
+            const allStatCards = document.querySelectorAll('.dashboard-card');
+            allStatCards.forEach(card => {
+                const label = card.querySelector('.card-label');
+                if (label) {
+                    const text = label.textContent;
+                    if (text.includes('MISTAKES') || text.includes('INCORRECT')) {
+                        card.style.display = 'none';
+                    }
+                }
+            });
+            
+            // ✅ HIDE SUBSCRIPTION STATUS FOR COACHES
+            const subscriptionSection = document.querySelector('.dashboard-section:has(#sub-status-icon)');
+            if (subscriptionSection) {
+                subscriptionSection.style.display = 'none';
+            }
             
         } else {
             // Show everything for students
@@ -23723,26 +23728,26 @@ if (isCoach) {
         }
         
         // Update stats (wait for them to be loaded)
-setTimeout(() => {
-    // ✅ UPDATE FAVORITES FOR EVERYONE (including coaches)
-    const quizFavElement = document.getElementById('stat-quiz-favorites');
-    const spellingFavElement = document.getElementById('stat-spelling-favorites');
-    
-    if (quizFavElement) quizFavElement.textContent = userFavorites.length;
-    if (spellingFavElement) spellingFavElement.textContent = userSpellingFavorites.length;
-    
-    // ✅ ONLY UPDATE INCORRECT STATS FOR STUDENTS
-    if (!isCoach) {
-        const quizIncorrectElement = document.getElementById('stat-quiz-incorrect');
-        const spellingIncorrectElement = document.getElementById('stat-spelling-incorrect');
-        
-        if (quizIncorrectElement) quizIncorrectElement.textContent = userIncorrect.length;
-        if (spellingIncorrectElement) spellingIncorrectElement.textContent = userSpellingIncorrect.length;
-        
-        // Update subscription status
-        updateDashboardSubscriptionStatus();
-    }
-}, 500);
+        setTimeout(() => {
+            // ✅ UPDATE FAVORITES FOR EVERYONE (including coaches)
+            const quizFavElement = document.getElementById('stat-quiz-favorites');
+            const spellingFavElement = document.getElementById('stat-spelling-favorites');
+            
+            if (quizFavElement) quizFavElement.textContent = userFavorites.length;
+            if (spellingFavElement) spellingFavElement.textContent = userSpellingFavorites.length;
+            
+            // ✅ ONLY UPDATE INCORRECT STATS FOR STUDENTS
+            if (!isCoach) {
+                const quizIncorrectElement = document.getElementById('stat-quiz-incorrect');
+                const spellingIncorrectElement = document.getElementById('stat-spelling-incorrect');
+                
+                if (quizIncorrectElement) quizIncorrectElement.textContent = userIncorrect.length;
+                if (spellingIncorrectElement) spellingIncorrectElement.textContent = userSpellingIncorrect.length;
+                
+                // Update subscription status
+                updateDashboardSubscriptionStatus();
+            }
+        }, 500);
         
     } catch (error) {
         console.error('Error loading dashboard:', error);
