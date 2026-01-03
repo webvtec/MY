@@ -4843,7 +4843,63 @@
     </div>
 </div>
 
-    
+
+<!-- Coach Access Denied Modal -->
+<div id="coachAccessDeniedModal" class="auth-modal">
+    <div class="auth-content" style="max-width: 600px;">
+        <div class="auth-header" style="background: linear-gradient(135deg, #dc3545, #c82333);">
+            <h2 style="color: white;">🔒 Class Access Restricted</h2>
+            <button class="modal-close" onclick="closeCoachAccessDeniedModal()" style="color: white;">×</button>
+        </div>
+        <div class="auth-body" style="text-align: center;">
+            <div style="font-size: 5rem; margin-bottom: 20px;">👨‍🏫</div>
+            
+            <h3 style="color: #0d3b66; margin-bottom: 15px;">Monthly Subscription Required</h3>
+            
+            <p style="font-size: 1.1rem; line-height: 1.6; margin-bottom: 25px; color: #333;">
+                To access the <strong>MY CLASS</strong> section and manage your students, you need an active monthly coaching subscription.
+            </p>
+            
+            <div style="background: linear-gradient(135deg, #e3f2fd, #bbdefb); padding: 25px; border-radius: 15px; margin-bottom: 25px; border-left: 5px solid #2196f3;">
+                <h4 style="color: #0d3b66; margin: 0 0 15px 0; font-size: 1.2rem;">💰 Subscription Details</h4>
+                <div style="text-align: left; font-size: 1rem; line-height: 1.8;">
+                    <p style="margin: 8px 0;"><strong>📅 Duration:</strong> Monthly (30 days)</p>
+                    <p style="margin: 8px 0;"><strong>💵 Cost:</strong> Contact us for pricing</p>
+                    <p style="margin: 8px 0;"><strong>✨ Benefits:</strong></p>
+                    <ul style="margin: 10px 0; padding-left: 20px;">
+                        <li>Manage unlimited students</li>
+                        <li>Track student progress</li>
+                        <li>Create class announcements</li>
+                        <li>Host live sessions</li>
+                        <li>Access coaching tools</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div style="background: #fff3cd; padding: 20px; border-radius: 10px; border-left: 5px solid #ffc107; margin-bottom: 25px;">
+                <h4 style="color: #856404; margin: 0 0 10px 0; font-size: 1.1rem;">📧 Contact Support</h4>
+                <p style="margin: 5px 0; color: #856404; font-size: 1rem;">
+                    <strong>Email:</strong> support@wordbizacademy.com
+                </p>
+                <p style="margin: 5px 0; color: #856404; font-size: 1rem;">
+                    <strong>Phone:</strong> +1 (555) 123-4567
+                </p>
+                <p style="margin: 15px 0 0 0; color: #856404; font-size: 0.9rem;">
+                    Our team will help you set up your subscription and activate class access.
+                </p>
+            </div>
+            
+            <div style="display: flex; gap: 10px; justify-content: center;">
+                <button class="practice-btn" onclick="copyEmailToClipboard()" style="padding: 12px 25px; font-size: 1rem; background: #17a2b8;">
+                    📋 Copy Email
+                </button>
+                <button class="practice-btn" onclick="closeCoachAccessDeniedModal()" style="padding: 12px 25px; font-size: 1rem; background: #6c757d;">
+                    ✖️ Close
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
     <script>
         // ===== FIREBASE CONFIGURATION =====
         const firebaseConfig = {
@@ -5233,14 +5289,9 @@ auth.onAuthStateChanged(async user => {
                 document.getElementById('myClassBtn').innerHTML = '📚 MY CLASS';
                 document.getElementById('myClassBtn').style.display = 'block';
             } else if (userData && userData.userType === 'coach') {
-                // ✅ CHECK IF COACH HAS CLASS ACCESS ENABLED
-                if (userData.classAccessEnabled) {
-                    document.getElementById('myClassBtn').innerHTML = '📚 MY CLASS';
-                    document.getElementById('myClassBtn').style.display = 'block';
-                } else {
-                    // ✅ HIDE BUTTON FOR COACHES WITHOUT ACCESS
-                    document.getElementById('myClassBtn').style.display = 'none';
-                }
+                // ✅ ALWAYS SHOW BUTTON FOR COACHES (modal will handle access check)
+                document.getElementById('myClassBtn').innerHTML = '📚 MY CLASS';
+                document.getElementById('myClassBtn').style.display = 'block';
             } else {
                 // ✅ HIDE FOR PARENTS/ORGANIZATIONS
                 document.getElementById('myClassBtn').style.display = 'none';
@@ -18279,35 +18330,9 @@ async function loadMyClass() {
             return;
         }
         
-        // ✅ CHECK IF COACH HAS CLASS ACCESS ENABLED
+        // ✅ CHECK IF COACH HAS CLASS ACCESS ENABLED - SHOW MODAL
         if (userData.userType === 'coach' && !userData.classAccessEnabled) {
-            const studentView = document.getElementById('student-class-view');
-            const coachView = document.getElementById('coach-class-view');
-            
-            studentView.style.display = 'none';
-            coachView.style.display = 'block';
-            
-            coachView.innerHTML = `
-                <div class="feedback error" style="text-align: center; padding: 40px; max-width: 600px; margin: 0 auto;">
-                    <div style="font-size: 4rem; margin-bottom: 20px;">🔒</div>
-                    <h2 style="color: #dc3545; margin-bottom: 15px;">Class Access Disabled</h2>
-                    <p style="font-size: 1.1rem; line-height: 1.6; margin-bottom: 20px;">
-                        Your class access has been temporarily disabled due to pending subscription fees.
-                    </p>
-                    <div style="background: #fff3cd; padding: 20px; border-radius: 10px; border-left: 4px solid #ffc107; margin-bottom: 20px;">
-                        <p style="margin: 0; color: #856404; font-size: 1rem;">
-                            <strong>📧 Contact Support:</strong><br>
-                            support@wordbizacademy.com
-                        </p>
-                    </div>
-                    <p style="color: #666; font-size: 0.95rem;">
-                        Once your subscription is renewed, an administrator will re-enable your class access.
-                    </p>
-                    <button class="practice-btn" onclick="navigateTo('home')" style="margin-top: 20px; padding: 12px 30px; font-size: 1rem;">
-                        🏠 Return Home
-                    </button>
-                </div>
-            `;
+            showCoachAccessDeniedModal();
             return;
         }
         
@@ -18329,6 +18354,31 @@ async function loadMyClass() {
         console.error('Error loading class:', error);
         alert('Failed to load class information');
     }
+}
+
+
+
+function showCoachAccessDeniedModal() {
+    document.getElementById('coachAccessDeniedModal').classList.add('active');
+}
+
+function closeCoachAccessDeniedModal() {
+    document.getElementById('coachAccessDeniedModal').classList.remove('active');
+}
+
+function copyEmailToClipboard() {
+    const email = 'support@wordbizacademy.com';
+    
+    // Create temporary input to copy text
+    const tempInput = document.createElement('input');
+    tempInput.value = email;
+    document.body.appendChild(tempInput);
+    tempInput.select();
+    document.execCommand('copy');
+    document.body.removeChild(tempInput);
+    
+    // Show feedback
+    alert('✅ Email copied to clipboard!\n\n' + email);
 }
 
 // ===== STUDENT CLASS VIEW =====
