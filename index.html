@@ -21555,6 +21555,14 @@ async function viewCoachDetailsAdmin(coachId) {
             students.push({ id: doc.id, ...doc.data() });
         });
         
+        // Determine coach status
+        let statusDisplay = '✅ Active';
+        if (coach.classAccessLocked) {
+            statusDisplay = '🔒 Class Locked';
+        } else if (coach.subscriptionLocked) {
+            statusDisplay = '⚠️ Account Locked';
+        }
+        
         const modal = document.createElement('div');
         modal.className = 'auth-modal active';
         modal.style.display = 'block';
@@ -21573,7 +21581,8 @@ async function viewCoachDetailsAdmin(coachId) {
                             <p><strong>Email:</strong> ${coach.email || 'N/A'}</p>
                             <p><strong>User ID:</strong> ${coachId}</p>
                             <p><strong>Account Created:</strong> ${coach.createdAt ? new Date(coach.createdAt.toDate()).toLocaleDateString() : 'N/A'}</p>
-                            <p><strong>Account Status:</strong> ${coach.subscriptionLocked ? '🔒 Locked' : '✅ Active'}</p>
+                            <p><strong>Account Status:</strong> ${statusDisplay}</p>
+                            ${coach.classAccessLocked ? `<p><strong>Lock Reason:</strong> ${coach.lockReason || 'Not specified'}</p>` : ''}
                             <p><strong>Total Students:</strong> ${students.length}</p>
                         </div>
                     </div>
@@ -21623,7 +21632,8 @@ async function unlockCoachAccount(coachId) {
             classAccessLocked: false,
             unlockedByAdmin: true,
             unlockedAt: firebase.firestore.FieldValue.serverTimestamp(),
-            nextLockDate: firebase.firestore.Timestamp.fromDate(nextLockDate)
+            nextLockDate: firebase.firestore.Timestamp.fromDate(nextLockDate),
+            lockReason: firebase.firestore.FieldValue.delete()
         });
         
         alert('✅ Coach account unlocked successfully!\n\n• Class access granted\n• Account will auto-lock in 30 days\n• Coach can now manage their class');
@@ -21666,7 +21676,6 @@ async function lockCoachAccount(coachId) {
     }
 }
 
-        
 async function deleteCoachAccount(coachId, coachName) {
     const confirmDelete = confirm(`⚠️ WARNING: Are you sure you want to permanently delete the account for coach "${coachName}"?\n\nThis will:\n- Delete their coach account\n- Unassign all their students\n- Delete all their data\n\nThis action CANNOT be undone!`);
     
