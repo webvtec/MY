@@ -5145,7 +5145,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 
- auth.onAuthStateChanged(async user => {
+auth.onAuthStateChanged(async user => {
     if (user) {
         currentUser = user;
         
@@ -5165,7 +5165,7 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('📄 Firestore photoURL:', userData.photoURL);
         
         if (user.photoURL && !userData.photoURL) {
-            console.log('📝 Syncing photoURL to Firestore...');
+            console.log('🔄 Syncing photoURL to Firestore...');
             await userRef.update({
                 photoURL: user.photoURL
             });
@@ -5174,7 +5174,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // ✅ INITIALIZE SPELLING STATS IF NOT EXISTS
         if (!userData.spellingStats) {
-            console.log('📝 Initializing spelling stats...');
+            console.log('🔄 Initializing spelling stats...');
             await userRef.update({
                 spellingStats: {
                     totalChallenges: 0,
@@ -5194,6 +5194,9 @@ document.addEventListener('DOMContentLoaded', function() {
         // ✅ CHECK AND REMOVE EXPIRED CLASS ENROLLMENTS
         await checkAndRemoveExpiredStudents();
         
+        // ✅ CHECK AND AUTO-LOCK EXPIRED COACH CLASS ACCESS
+        await checkCoachClassAccessExpiry();
+        
         // ✅ ADD MY CLASS BUTTON
         const myClassBtn = document.getElementById('myClassBtn');
         if (!myClassBtn) {
@@ -5212,6 +5215,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         try {
             if (userData && (userData.userType === 'student' || userData.userType === 'coach')) {
+                // ✅ SHOW MY CLASS BUTTON FOR BOTH STUDENTS AND ALL COACHES
                 document.getElementById('myClassBtn').innerHTML = '📚 MY CLASS';
                 document.getElementById('myClassBtn').style.display = 'block';
             }
@@ -18231,43 +18235,65 @@ document.addEventListener('click', function(event) {
 });
 
 
-  // ===== CLASS LOADING FUNCTION =====
 async function loadMyClass() {
     if (!currentUser) {
         alert('Please sign in to access your class');
-        showAuthModal();
         return;
     }
-
+    
+    const container = document.getElementById('class-container');
+    
     try {
         const userDoc = await db.collection('users').doc(currentUser.uid).get();
         const userData = userDoc.data();
-
-        if (!userData || (!userData.userType === 'student' && userData.userType !== 'coach')) {
-            alert('Only students and coaches can access classes');
-            navigateTo('home');
-            return;
-        }
-
-        // Show appropriate view based on user type
-        const studentView = document.getElementById('student-class-view');
-        const coachView = document.getElementById('coach-class-view');
         
-        if (userData.userType === 'student') {
-            studentView.style.display = 'block';
-            coachView.style.display = 'none';
-            await loadStudentClassView();
-        } else if (userData.userType === 'coach') {
-            studentView.style.display = 'none';
-            coachView.style.display = 'block';
-            await loadCoachClassView();
+        // ✅ CHECK IF COACH HAS ACCESS TO MY CLASS (CHECK THIS FIRST!)
+        if (userData.userType === 'coach' && !userData.classAccessEnabled) {
+            container.innerHTML = `
+                <div style="text-align: center; padding: 60px 20px; background: white; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); max-width: 600px; margin: 0 auto;">
+                    <div style="font-size: 5rem; margin-bottom: 20px;">🔒</div>
+                    <h2 style="color: #dc3545; margin-bottom: 15px;">My Class Access Locked</h2>
+                    <p style="font-size: 1.1rem; color: #666; line-height: 1.8; margin-bottom: 25px;">
+                        Your "My Class" feature is currently locked. This happens when:<br><br>
+                        • Monthly fees are pending<br>
+                        • Your account needs admin approval<br>
+                        • Your access period has expired
+                    </p>
+                    <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 20px; border-radius: 8px; margin-bottom: 25px; text-align: left;">
+                        <strong style="color: #856404;">📧 Contact Support to Reopen</strong>
+                        <p style="color: #856404; margin: 10px 0 0 0;">
+                            Email: <a href="mailto:support@wordbizacademy.com" style="color: #0d3b66;">support@wordbizacademy.com</a><br>
+                            Subject: "Reopen My Class Access - Monthly Fees Payment"<br><br>
+                            Please mention:<br>
+                            • Your account email: <strong>${userData.email}</strong><br>
+                            • Your coach name: <strong>${userData.name}</strong><br>
+                            • That your monthly fees are due
+                        </p>
+                    </div>
+                    <button class="practice-btn" onclick="navigateTo('student-dashboard')" 
+                        style="padding: 15px 40px; font-size: 1.1rem; background: linear-gradient(135deg, #667eea, #764ba2);">
+                        ← Return to Dashboard
+                    </button>
+                </div>
+            `;
+            return; // ✅ STOP HERE - DON'T LOAD CLASS
         }
-
+        
+        // Determine if user is a student or coach
+        if (userData.userType === 'student') {
+            await loadStudentClassView(userData);
+        } else if (userData.userType === 'coach') {
+            await loadCoachClassView(userData);
+        } else {
+            container.innerHTML = '<div class="feedback error">Invalid user type for class access</div>';
+        }
+        
     } catch (error) {
         console.error('Error loading class:', error);
-        alert('Failed to load class information');
+        container.innerHTML = '<div class="feedback error">❌ Failed to load class</div>';
     }
 }
+
 
 // ===== STUDENT CLASS VIEW =====
 async function loadStudentClassView() {
@@ -21169,48 +21195,63 @@ async function loadAdminCoachesList(container) {
                             <th>👤 Coach</th>
                             <th>📧 Email</th>
                             <th>👥 Students</th>
+                            <th>📚 My Class Access</th>
                             <th>📅 Joined</th>
-                            <th>🔒 Status</th>
                             <th>⚙️ Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        ${coaches.map(coach => `
-                            <tr onclick="viewCoachDetailsAdmin('${coach.id}')" style="cursor: pointer;">
-                                <td>
-                                    <div style="font-weight: bold; color: #0d3b66;">${coach.name || coach.firstName || 'N/A'} ${coach.lastName || ''}</div>
-                                    <div style="font-size: 0.85rem; color: #666;">ID: ${coach.id.substring(0, 8)}...</div>
-                                </td>
-                                <td>${coach.email || 'No email'}</td>
-                                <td style="text-align: center;">
-                                    <span style="background: #e3f2fd; padding: 5px 15px; border-radius: 15px; font-weight: bold; color: #0d3b66;">
-                                        ${coach.studentCount || 0}
-                                    </span>
-                                </td>
-                                <td>${coach.createdAt ? new Date(coach.createdAt.toDate()).toLocaleDateString() : 'N/A'}</td>
-                                <td style="text-align: center;">
-                                    ${coach.subscriptionLocked ? 
-                                        '<span style="background: #ff6b6b; color: white; padding: 5px 10px; border-radius: 15px; font-size: 0.85rem;">🔒 Locked</span>' : 
-                                        '<span style="background: #51cf66; color: white; padding: 5px 10px; border-radius: 15px; font-size: 0.85rem;">✅ Active</span>'
-                                    }
-                                </td>
-                                <td onclick="event.stopPropagation();">
-                                    <div style="display: flex; gap: 5px; justify-content: center;">
-                                        ${coach.subscriptionLocked ? 
-                                            `<button class="practice-btn" onclick="unlockCoachAccount('${coach.id}')" style="padding: 8px 15px; font-size: 0.85rem; background: #51cf66;">
-                                                🔓 Unlock
-                                            </button>` :
-                                            `<button class="practice-btn" onclick="lockCoachAccount('${coach.id}')" style="padding: 8px 15px; font-size: 0.85rem; background: #ffc107; color: #0d3b66;">
-                                                🔒 Lock
-                                            </button>`
-                                        }
-                                        <button class="practice-btn" onclick="deleteCoachAccount('${coach.id}', '${(coach.name || coach.firstName || 'Coach') + ' ' + (coach.lastName || '')}')" style="padding: 8px 15px; font-size: 0.85rem; background: #dc3545;">
-                                            🗑️ Delete
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                        `).join('')}
+                        ${coaches.map(coach => {
+                            const now = new Date();
+                            const classAccessExpiry = coach.classAccessExpiry?.toDate();
+                            let classAccessStatus = '❌ Locked';
+                            let classAccessColor = '#ff6b6b';
+                            
+                            if (coach.classAccessEnabled && classAccessExpiry && now < classAccessExpiry) {
+                                const daysLeft = Math.ceil((classAccessExpiry - now) / (1000 * 60 * 60 * 24));
+                                classAccessStatus = `✅ ${daysLeft}d left`;
+                                classAccessColor = '#51cf66';
+                            } else if (coach.classAccessEnabled && classAccessExpiry && now >= classAccessExpiry) {
+                                classAccessStatus = '⏰ Expired';
+                                classAccessColor = '#ffc107';
+                            }
+                            
+                            return `
+                                <tr onclick="viewCoachDetailsAdmin('${coach.id}')" style="cursor: pointer;">
+                                    <td>
+                                        <div style="font-weight: bold; color: #0d3b66;">${coach.name || coach.firstName || 'N/A'} ${coach.lastName || ''}</div>
+                                        <div style="font-size: 0.85rem; color: #666;">ID: ${coach.id.substring(0, 8)}...</div>
+                                    </td>
+                                    <td>${coach.email || 'No email'}</td>
+                                    <td style="text-align: center;">
+                                        <span style="background: #e3f2fd; padding: 5px 15px; border-radius: 15px; font-weight: bold; color: #0d3b66;">
+                                            ${coach.studentCount || 0}
+                                        </span>
+                                    </td>
+                                    <td style="text-align: center;" onclick="event.stopPropagation();">
+                                        <span style="background: ${classAccessColor}; color: white; padding: 5px 10px; border-radius: 15px; font-size: 0.85rem; cursor: help;" title="Click lock/unlock button to change">
+                                            ${classAccessStatus}
+                                        </span>
+                                    </td>
+                                    <td>${coach.createdAt ? new Date(coach.createdAt.toDate()).toLocaleDateString() : 'N/A'}</td>
+                                    <td onclick="event.stopPropagation();">
+                                        <div style="display: flex; gap: 5px; justify-content: center;">
+                                            ${coach.classAccessEnabled ? 
+                                                `<button class="practice-btn" onclick="lockCoachClassAccess('${coach.id}')" style="padding: 8px 15px; font-size: 0.85rem; background: #ffc107; color: #0d3b66;">
+                                                    🔒 Lock Class
+                                                </button>` :
+                                                `<button class="practice-btn" onclick="unlockCoachClassAccess('${coach.id}')" style="padding: 8px 15px; font-size: 0.85rem; background: #51cf66;">
+                                                    🔓 Unlock Class
+                                                </button>`
+                                            }
+                                            <button class="practice-btn" onclick="deleteCoachAccount('${coach.id}', '${(coach.name || coach.firstName || 'Coach') + ' ' + (coach.lastName || '')}')" style="padding: 8px 15px; font-size: 0.85rem; background: #dc3545;">
+                                                🗑️ Delete
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('')}
                     </tbody>
                 </table>
             </div>
@@ -21502,6 +21543,40 @@ async function deleteStudentAccount(studentId, studentName) {
     }
 }
 
+// ✅ AUTO-LOCK COACHES WITH EXPIRED CLASS ACCESS
+async function checkCoachClassAccessExpiry() {
+    try {
+        const now = new Date();
+        
+        // Get coaches with expired class access
+        const expiredCoachesSnapshot = await db.collection('users')
+            .where('userType', '==', 'coach')
+            .where('classAccessEnabled', '==', true)
+            .where('classAccessExpiry', '<=', firebase.firestore.Timestamp.fromDate(now))
+            .get();
+        
+        if (expiredCoachesSnapshot.empty) {
+            console.log('✅ No expired coach class access found');
+            return;
+        }
+        
+        const batch = db.batch();
+        
+        expiredCoachesSnapshot.forEach(doc => {
+            batch.update(doc.ref, {
+                classAccessEnabled: false,
+                classAccessExpiredAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        });
+        
+        await batch.commit();
+        console.log(`✅ Auto-locked ${expiredCoachesSnapshot.size} coaches with expired class access`);
+        
+    } catch (error) {
+        console.error('❌ Error checking coach access expiry:', error);
+    }
+}
+
 // ===== COACH ADMIN ACTIONS =====
 
 async function viewCoachDetailsAdmin(coachId) {
@@ -21579,101 +21654,117 @@ async function viewCoachDetailsAdmin(coachId) {
     }
 }
 
-async function unlockCoachAccount(coachId) {
-    if (!confirm('Are you sure you want to unlock this coach account?\n\nThis will grant full access to their dashboard.')) {
+async function unlockCoachClassAccess(coachId) {
+    if (!isAdmin) {
+        alert('Admin access required');
+        return;
+    }
+    
+    if (!confirm('Enable "My Class" access for 30 days?\n\nThis will grant access to class management features.')) {
         return;
     }
     
     try {
+        const expiryDate = new Date();
+        expiryDate.setDate(expiryDate.getDate() + 30);
+        
         await db.collection('users').doc(coachId).update({
-            subscriptionLocked: false,
+            classAccessEnabled: true,
+            classAccessExpiry: firebase.firestore.Timestamp.fromDate(expiryDate),
             unlockedByAdmin: true,
             unlockedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
         
-        alert('✅ Coach account unlocked successfully!');
+        alert('✅ "My Class" access enabled for 30 days!');
         
-        // Reload the coaches list
         const listContainer = document.getElementById('admin-user-list-container');
         if (listContainer) {
             await loadAdminCoachesList(listContainer);
         }
         
     } catch (error) {
-        console.error('Error unlocking coach account:', error);
-        alert('❌ Failed to unlock account: ' + error.message);
+        console.error('Error unlocking class access:', error);
+        alert('❌ Failed to unlock: ' + error.message);
     }
 }
 
-async function lockCoachAccount(coachId) {
-    if (!confirm('Are you sure you want to lock this coach account?\n\nThey will not be able to access their dashboard until unlocked.')) {
+        
+async function lockCoachClassAccess(coachId) {
+    if (!isAdmin) {
+        alert('Admin access required');
+        return;
+    }
+    
+    if (!confirm('Lock "My Class" access for this coach?\n\nThis will:\n🔒 Lock their "My Class" feature\n✅ They can still access their dashboard\n📧 They must contact support to unlock\n\nContinue?')) {
         return;
     }
     
     try {
         await db.collection('users').doc(coachId).update({
-            subscriptionLocked: true,
+            classAccessEnabled: false,
             lockedByAdmin: true,
             lockedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
         
-        alert('✅ Coach account locked successfully!');
+        alert('✅ "My Class" access locked!\n\n• Dashboard still accessible\n• "My Class" locked\n• Coach must contact support');
         
-        // Reload the coaches list
         const listContainer = document.getElementById('admin-user-list-container');
         if (listContainer) {
             await loadAdminCoachesList(listContainer);
         }
         
     } catch (error) {
-        console.error('Error locking coach account:', error);
-        alert('❌ Failed to lock account: ' + error.message);
+        console.error('Error locking class access:', error);
+        alert('❌ Failed to lock: ' + error.message);
     }
 }
 
 async function deleteCoachAccount(coachId, coachName) {
-    const confirmDelete = confirm(`⚠️ WARNING: Are you sure you want to permanently delete the account for coach "${coachName}"?\n\nThis will:\n- Delete their coach account\n- Unassign all their students\n- Delete all their data\n\nThis action CANNOT be undone!`);
+    if (!isAdmin) {
+        alert('Admin access required');
+        return;
+    }
     
-    if (!confirmDelete) {
-        return;
-    }
+    const confirmDelete = confirm(`⚠️ WARNING: Permanently delete "${coachName}"?\n\nThis will:\n- Delete their account\n- Unassign all students\n- Delete all data\n\nCANNOT BE UNDONE!`);
+    
+    if (!confirmDelete) return;
 
-    const doubleConfirm = confirm(`Final confirmation: This will also unassign all students from this coach. Continue?`);
-
-    if (!doubleConfirm) {
-        return;
-    }
+    const doubleConfirm = confirm(`Final confirmation: Delete "${coachName}" and unassign all students?`);
+    if (!doubleConfirm) return;
 
     try {
-        // First, unassign all students
         const studentsSnapshot = await db.collection('users')
             .where('coachId', '==', coachId)
             .get();
         
         const batch = db.batch();
         studentsSnapshot.forEach(doc => {
-            batch.update(doc.ref, { coachId: null });
+            batch.update(doc.ref, { 
+                coachId: firebase.firestore.FieldValue.delete(),
+                classId: firebase.firestore.FieldValue.delete(),
+                classJoinedAt: firebase.firestore.FieldValue.delete(),
+                classExpiryDate: firebase.firestore.FieldValue.delete()
+            });
         });
         
-        // Delete coach document
         batch.delete(db.collection('users').doc(coachId));
         
         await batch.commit();
         
-        alert('✅ Coach account deleted successfully and students unassigned!');
+        alert('✅ Coach deleted and students unassigned!');
         
-        // Reload the coaches list
         const listContainer = document.getElementById('admin-user-list-container');
         if (listContainer) {
             await loadAdminCoachesList(listContainer);
         }
         
     } catch (error) {
-        console.error('Error deleting coach account:', error);
-        alert('❌ Failed to delete account: ' + error.message);
+        console.error('Error deleting coach:', error);
+        alert('❌ Failed to delete: ' + error.message);
     }
 }
 
+        
 // ===== TOURNAMENT MODAL FUNCTIONS =====
 function showCreateTournamentModal() {
     const modal = document.createElement('div');
@@ -21958,14 +22049,16 @@ async function handleSignUp(event, userType) {
         if (additionalData.age && additionalData.country) {
             additionalData.profileComplete = true;
         }
-    } else if (userType === 'coach') {
-        name = document.getElementById('signup-coach-name').value;
-        email = document.getElementById('signup-coach-email').value;
-        password = document.getElementById('signup-coach-password').value;
-        errorDiv = document.getElementById('signup-coach-error');
-        additionalData.organization = document.getElementById('signup-coach-organization').value;
-        additionalData.profileComplete = true; // Coaches don't need extra verification
-    } else if (userType === 'organization') {
+   } else if (userType === 'coach') {
+    name = document.getElementById('signup-coach-name').value;
+    email = document.getElementById('signup-coach-email').value;
+    password = document.getElementById('signup-coach-password').value;
+    errorDiv = document.getElementById('signup-coach-error');
+    additionalData.organization = document.getElementById('signup-coach-organization').value;
+    additionalData.profileComplete = true;
+    additionalData.classAccessEnabled = false; // ✅ NEW: Coaches start with locked "My Class"
+    additionalData.studentCount = 0; // ✅ Initialize student count
+} else if (userType === 'organization') {
         name = document.getElementById('signup-org-name').value;
         email = document.getElementById('signup-org-email').value;
         password = document.getElementById('signup-org-password').value;
@@ -24465,6 +24558,9 @@ async function removeGuardianStudent(studentId, studentName) {
         alert('Failed to remove student: ' + error.message);
     }
 }
+
+
+
     </script>
 </body>
 </html>
