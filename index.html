@@ -2684,6 +2684,23 @@
         grid-template-columns: 1fr !important;
     }
 }
+
+
+
+.search-highlight {
+    animation: highlight-pulse 2s ease-in-out infinite;
+    box-shadow: 0 0 20px rgba(255, 193, 7, 0.8) !important;
+    border: 2px solid #ffc107 !important;
+}
+
+@keyframes highlight-pulse {
+    0%, 100% {
+        box-shadow: 0 0 20px rgba(255, 193, 7, 0.8);
+    }
+    50% {
+        box-shadow: 0 0 30px rgba(255, 193, 7, 1), 0 0 40px rgba(255, 193, 7, 0.6);
+    }
+}
         
     </style>
 </head>
@@ -5145,7 +5162,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 
- auth.onAuthStateChanged(async user => {
+auth.onAuthStateChanged(async user => {
     if (user) {
         currentUser = user;
         
@@ -5165,7 +5182,7 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('📄 Firestore photoURL:', userData.photoURL);
         
         if (user.photoURL && !userData.photoURL) {
-            console.log('📝 Syncing photoURL to Firestore...');
+            console.log('🔄 Syncing photoURL to Firestore...');
             await userRef.update({
                 photoURL: user.photoURL
             });
@@ -5174,7 +5191,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // ✅ INITIALIZE SPELLING STATS IF NOT EXISTS
         if (!userData.spellingStats) {
-            console.log('📝 Initializing spelling stats...');
+            console.log('🔄 Initializing spelling stats...');
             await userRef.update({
                 spellingStats: {
                     totalChallenges: 0,
@@ -5211,9 +5228,22 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         try {
-            if (userData && (userData.userType === 'student' || userData.userType === 'coach')) {
+            if (userData && userData.userType === 'student') {
+                // ✅ STUDENTS ALWAYS HAVE CLASS ACCESS
                 document.getElementById('myClassBtn').innerHTML = '📚 MY CLASS';
                 document.getElementById('myClassBtn').style.display = 'block';
+            } else if (userData && userData.userType === 'coach') {
+                // ✅ CHECK IF COACH HAS CLASS ACCESS ENABLED
+                if (userData.classAccessEnabled) {
+                    document.getElementById('myClassBtn').innerHTML = '📚 MY CLASS';
+                    document.getElementById('myClassBtn').style.display = 'block';
+                } else {
+                    // ✅ HIDE BUTTON FOR COACHES WITHOUT ACCESS
+                    document.getElementById('myClassBtn').style.display = 'none';
+                }
+            } else {
+                // ✅ HIDE FOR PARENTS/ORGANIZATIONS
+                document.getElementById('myClassBtn').style.display = 'none';
             }
         } catch (error) {
             console.error('Error checking class status:', error);
@@ -18238,17 +18268,49 @@ async function loadMyClass() {
         showAuthModal();
         return;
     }
-
+    
     try {
         const userDoc = await db.collection('users').doc(currentUser.uid).get();
         const userData = userDoc.data();
-
-        if (!userData || (!userData.userType === 'student' && userData.userType !== 'coach')) {
+        
+        if (!userData || (userData.userType !== 'student' && userData.userType !== 'coach')) {
             alert('Only students and coaches can access classes');
             navigateTo('home');
             return;
         }
-
+        
+        // ✅ CHECK IF COACH HAS CLASS ACCESS ENABLED
+        if (userData.userType === 'coach' && !userData.classAccessEnabled) {
+            const studentView = document.getElementById('student-class-view');
+            const coachView = document.getElementById('coach-class-view');
+            
+            studentView.style.display = 'none';
+            coachView.style.display = 'block';
+            
+            coachView.innerHTML = `
+                <div class="feedback error" style="text-align: center; padding: 40px; max-width: 600px; margin: 0 auto;">
+                    <div style="font-size: 4rem; margin-bottom: 20px;">🔒</div>
+                    <h2 style="color: #dc3545; margin-bottom: 15px;">Class Access Disabled</h2>
+                    <p style="font-size: 1.1rem; line-height: 1.6; margin-bottom: 20px;">
+                        Your class access has been temporarily disabled due to pending subscription fees.
+                    </p>
+                    <div style="background: #fff3cd; padding: 20px; border-radius: 10px; border-left: 4px solid #ffc107; margin-bottom: 20px;">
+                        <p style="margin: 0; color: #856404; font-size: 1rem;">
+                            <strong>📧 Contact Support:</strong><br>
+                            support@wordbizacademy.com
+                        </p>
+                    </div>
+                    <p style="color: #666; font-size: 0.95rem;">
+                        Once your subscription is renewed, an administrator will re-enable your class access.
+                    </p>
+                    <button class="practice-btn" onclick="navigateTo('home')" style="margin-top: 20px; padding: 12px 30px; font-size: 1rem;">
+                        🏠 Return Home
+                    </button>
+                </div>
+            `;
+            return;
+        }
+        
         // Show appropriate view based on user type
         const studentView = document.getElementById('student-class-view');
         const coachView = document.getElementById('coach-class-view');
@@ -18262,7 +18324,7 @@ async function loadMyClass() {
             coachView.style.display = 'block';
             await loadCoachClassView();
         }
-
+        
     } catch (error) {
         console.error('Error loading class:', error);
         alert('Failed to load class information');
@@ -20975,6 +21037,20 @@ async function loadAdminTournaments(container) {
 async function loadAdminStudentsList(container) {
     container.innerHTML = '<div class="loading">Loading students...</div>';
     try {
+        // Add search input at the top
+        const searchHTML = `
+            <div style="margin-bottom: 20px; display: flex; gap: 10px; align-items: center;">
+                <input type="text" id="admin-student-search" placeholder="Search by name, email, or Student ID..." 
+                    style="flex: 1; padding: 12px; border: 2px solid #0d3b66; border-radius: 5px; font-size: 1rem;">
+                <button class="practice-btn" onclick="searchAdminStudents()" style="padding: 12px 30px; background: #17a2b8;">
+                    🔍 Search
+                </button>
+                <button class="practice-btn" onclick="clearAdminStudentSearch()" style="padding: 12px 30px; background: #6c757d;">
+                    ✖️ Clear
+                </button>
+            </div>
+        `;
+        
         const studentsSnapshot = await db.collection('users')
             .where('userType', '==', 'student')
             .orderBy('createdAt', 'desc')
@@ -20986,12 +21062,13 @@ async function loadAdminStudentsList(container) {
         });
         
         if (students.length === 0) {
-            container.innerHTML = '<div class="loading">No students found on the platform.</div>';
+            container.innerHTML = searchHTML + '<div class="loading">No students found on the platform.</div>';
             return;
         }
         
         // Desktop view
         let desktopHTML = `
+            ${searchHTML}
             <h3 style="color: #0d3b66; margin-bottom: 20px;">🎓 All Students (${students.length})</h3>
             <div class="coaches-table" style="display: none;">
                 <table id="students-desktop-table">
@@ -21002,7 +21079,7 @@ async function loadAdminStudentsList(container) {
                             <th>👥 Guardian</th>
                             <th>🎯 Booking</th>
                             <th>📅 Joined</th>
-                            <th>🔒 Status</th>
+                            <th>🔐 Status</th>
                             <th>⚙️ Actions</th>
                         </tr>
                     </thead>
@@ -21030,12 +21107,17 @@ async function loadAdminStudentsList(container) {
                 bookingColor = '#ffc107';
             }
             
+            const studentId = student.studentId || `WB-2025-${student.id.slice(-4).toUpperCase()}`;
+            
             // Desktop row
             desktopHTML += `
-                <tr onclick="viewStudentDetailsAdmin('${student.id}')" style="cursor: pointer;">
+                <tr data-student-name="${(student.name || student.firstName || '').toLowerCase()}" 
+                    data-student-email="${(student.email || '').toLowerCase()}"
+                    data-student-id="${studentId.toLowerCase()}"
+                    onclick="viewStudentDetailsAdmin('${student.id}')" style="cursor: pointer;">
                     <td>
                         <div style="font-weight: bold; color: #0d3b66;">${student.name || student.firstName || 'N/A'} ${student.lastName || ''}</div>
-                        <div style="font-size: 0.85rem; color: #666;">ID: ${student.id.substring(0, 8)}...</div>
+                        <div style="font-size: 0.85rem; color: #666;">ID: ${studentId}</div>
                     </td>
                     <td>${student.email || 'No email'}</td>
                     <td style="text-align: center;">
@@ -21068,11 +21150,15 @@ async function loadAdminStudentsList(container) {
             
             // Mobile card
             mobileHTML += `
-                <div class="student-card-mobile" style="background: white; border-radius: 10px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                <div class="student-card-mobile" data-student-name="${(student.name || student.firstName || '').toLowerCase()}" 
+                    data-student-email="${(student.email || '').toLowerCase()}"
+                    data-student-id="${studentId.toLowerCase()}"
+                    style="background: white; border-radius: 10px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
                     <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
                         <div>
                             <div style="font-weight: bold; color: #0d3b66; font-size: 1.1rem;">${student.name || student.firstName || 'N/A'} ${student.lastName || ''}</div>
                             <div style="font-size: 0.85rem; color: #666; margin-top: 3px;">${student.email || 'No email'}</div>
+                            <div style="font-size: 0.8rem; color: #666; margin-top: 3px;">ID: ${studentId}</div>
                         </div>
                         ${student.subscriptionLocked ? 
                             '<span style="background: #ff6b6b; color: white; padding: 5px 10px; border-radius: 15px; font-size: 0.8rem;">🔒 Locked</span>' : 
@@ -21133,6 +21219,63 @@ async function loadAdminStudentsList(container) {
     }
 }
 
+
+function searchAdminStudents() {
+    const searchTerm = document.getElementById('admin-student-search').value.toLowerCase().trim();
+    
+    if (!searchTerm) {
+        alert('Please enter a search term');
+        return;
+    }
+    
+    // Remove previous highlights
+    document.querySelectorAll('.search-highlight').forEach(el => {
+        el.classList.remove('search-highlight');
+    });
+    
+    let foundCount = 0;
+    
+    // Search in desktop table
+    const desktopRows = document.querySelectorAll('#students-desktop-table tbody tr');
+    desktopRows.forEach(row => {
+        const name = row.getAttribute('data-student-name') || '';
+        const email = row.getAttribute('data-student-email') || '';
+        const studentId = row.getAttribute('data-student-id') || '';
+        
+        if (name.includes(searchTerm) || email.includes(searchTerm) || studentId.includes(searchTerm)) {
+            row.classList.add('search-highlight');
+            row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            foundCount++;
+        }
+    });
+    
+    // Search in mobile cards
+    const mobileCards = document.querySelectorAll('.student-card-mobile');
+    mobileCards.forEach(card => {
+        const name = card.getAttribute('data-student-name') || '';
+        const email = card.getAttribute('data-student-email') || '';
+        const studentId = card.getAttribute('data-student-id') || '';
+        
+        if (name.includes(searchTerm) || email.includes(searchTerm) || studentId.includes(searchTerm)) {
+            card.classList.add('search-highlight');
+            card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            foundCount++;
+        }
+    });
+    
+    if (foundCount === 0) {
+        alert(`No students found matching "${searchTerm}"`);
+    } else {
+        alert(`Found ${foundCount} student(s) matching "${searchTerm}"`);
+    }
+}
+
+function clearAdminStudentSearch() {
+    document.getElementById('admin-student-search').value = '';
+    document.querySelectorAll('.search-highlight').forEach(el => {
+        el.classList.remove('search-highlight');
+    });
+}
         
 // ===== COACHES LIST =====
 
@@ -21140,43 +21283,63 @@ async function loadAdminCoachesList(container) {
     container.innerHTML = '<div class="loading">Loading coaches...</div>';
     
     try {
+        // Add search input
+        const searchHTML = `
+            <div style="margin-bottom: 20px; display: flex; gap: 10px; align-items: center;">
+                <input type="text" id="admin-coach-search" placeholder="Search by name or email..." 
+                    style="flex: 1; padding: 12px; border: 2px solid #0d3b66; border-radius: 5px; font-size: 1rem;">
+                <button class="practice-btn" onclick="searchAdminCoaches()" style="padding: 12px 30px; background: #17a2b8;">
+                    🔍 Search
+                </button>
+                <button class="practice-btn" onclick="clearAdminCoachSearch()" style="padding: 12px 30px; background: #6c757d;">
+                    ✖️ Clear
+                </button>
+            </div>
+        `;
+        
         const coachesSnapshot = await db.collection('users')
             .where('userType', '==', 'coach')
             .orderBy('createdAt', 'desc')
             .get();
         
         const coaches = [];
+        const coachPromises = [];
+        
         coachesSnapshot.forEach(doc => {
-            coaches.push({ id: doc.id, ...doc.data() });
+            coachPromises.push(getCoachStudentCount(doc.id).then(count => {
+                coaches.push({ id: doc.id, ...doc.data(), actualStudentCount: count });
+            }));
         });
         
+        await Promise.all(coachPromises);
+        
         if (coaches.length === 0) {
-            container.innerHTML = `
-                <div class="loading">
-                    No coaches found on the platform.
-                </div>
-            `;
+            container.innerHTML = searchHTML + `<div class="loading">No coaches found on the platform.</div>`;
             return;
         }
         
         container.innerHTML = `
+            ${searchHTML}
             <h3 style="color: #0d3b66; margin-bottom: 20px;">👨‍🏫 All Coaches (${coaches.length})</h3>
             
             <div class="coaches-table">
-                <table>
+                <table id="coaches-desktop-table">
                     <thead>
                         <tr>
                             <th>👤 Coach</th>
                             <th>📧 Email</th>
                             <th>👥 Students</th>
                             <th>📅 Joined</th>
-                            <th>🔒 Status</th>
+                            <th>🔐 Status</th>
+                            <th>📚 Class Access</th>
                             <th>⚙️ Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         ${coaches.map(coach => `
-                            <tr onclick="viewCoachDetailsAdmin('${coach.id}')" style="cursor: pointer;">
+                            <tr data-coach-name="${(coach.name || coach.firstName || '').toLowerCase()}" 
+                                data-coach-email="${(coach.email || '').toLowerCase()}"
+                                onclick="viewCoachDetailsAdmin('${coach.id}')" style="cursor: pointer;">
                                 <td>
                                     <div style="font-weight: bold; color: #0d3b66;">${coach.name || coach.firstName || 'N/A'} ${coach.lastName || ''}</div>
                                     <div style="font-size: 0.85rem; color: #666;">ID: ${coach.id.substring(0, 8)}...</div>
@@ -21184,7 +21347,7 @@ async function loadAdminCoachesList(container) {
                                 <td>${coach.email || 'No email'}</td>
                                 <td style="text-align: center;">
                                     <span style="background: #e3f2fd; padding: 5px 15px; border-radius: 15px; font-weight: bold; color: #0d3b66;">
-                                        ${coach.studentCount || 0}
+                                        ${coach.actualStudentCount || 0}
                                     </span>
                                 </td>
                                 <td>${coach.createdAt ? new Date(coach.createdAt.toDate()).toLocaleDateString() : 'N/A'}</td>
@@ -21194,8 +21357,14 @@ async function loadAdminCoachesList(container) {
                                         '<span style="background: #51cf66; color: white; padding: 5px 10px; border-radius: 15px; font-size: 0.85rem;">✅ Active</span>'
                                     }
                                 </td>
+                                <td style="text-align: center;">
+                                    ${coach.classAccessEnabled ? 
+                                        '<span style="background: #51cf66; color: white; padding: 5px 10px; border-radius: 15px; font-size: 0.85rem;">✅ Enabled</span>' : 
+                                        '<span style="background: #ff6b6b; color: white; padding: 5px 10px; border-radius: 15px; font-size: 0.85rem;">🔒 Disabled</span>'
+                                    }
+                                </td>
                                 <td onclick="event.stopPropagation();">
-                                    <div style="display: flex; gap: 5px; justify-content: center;">
+                                    <div style="display: flex; gap: 5px; justify-content: center; flex-wrap: wrap;">
                                         ${coach.subscriptionLocked ? 
                                             `<button class="practice-btn" onclick="unlockCoachAccount('${coach.id}')" style="padding: 8px 15px; font-size: 0.85rem; background: #51cf66;">
                                                 🔓 Unlock
@@ -21204,7 +21373,15 @@ async function loadAdminCoachesList(container) {
                                                 🔒 Lock
                                             </button>`
                                         }
-                                        <button class="practice-btn" onclick="deleteCoachAccount('${coach.id}', '${(coach.name || coach.firstName || 'Coach') + ' ' + (coach.lastName || '')}')" style="padding: 8px 15px; font-size: 0.85rem; background: #dc3545;">
+                                        ${coach.classAccessEnabled ? 
+                                            `<button class="practice-btn" onclick="disableCoachClassAccess('${coach.id}')" style="padding: 8px 15px; font-size: 0.85rem; background: #ff6b6b;">
+                                                ❌ Disable Class
+                                            </button>` :
+                                            `<button class="practice-btn" onclick="enableCoachClassAccess('${coach.id}')" style="padding: 8px 15px; font-size: 0.85rem; background: #51cf66;">
+                                                ✅ Enable Class
+                                            </button>`
+                                        }
+                                        <button class="practice-btn" onclick="deleteCoachAccount('${coach.id}', '${(coach.name || coach.firstName || 'Coach') + ' ' + (coach.lastName || '')}'); event.stopPropagation();" style="padding: 8px 15px; font-size: 0.85rem; background: #dc3545;">
                                             🗑️ Delete
                                         </button>
                                     </div>
@@ -21223,6 +21400,136 @@ async function loadAdminCoachesList(container) {
                 ❌ Failed to load coaches: ${error.message}
             </div>
         `;
+    }
+}
+
+// Helper function to get actual student count
+async function getCoachStudentCount(coachId) {
+    try {
+        const now = new Date();
+        const studentsSnapshot = await db.collection('users')
+            .where('coachId', '==', coachId)
+            .where('userType', '==', 'student')
+            .get();
+        
+        // Count only non-expired students
+        let activeCount = 0;
+        studentsSnapshot.forEach(doc => {
+            const studentData = doc.data();
+            const expiryDate = studentData.classExpiryDate?.toDate();
+            
+            if (!expiryDate || now < expiryDate) {
+                activeCount++;
+            }
+        });
+        
+        return activeCount;
+    } catch (error) {
+        console.error('Error counting students:', error);
+        return 0;
+    }
+}
+
+function searchAdminCoaches() {
+    const searchTerm = document.getElementById('admin-coach-search').value.toLowerCase().trim();
+    
+    if (!searchTerm) {
+        alert('Please enter a search term');
+        return;
+    }
+    
+    // Remove previous highlights
+    document.querySelectorAll('.search-highlight').forEach(el => {
+        el.classList.remove('search-highlight');
+    });
+    
+    let foundCount = 0;
+    
+    const rows = document.querySelectorAll('#coaches-desktop-table tbody tr');
+    rows.forEach(row => {
+        const name = row.getAttribute('data-coach-name') || '';
+        const email = row.getAttribute('data-coach-email') || '';
+        
+        if (name.includes(searchTerm) || email.includes(searchTerm)) {
+            row.classList.add('search-highlight');
+            row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            foundCount++;
+        }
+    });
+    
+    if (foundCount === 0) {
+        alert(`No coaches found matching "${searchTerm}"`);
+    } else {
+        alert(`Found ${foundCount} coach(es) matching "${searchTerm}"`);
+    }
+}
+
+function clearAdminCoachSearch() {
+    document.getElementById('admin-coach-search').value = '';
+    document.querySelectorAll('.search-highlight').forEach(el => {
+        el.classList.remove('search-highlight');
+    });
+}
+
+
+
+async function enableCoachClassAccess(coachId) {
+    if (!isAdmin) {
+        alert('Admin access required');
+        return;
+    }
+    
+    if (!confirm('Enable class access for this coach?\n\nThey will be able to access the MY CLASS section.')) {
+        return;
+    }
+    
+    try {
+        await db.collection('users').doc(coachId).update({
+            classAccessEnabled: true,
+            classAccessEnabledAt: firebase.firestore.FieldValue.serverTimestamp(),
+            classAccessEnabledBy: currentUser.uid
+        });
+        
+        alert('✅ Class access enabled for this coach!');
+        
+        const listContainer = document.getElementById('admin-user-list-container');
+        if (listContainer) {
+            await loadAdminCoachesList(listContainer);
+        }
+        
+    } catch (error) {
+        console.error('Error enabling class access:', error);
+        alert('Failed to enable class access: ' + error.message);
+    }
+}
+
+async function disableCoachClassAccess(coachId) {
+    if (!isAdmin) {
+        alert('Admin access required');
+        return;
+    }
+    
+    if (!confirm('Disable class access for this coach?\n\nThey will NOT be able to access the MY CLASS section until re-enabled.')) {
+        return;
+    }
+    
+    try {
+        await db.collection('users').doc(coachId).update({
+            classAccessEnabled: false,
+            classAccessDisabledAt: firebase.firestore.FieldValue.serverTimestamp(),
+            classAccessDisabledBy: currentUser.uid
+        });
+        
+        alert('✅ Class access disabled for this coach!');
+        
+        const listContainer = document.getElementById('admin-user-list-container');
+        if (listContainer) {
+            await loadAdminCoachesList(listContainer);
+        }
+        
+    } catch (error) {
+        console.error('Error disabling class access:', error);
+        alert('Failed to disable class access: ' + error.message);
     }
 }
         
