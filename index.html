@@ -5145,7 +5145,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 
- auth.onAuthStateChanged(async user => {
+auth.onAuthStateChanged(async user => {
     if (user) {
         currentUser = user;
         
@@ -5201,7 +5201,26 @@ document.addEventListener('DOMContentLoaded', function() {
             classBtn.id = 'myClassBtn';
             classBtn.className = 'my-profile-btn';
             classBtn.style.cssText = 'display: none; margin-top: 10px;';
-            classBtn.onclick = () => {
+            classBtn.onclick = async () => {
+                if (currentUser) {
+                    try {
+                        const userDoc = await db.collection('users').doc(currentUser.uid).get();
+                        const userData = userDoc.data();
+                        
+                        if (userData && userData.userType === 'coach' && userData.classAccessLocked) {
+                            alert('🔒 CLASS ACCESS LOCKED\n\n' +
+                                  'Your class access has been restricted.\n\n' +
+                                  'Reason: ' + (userData.lockReason || 'Monthly fees due') + '\n\n' +
+                                  '📧 Please contact support to reopen your account:\n' +
+                                  'support@wordbizacademy.com\n\n' +
+                                  '💳 Monthly fees must be paid to restore access.');
+                            return;
+                        }
+                    } catch (error) {
+                        console.error('Error checking class access:', error);
+                    }
+                }
+                
                 navigateTo('class');
                 loadMyClass();
             };
@@ -5210,6 +5229,7 @@ document.addEventListener('DOMContentLoaded', function() {
             sidebarUserInfo.appendChild(classBtn);
         }
         
+        // ✅ ALWAYS SHOW MY CLASS BUTTON FOR STUDENTS AND COACHES
         try {
             if (userData && (userData.userType === 'student' || userData.userType === 'coach')) {
                 document.getElementById('myClassBtn').innerHTML = '📚 MY CLASS';
@@ -18235,40 +18255,48 @@ document.addEventListener('click', function(event) {
 async function loadMyClass() {
     if (!currentUser) {
         alert('Please sign in to access your class');
-        showAuthModal();
         return;
     }
-
+    
     try {
         const userDoc = await db.collection('users').doc(currentUser.uid).get();
         const userData = userDoc.data();
-
-        if (!userData || (!userData.userType === 'student' && userData.userType !== 'coach')) {
-            alert('Only students and coaches can access classes');
-            navigateTo('home');
+        
+        if (userData && userData.userType === 'coach' && userData.classAccessLocked) {
+            const classSection = document.getElementById('class-section');
+            if (classSection) {
+                classSection.innerHTML = `
+                    <div style="max-width: 600px; margin: 100px auto; text-align: center; padding: 40px; background: white; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
+                        <div style="font-size: 5rem; margin-bottom: 20px;">🔒</div>
+                        <h2 style="color: #dc3545; margin-bottom: 20px;">Class Access Locked</h2>
+                        <p style="font-size: 1.1rem; color: #666; margin-bottom: 15px;">
+                            Your class access has been restricted.
+                        </p>
+                        <div style="background: #fff3cd; padding: 20px; border-radius: 10px; border-left: 4px solid #ffc107; margin: 20px 0;">
+                            <strong style="color: #856404;">Reason:</strong><br>
+                            <p style="margin: 10px 0; color: #856404;">
+                                ${userData.lockReason || 'Monthly fees are due'}
+                            </p>
+                        </div>
+                        <p style="font-size: 1rem; color: #666; margin: 20px 0;">
+                            Please contact support to reopen your account:
+                        </p>
+                        <a href="mailto:support@wordbizacademy.com" style="display: inline-block; background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 15px 30px; border-radius: 25px; text-decoration: none; font-weight: bold; font-size: 1.1rem; margin-top: 10px;">
+                            📧 Contact Support
+                        </a>
+                        <p style="margin-top: 20px; font-size: 0.9rem; color: #999;">
+                            💳 Monthly fees must be paid to restore class access
+                        </p>
+                    </div>
+                `;
+            }
             return;
         }
-
-        // Show appropriate view based on user type
-        const studentView = document.getElementById('student-class-view');
-        const coachView = document.getElementById('coach-class-view');
-        
-        if (userData.userType === 'student') {
-            studentView.style.display = 'block';
-            coachView.style.display = 'none';
-            await loadStudentClassView();
-        } else if (userData.userType === 'coach') {
-            studentView.style.display = 'none';
-            coachView.style.display = 'block';
-            await loadCoachClassView();
-        }
-
     } catch (error) {
-        console.error('Error loading class:', error);
-        alert('Failed to load class information');
+        console.error('Error checking class access:', error);
     }
-}
 
+    
 // ===== STUDENT CLASS VIEW =====
 async function loadStudentClassView() {
     const container = document.getElementById('student-class-info');
@@ -21188,12 +21216,14 @@ async function loadAdminCoachesList(container) {
                                     </span>
                                 </td>
                                 <td>${coach.createdAt ? new Date(coach.createdAt.toDate()).toLocaleDateString() : 'N/A'}</td>
-                                <td style="text-align: center;">
-                                    ${coach.subscriptionLocked ? 
-                                        '<span style="background: #ff6b6b; color: white; padding: 5px 10px; border-radius: 15px; font-size: 0.85rem;">🔒 Locked</span>' : 
-                                        '<span style="background: #51cf66; color: white; padding: 5px 10px; border-radius: 15px; font-size: 0.85rem;">✅ Active</span>'
-                                    }
-                                </td>
+                               <td style="text-align: center;">
+                               ${coach.classAccessLocked ? 
+                                '<span style="background: #ff6b6b; color: white; padding: 5px 10px; border-radius: 15px; font-size: 0.85rem;">🔒 Class Locked</span>' : 
+                              coach.subscriptionLocked ?
+                               '<span style="background: #ffc107; color: #0d3b66; padding: 5px 10px; border-radius: 15px; font-size: 0.85rem;">⚠️ Account Locked</span>' :
+                                '<span style="background: #51cf66; color: white; padding: 5px 10px; border-radius: 15px; font-size: 0.85rem;">✅ Active</span>'
+                                 }
+</                               td>
                                 <td onclick="event.stopPropagation();">
                                     <div style="display: flex; gap: 5px; justify-content: center;">
                                         ${coach.subscriptionLocked ? 
@@ -21580,20 +21610,24 @@ async function viewCoachDetailsAdmin(coachId) {
 }
 
 async function unlockCoachAccount(coachId) {
-    if (!confirm('Are you sure you want to unlock this coach account?\n\nThis will grant full access to their dashboard.')) {
+    if (!confirm('Are you sure you want to unlock this coach account?\n\nThis will:\n✅ Grant access to their class\n✅ Allow them to manage students\n\nNote: Account will auto-lock again next month unless fees are paid.')) {
         return;
     }
     
     try {
+        const nextLockDate = new Date();
+        nextLockDate.setDate(nextLockDate.getDate() + 30);
+        
         await db.collection('users').doc(coachId).update({
             subscriptionLocked: false,
+            classAccessLocked: false,
             unlockedByAdmin: true,
-            unlockedAt: firebase.firestore.FieldValue.serverTimestamp()
+            unlockedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            nextLockDate: firebase.firestore.Timestamp.fromDate(nextLockDate)
         });
         
-        alert('✅ Coach account unlocked successfully!');
+        alert('✅ Coach account unlocked successfully!\n\n• Class access granted\n• Account will auto-lock in 30 days\n• Coach can now manage their class');
         
-        // Reload the coaches list
         const listContainer = document.getElementById('admin-user-list-container');
         if (listContainer) {
             await loadAdminCoachesList(listContainer);
@@ -21606,20 +21640,21 @@ async function unlockCoachAccount(coachId) {
 }
 
 async function lockCoachAccount(coachId) {
-    if (!confirm('Are you sure you want to lock this coach account?\n\nThey will not be able to access their dashboard until unlocked.')) {
+    if (!confirm('Are you sure you want to lock this coach account?\n\nThis will:\n🔒 Block access to their class\n🔒 Show payment required message\n🔒 Require admin to manually unlock\n\nThe coach will NOT be able to access their class until you unlock them.')) {
         return;
     }
     
     try {
         await db.collection('users').doc(coachId).update({
             subscriptionLocked: true,
+            classAccessLocked: true,
             lockedByAdmin: true,
-            lockedAt: firebase.firestore.FieldValue.serverTimestamp()
+            lockedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            lockReason: 'Monthly fees due - Contact support to reopen'
         });
         
-        alert('✅ Coach account locked successfully!');
+        alert('✅ Coach account locked successfully!\n\n• Class access blocked\n• Coach must contact support to reopen\n• Monthly fee payment required');
         
-        // Reload the coaches list
         const listContainer = document.getElementById('admin-user-list-container');
         if (listContainer) {
             await loadAdminCoachesList(listContainer);
@@ -21631,6 +21666,7 @@ async function lockCoachAccount(coachId) {
     }
 }
 
+        
 async function deleteCoachAccount(coachId, coachName) {
     const confirmDelete = confirm(`⚠️ WARNING: Are you sure you want to permanently delete the account for coach "${coachName}"?\n\nThis will:\n- Delete their coach account\n- Unassign all their students\n- Delete all their data\n\nThis action CANNOT be undone!`);
     
@@ -21958,14 +21994,16 @@ async function handleSignUp(event, userType) {
         if (additionalData.age && additionalData.country) {
             additionalData.profileComplete = true;
         }
-    } else if (userType === 'coach') {
-        name = document.getElementById('signup-coach-name').value;
-        email = document.getElementById('signup-coach-email').value;
-        password = document.getElementById('signup-coach-password').value;
-        errorDiv = document.getElementById('signup-coach-error');
-        additionalData.organization = document.getElementById('signup-coach-organization').value;
-        additionalData.profileComplete = true; // Coaches don't need extra verification
-    } else if (userType === 'organization') {
+  } else if (userType === 'coach') {
+    name = document.getElementById('signup-coach-name').value;
+    email = document.getElementById('signup-coach-email').value;
+    password = document.getElementById('signup-coach-password').value;
+    errorDiv = document.getElementById('signup-coach-error');
+    additionalData.organization = document.getElementById('signup-coach-organization').value;
+    additionalData.profileComplete = true;
+    additionalData.classAccessLocked = true;
+    additionalData.lockReason = 'New account - Admin approval required';
+} else if (userType === 'organization') {
         name = document.getElementById('signup-org-name').value;
         email = document.getElementById('signup-org-email').value;
         password = document.getElementById('signup-org-password').value;
