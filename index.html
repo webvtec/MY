@@ -23019,14 +23019,14 @@ async function handleParentSignUp(event) {
         const userDoc = await db.collection('users').doc(user.uid).get();
         const userData = userDoc.data();
         
-        if (userData && userData.userType === 'parent') {
-            myProfileBtn.innerHTML = '👨‍👩‍👧 PARENT DASHBOARD';
+        if (userData && userData.userType === 'organization') {
+            myProfileBtn.innerHTML = '👨‍🏫 MY PROFILE';
             myProfileBtn.onclick = () => {
                 navigateTo('parent-dashboard');
                 loadParentDashboard();
             };
-        } else if (userData && userData.userType === 'organization') {
-            myProfileBtn.innerHTML = '👨‍🏫 MY PROFILE';
+        } else if (userData && userData.userType === 'parent') {
+            myProfileBtn.innerHTML = '👨‍👩‍👧 PARENT DASHBOARD';
             myProfileBtn.onclick = () => {
                 navigateTo('parent-dashboard');
                 loadParentDashboard();
@@ -23059,6 +23059,7 @@ async function handleParentSignUp(event) {
     document.getElementById('sidebar-signin').style.display = 'none';
     document.getElementById('sidebar-signout').style.display = 'block';
 }
+        
         
       function updateUIForGuestUser() {
     document.getElementById('sidebarUserName').textContent = 'Guest';
@@ -23109,7 +23110,7 @@ async function loadParentDashboard() {
         const isOrganization = userData.userType === 'organization';
         const displayName = isOrganization ? (userData.organizationName || userData.name) : userData.name;
         
-        // Update header
+        // Update header with correct account type label
         document.getElementById('parent-dashboard-name').textContent = displayName || (isOrganization ? 'Organization' : 'Parent');
         document.getElementById('parent-dashboard-email').textContent = userData.email || '';
         
@@ -23131,19 +23132,41 @@ async function loadParentDashboard() {
             document.getElementById('parent-edit-name').value = userData.organizationName || userData.name || '';
             document.getElementById('parent-display-phone').textContent = userData.phone || 'Not set';
             document.getElementById('parent-edit-phone').value = userData.phone || '';
+            
+            // Change "Country" label to "Address" for organizations
+            const countryLabel = document.querySelector('.profile-field:has(#parent-display-country) .profile-label');
+            if (countryLabel) {
+                countryLabel.textContent = '🏢 Address';
+            }
+            
             document.getElementById('parent-display-country').textContent = userData.address || 'Not set';
             document.getElementById('parent-edit-country').value = userData.address || '';
+            document.getElementById('parent-edit-country').placeholder = 'Organization address';
         } else {
             document.getElementById('parent-display-name').textContent = userData.name || 'Parent';
             document.getElementById('parent-edit-name').value = userData.name || '';
             document.getElementById('parent-display-phone').textContent = userData.phone || 'Not set';
             document.getElementById('parent-edit-phone').value = userData.phone || '';
+            
+            // Change label back to "Country" for parents
+            const countryLabel = document.querySelector('.profile-field:has(#parent-display-country) .profile-label');
+            if (countryLabel) {
+                countryLabel.textContent = '🌍 Country';
+            }
+            
             document.getElementById('parent-display-country').textContent = userData.country || 'Not set';
             document.getElementById('parent-edit-country').value = userData.country || '';
+            document.getElementById('parent-edit-country').placeholder = 'Your country';
         }
         
         // Fix email display
         document.getElementById('parent-display-email').textContent = userData.email || currentUser.email || 'Not set';
+        
+        // Update user type display
+        const userTypeElement = document.getElementById('parent-display-usertype');
+        if (userTypeElement) {
+            userTypeElement.textContent = isOrganization ? 'Organization Account' : 'Parent Account';
+        }
         
         // Show join date
         if (userData.createdAt) {
@@ -23534,27 +23557,40 @@ function cancelParentEditMode() {
 async function saveParentProfile() {
     if (!currentUser) return;
     
-    const newName = document.getElementById('parent-edit-name').value.trim();
-    const newPhone = document.getElementById('parent-edit-phone').value.trim();
-    const newCountry = document.getElementById('parent-edit-country').value;
-    
-    if (!newName) {
-        alert('Name cannot be empty');
-        return;
-    }
-    
     try {
-        await db.collection('users').doc(currentUser.uid).update({
-            name: newName,
-            phone: newPhone,
-            country: newCountry
-        });
+        const userDoc = await db.collection('users').doc(currentUser.uid).get();
+        const userData = userDoc.data();
+        const isOrganization = userData.userType === 'organization';
+        
+        const newName = document.getElementById('parent-edit-name').value.trim();
+        const newPhone = document.getElementById('parent-edit-phone').value.trim();
+        const newCountryOrAddress = document.getElementById('parent-edit-country').value;
+        
+        if (!newName) {
+            alert('Name cannot be empty');
+            return;
+        }
+        
+        const updateData = {
+            phone: newPhone
+        };
+        
+        if (isOrganization) {
+            updateData.organizationName = newName;
+            updateData.name = newName; // Keep both for consistency
+            updateData.address = newCountryOrAddress;
+        } else {
+            updateData.name = newName;
+            updateData.country = newCountryOrAddress;
+        }
+        
+        await db.collection('users').doc(currentUser.uid).update(updateData);
         
         await currentUser.updateProfile({ displayName: newName });
         
         document.getElementById('parent-display-name').textContent = newName;
         document.getElementById('parent-display-phone').textContent = newPhone || 'Not set';
-        document.getElementById('parent-display-country').textContent = newCountry || 'Not set';
+        document.getElementById('parent-display-country').textContent = newCountryOrAddress || 'Not set';
         
         document.getElementById('parent-dashboard-name').textContent = newName;
         
@@ -23565,7 +23601,6 @@ async function saveParentProfile() {
         alert('Failed to update profile: ' + error.message);
     }
 }
-
 // Add parent dashboard to navigation
 async function goToParentDashboard() {
     if (!currentUser) {
