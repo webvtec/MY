@@ -18126,6 +18126,7 @@ async function showStudentDetailById(studentId) {
 }
 
 // Display student detail modal
+// Display student detail modal
 async function showStudentDetail(student) {
     console.log('Displaying student modal:', student.name);
     const modal = document.getElementById('studentDetailModal');
@@ -18196,7 +18197,7 @@ async function showStudentDetail(student) {
         }
     }
     
-    // ✅ ADD RECRUIT BUTTON FOR COACHES - Use correct class name
+    // ❌ REMOVED: No recruit button - coaches can't recruit from public students page
     const studentDetailBody = modal.querySelector('.coach-detail-content');
     
     if (!studentDetailBody) {
@@ -18205,34 +18206,10 @@ async function showStudentDetail(student) {
         return;
     }
     
-    // Remove any existing recruit button first
+    // Remove any existing recruit button
     const existingRecruitBtn = studentDetailBody.querySelector('.recruit-student-container');
     if (existingRecruitBtn) {
         existingRecruitBtn.remove();
-    }
-    
-    if (currentUser) {
-        try {
-            const userDoc = await db.collection('users').doc(currentUser.uid).get();
-            const userData = userDoc.data();
-            
-            if (userData && userData.userType === 'coach') {
-                const recruitBtnContainer = document.createElement('div');
-                recruitBtnContainer.className = 'recruit-student-container';
-                recruitBtnContainer.style.cssText = 'margin-top: 20px; text-align: center; padding: 20px;';
-                
-                recruitBtnContainer.innerHTML = `
-                    <button class="practice-btn" onclick="recruitStudent('${student.id}', '${student.name.replace(/'/g, "\\'")}')" 
-                            style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); font-size: 1.1rem; padding: 15px 30px;">
-                        ➕ Recruit to My Class
-                    </button>
-                `;
-                
-                studentDetailBody.appendChild(recruitBtnContainer);
-            }
-        } catch (error) {
-            console.error('Error checking user type for recruiting:', error);
-        }
     }
     
     // Show modal
