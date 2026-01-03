@@ -21328,7 +21328,6 @@ function clearAdminStudentSearch() {
 }
         
 // ===== COACHES LIST =====
-
 async function loadAdminCoachesList(container) {
     container.innerHTML = '<div class="loading">Loading coaches...</div>';
     
@@ -21380,7 +21379,6 @@ async function loadAdminCoachesList(container) {
                             <th>📧 Email</th>
                             <th>👥 Students</th>
                             <th>📅 Joined</th>
-                            <th>🔐 Status</th>
                             <th>📚 Class Access</th>
                             <th>⚙️ Actions</th>
                         </tr>
@@ -21402,12 +21400,6 @@ async function loadAdminCoachesList(container) {
                                 </td>
                                 <td>${coach.createdAt ? new Date(coach.createdAt.toDate()).toLocaleDateString() : 'N/A'}</td>
                                 <td style="text-align: center;">
-                                    ${coach.subscriptionLocked ? 
-                                        '<span style="background: #ff6b6b; color: white; padding: 5px 10px; border-radius: 15px; font-size: 0.85rem;">🔒 Locked</span>' : 
-                                        '<span style="background: #51cf66; color: white; padding: 5px 10px; border-radius: 15px; font-size: 0.85rem;">✅ Active</span>'
-                                    }
-                                </td>
-                                <td style="text-align: center;">
                                     ${coach.classAccessEnabled ? 
                                         '<span style="background: #51cf66; color: white; padding: 5px 10px; border-radius: 15px; font-size: 0.85rem;">✅ Enabled</span>' : 
                                         '<span style="background: #ff6b6b; color: white; padding: 5px 10px; border-radius: 15px; font-size: 0.85rem;">🔒 Disabled</span>'
@@ -21415,14 +21407,6 @@ async function loadAdminCoachesList(container) {
                                 </td>
                                 <td onclick="event.stopPropagation();">
                                     <div style="display: flex; gap: 5px; justify-content: center; flex-wrap: wrap;">
-                                        ${coach.subscriptionLocked ? 
-                                            `<button class="practice-btn" onclick="unlockCoachAccount('${coach.id}')" style="padding: 8px 15px; font-size: 0.85rem; background: #51cf66;">
-                                                🔓 Unlock
-                                            </button>` :
-                                            `<button class="practice-btn" onclick="lockCoachAccount('${coach.id}')" style="padding: 8px 15px; font-size: 0.85rem; background: #ffc107; color: #0d3b66;">
-                                                🔒 Lock
-                                            </button>`
-                                        }
                                         ${coach.classAccessEnabled ? 
                                             `<button class="practice-btn" onclick="disableCoachClassAccess('${coach.id}')" style="padding: 8px 15px; font-size: 0.85rem; background: #ff6b6b;">
                                                 ❌ Disable Class
