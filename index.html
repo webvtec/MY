@@ -2676,6 +2676,15 @@
         opacity: 1;
     }
 }      
+
+
+/* Responsive student cards */
+@media (max-width: 768px) {
+    #guardian-students-container > div[style*="grid-template-columns"] {
+        grid-template-columns: 1fr !important;
+    }
+}
+        
     </style>
 </head>
     </style>
@@ -5136,7 +5145,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 
-  auth.onAuthStateChanged(async user => {
+ auth.onAuthStateChanged(async user => {
     if (user) {
         currentUser = user;
         
@@ -5181,6 +5190,9 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // ✅ CHECK ADMIN STATUS HERE (CRITICAL - RIGHT AFTER USER DATA IS LOADED)
         await checkAdminStatus();
+        
+        // ✅ CHECK AND REMOVE EXPIRED CLASS ENROLLMENTS
+        await checkAndRemoveExpiredStudents();
         
         // ✅ ADD MY CLASS BUTTON
         const myClassBtn = document.getElementById('myClassBtn');
@@ -20549,34 +20561,44 @@ async function bookCoach(coachId, coachName) {
     try {
         const userDoc = await db.collection('users').doc(currentUser.uid).get();
         const userData = userDoc.data();
+        
         if (!userData.hasGuardian) {
             alert('❌ Coach booking unavailable.\n\nYou need a guardian (parent or organization) to book coaches.\n\nAsk your guardian to:\n1. Sign up on the platform\n2. Add you as their student\n3. Contact support to enable booking');
             return;
         }
+        
         if (!userData.bookingEnabled) {
             alert('❌ Coach booking unavailable.\n\nYour guardian must contact support to enable booking permissions.\n\nSupport Email: support@wordbizacademy.com');
             return;
         }
+        
         const bookingExpiry = userData.bookingExpiry?.toDate();
         const now = new Date();
+        
         if (bookingExpiry && now > bookingExpiry) {
             alert('❌ Your booking permission has expired.\n\nYour guardian must contact support to renew booking access.\n\nSupport Email: support@wordbizacademy.com');
             return;
         }
+        
         if (!confirm(`Book ${coachName} as your coach?\n\nThis will add you to their class.`)) {
             return;
         }
+        
         const classQuery = await db.collection('classes').where('coachId', '==', coachId).limit(1).get();
+        
         if (classQuery.empty) {
             alert('❌ Coach class not found. Please try again later.');
             return;
         }
+        
         const classDoc = classQuery.docs[0];
         const classId = classDoc.id;
+        
         if (userData.classId && userData.classId !== classId) {
             if (!confirm('You are already in another class. Switch to this coach?')) {
                 return;
             }
+            
             try {
                 const oldClassDoc = await db.collection('classes').doc(userData.classId).get();
                 if (oldClassDoc.exists) {
@@ -20589,20 +20611,31 @@ async function bookCoach(coachId, coachName) {
                 console.error('Error updating old class count:', error);
             }
         }
+        
+        // Calculate class expiry (30 days from now)
+        const classExpiryDate = new Date();
+        classExpiryDate.setDate(classExpiryDate.getDate() + 30);
+        
         await db.collection('users').doc(currentUser.uid).update({
             classId: classId,
-            coachId: coachId
+            coachId: coachId,
+            classJoinedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            classExpiryDate: firebase.firestore.Timestamp.fromDate(classExpiryDate)
         });
+        
         const currentCount = classDoc.data().studentCount || 0;
         await db.collection('classes').doc(classId).update({
             studentCount: currentCount + 1
         });
-        alert(`✅ Successfully booked ${coachName}!\n\nYou can now access your class from the "MY CLASS" button.`);
+        
+        alert(`✅ Successfully booked ${coachName}!\n\nYou can now access your class from the "MY CLASS" button.\n\n⏰ Your enrollment expires in 30 days.`);
         closeCoachDetailModal();
+        
         const myClassBtn = document.getElementById('myClassBtn');
         if (myClassBtn) {
             myClassBtn.style.display = 'block';
         }
+        
     } catch (error) {
         console.error('Error booking coach:', error);
         alert('Failed to book coach: ' + error.message);
@@ -20645,10 +20678,16 @@ async function recruitStudent(studentId, studentName) {
             }
         }
         
+        // Calculate class expiry (30 days from now)
+        const classExpiryDate = new Date();
+        classExpiryDate.setDate(classExpiryDate.getDate() + 30);
+        
         // Add student to coach's class
         await db.collection('users').doc(studentId).update({
             classId: myClass.id,
-            coachId: currentUser.uid
+            coachId: currentUser.uid,
+            classJoinedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            classExpiryDate: firebase.firestore.Timestamp.fromDate(classExpiryDate)
         });
         
         // Update class student count
@@ -20660,7 +20699,7 @@ async function recruitStudent(studentId, studentName) {
         // Update myClass object
         myClass.studentCount = currentCount + 1;
         
-        alert(`✅ Successfully recruited ${studentName} to your class!`);
+        alert(`✅ Successfully recruited ${studentName} to your class!\n\n⏰ Their enrollment will expire in 30 days.`);
         closeStudentDetailModal();
         
         // Reload class students
@@ -20671,8 +20710,8 @@ async function recruitStudent(studentId, studentName) {
         console.error('Error recruiting student:', error);
         alert('Failed to recruit student: ' + error.message);
     }
-}    
-
+}
+        
 
   // ===== ADMIN CONFIGURATION =====
 const ADMIN_EMAIL = 'carlanviroberts@gmail.com'; // ⚠️ CHANGE THIS TO YOUR ADMIN EMAIL
@@ -23118,6 +23157,12 @@ async function loadParentDashboard() {
             document.getElementById('parent-display-joined').textContent = 'Recently joined';
         }
         
+        // HIDE child status container (old single child view)
+        const childContainer = document.getElementById('child-status-container');
+        if (childContainer) {
+            childContainer.style.display = 'none';
+        }
+        
         // Hide transaction history section completely
         const transactionSection = document.querySelector('.dashboard-section:has(#transaction-history-container)');
         if (transactionSection) {
@@ -23128,6 +23173,7 @@ async function loadParentDashboard() {
         document.getElementById('guardian-students-section').style.display = 'block';
         document.getElementById('guardian-support-section').style.display = 'block';
         
+        // Load all children accounts
         await loadGuardianStudents();
         
     } catch (error) {
@@ -23135,7 +23181,6 @@ async function loadParentDashboard() {
         alert('Failed to load dashboard: ' + error.message);
     }
 }
-
         
 async function loadChildAccountStatus(childId) {
     const container = document.getElementById('child-status-container');
@@ -24166,69 +24211,116 @@ async function loadGuardianStudents() {
             return;
         }
         
+        // Get all student data with coach information
+        const studentPromises = [];
+        studentsSnapshot.forEach(doc => {
+            studentPromises.push(getStudentFullData(doc.id, doc.data()));
+        });
+        
+        const students = await Promise.all(studentPromises);
+        
         let html = `
             <div style="text-align: right; margin-bottom: 15px;">
                 <button class="practice-btn" onclick="showAddStudentModal()" style="padding: 10px 20px;">
                     ➕ Add Students
                 </button>
             </div>
-            <div class="coaches-table">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>👤 Student</th>
-                            <th>🆔 Student ID</th>
-                            <th>📅 Age</th>
-                            <th>🎯 Booking Status</th>
-                            <th>⚙️ Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
         `;
         
-        studentsSnapshot.forEach(doc => {
-            const student = doc.data();
-            const studentId = student.studentId || `WB-2025-${doc.id.slice(-4).toUpperCase()}`;
-            const bookingEnabled = student.bookingEnabled || false;
-            const bookingExpiry = student.bookingExpiry?.toDate();
+        // Display each student as a card
+        students.forEach(student => {
             const now = new Date();
+            const coachExpiryDate = student.coachExpiry;
+            let coachStatus = 'Not in any class';
+            let coachStatusColor = '#868e96';
             
-            let bookingStatus = '❌ Disabled';
-            let bookingClass = 'error';
-            
-            if (bookingEnabled && bookingExpiry && now < bookingExpiry) {
-                const daysLeft = Math.ceil((bookingExpiry - now) / (1000 / 60 / 60 / 24));
-                bookingStatus = `✅ Active (${daysLeft} days left)`;
-                bookingClass = 'success';
-            } else if (bookingEnabled && bookingExpiry && now >= bookingExpiry) {
-                bookingStatus = '⏰ Expired';
-                bookingClass = 'warning';
+            if (student.coachName && coachExpiryDate) {
+                if (now < coachExpiryDate) {
+                    const daysLeft = Math.ceil((coachExpiryDate - now) / (1000 * 60 * 60 * 24));
+                    coachStatus = `Expires in ${daysLeft} days`;
+                    coachStatusColor = daysLeft > 7 ? '#51cf66' : '#ffc107';
+                } else {
+                    coachStatus = 'Expired';
+                    coachStatusColor = '#ff6b6b';
+                }
             }
             
             html += `
-                <tr>
-                    <td>
-                        <div style="font-weight: bold; color: #0d3b66;">${student.name || 'Student'}</div>
-                        <div style="font-size: 0.85rem; color: #666;">${student.email || 'No email'}</div>
-                    </td>
-                    <td style="font-family: monospace; font-weight: bold;">${studentId}</td>
-                    <td style="text-align: center;">${student.age || 'N/A'}</td>
-                    <td style="text-align: center;">
-                        <span class="feedback ${bookingClass}" style="display: inline-block; padding: 5px 10px; font-size: 0.85rem;">
-                            ${bookingStatus}
-                        </span>
-                    </td>
-                    <td style="text-align: center;">
-                        <button class="practice-btn" onclick="removeGuardianStudent('${doc.id}', '${student.name}')" 
-                            style="padding: 8px 15px; font-size: 0.85rem; background: #dc3545;">
-                            🗑️ Remove
+                <div style="background: white; border-radius: 15px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); border: 2px solid #e3f2fd;">
+                    
+                    <!-- Student Header -->
+                    <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px solid #e3f2fd;">
+                        <div style="width: 60px; height: 60px; border-radius: 50%; background: linear-gradient(135deg, #667eea, #764ba2); display: flex; align-items: center; justify-content: center; color: white; font-size: 1.5rem; font-weight: bold;">
+                            ${student.photoURL ? 
+                                `<img src="${student.photoURL}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">` :
+                                student.name.charAt(0).toUpperCase()
+                            }
+                        </div>
+                        <div style="flex: 1;">
+                            <h3 style="margin: 0; color: #0d3b66; font-size: 1.3rem;">${student.name}</h3>
+                            <p style="margin: 5px 0 0 0; color: #666; font-size: 0.9rem;">${student.email}</p>
+                            <p style="margin: 5px 0 0 0; color: #666; font-size: 0.85rem; font-family: monospace;"><strong>ID:</strong> ${student.studentId}</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Student Stats Grid -->
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
+                        
+                        <!-- Coins -->
+                        <div style="background: linear-gradient(135deg, #ffd700, #ffed4e); padding: 15px; border-radius: 10px; text-align: center;">
+                            <div style="font-size: 2rem; margin-bottom: 5px;">🪙</div>
+                            <div style="font-size: 1.5rem; font-weight: bold; color: #0d3b66;">${student.coins}</div>
+                            <div style="font-size: 0.85rem; color: #666; margin-top: 5px;">Coins Available</div>
+                        </div>
+                        
+                        <!-- Coach Class Status -->
+                        <div style="background: linear-gradient(135deg, #e3f2fd, #bbdefb); padding: 15px; border-radius: 10px;">
+                            <div style="font-size: 1.1rem; font-weight: bold; color: #0d3b66; margin-bottom: 8px;">
+                                👨‍🏫 Coach Class
+                            </div>
+                            ${student.coachName ? `
+                                <div style="margin-bottom: 5px;">
+                                    <strong style="color: #0d3b66;">${student.coachName}</strong>
+                                </div>
+                                <div style="background: ${coachStatusColor}; color: white; padding: 5px 10px; border-radius: 15px; font-size: 0.85rem; display: inline-block; margin-top: 5px;">
+                                    ${coachStatus}
+                                </div>
+                            ` : `
+                                <div style="color: #666; font-size: 0.9rem;">Not enrolled in any class</div>
+                            `}
+                        </div>
+                        
+                        <!-- Booking Status -->
+                        <div style="background: linear-gradient(135deg, #f3e5f5, #e1bee7); padding: 15px; border-radius: 10px;">
+                            <div style="font-size: 1.1rem; font-weight: bold; color: #0d3b66; margin-bottom: 8px;">
+                                🎯 Booking Status
+                            </div>
+                            ${student.bookingEnabled ? `
+                                <div style="background: #51cf66; color: white; padding: 8px 12px; border-radius: 15px; font-size: 0.9rem; text-align: center;">
+                                    ✅ Active
+                                    ${student.bookingDaysLeft ? `<div style="font-size: 0.8rem; margin-top: 3px;">${student.bookingDaysLeft} days left</div>` : ''}
+                                </div>
+                            ` : `
+                                <div style="background: #ff6b6b; color: white; padding: 8px 12px; border-radius: 15px; font-size: 0.9rem; text-align: center;">
+                                    ❌ Disabled
+                                </div>
+                            `}
+                        </div>
+                        
+                    </div>
+                    
+                    <!-- Action Button -->
+                    <div style="text-align: right;">
+                        <button class="practice-btn" onclick="removeGuardianStudent('${student.id}', '${student.name}')" 
+                            style="padding: 10px 20px; font-size: 0.9rem; background: #dc3545;">
+                            🗑️ Remove Student
                         </button>
-                    </td>
-                </tr>
+                    </div>
+                    
+                </div>
             `;
         });
         
-        html += '</tbody></table></div>';
         container.innerHTML = html;
         
     } catch (error) {
@@ -24236,6 +24328,113 @@ async function loadGuardianStudents() {
         container.innerHTML = '<div class="feedback error">❌ Failed to load students</div>';
     }
 }
+
+// Helper function to get full student data including coach info
+async function getStudentFullData(studentId, studentData) {
+    const now = new Date();
+    
+    // Get coach information if student has a coach
+    let coachName = null;
+    let coachExpiry = null;
+    
+    if (studentData.coachId) {
+        try {
+            const coachDoc = await db.collection('users').doc(studentData.coachId).get();
+            if (coachDoc.exists) {
+                const coachData = coachDoc.data();
+                coachName = coachData.name || 'Unknown Coach';
+                
+                // Get class expiry date from student's record
+                if (studentData.classExpiryDate) {
+                    coachExpiry = studentData.classExpiryDate.toDate();
+                } else if (studentData.classJoinedAt) {
+                    // Fallback: calculate from join date if expiry not set
+                    coachExpiry = new Date(studentData.classJoinedAt.toDate());
+                    coachExpiry.setDate(coachExpiry.getDate() + 30);
+                }
+            }
+        } catch (error) {
+            console.error('Error fetching coach data:', error);
+        }
+    }
+    
+    // Calculate booking days left
+    let bookingDaysLeft = null;
+    if (studentData.bookingEnabled && studentData.bookingExpiry) {
+        const expiryDate = studentData.bookingExpiry.toDate();
+        if (now < expiryDate) {
+            bookingDaysLeft = Math.ceil((expiryDate - now) / (1000 * 60 * 60 * 24));
+        }
+    }
+    
+    return {
+        id: studentId,
+        name: studentData.name || 'Student',
+        email: studentData.email || 'No email',
+        studentId: studentData.studentId || `WB-2025-${studentId.slice(-4).toUpperCase()}`,
+        photoURL: studentData.photoURL || null,
+        coins: studentData.coins || 0,
+        coachName: coachName,
+        coachExpiry: coachExpiry,
+        bookingEnabled: studentData.bookingEnabled || false,
+        bookingDaysLeft: bookingDaysLeft
+    };
+}
+
+
+// ===== CHECK AND REMOVE EXPIRED CLASS ENROLLMENTS =====
+async function checkAndRemoveExpiredStudents() {
+    try {
+        const now = new Date();
+        
+        // Get all students with expired class enrollment
+        const expiredStudentsSnapshot = await db.collection('users')
+            .where('userType', '==', 'student')
+            .where('classExpiryDate', '<=', firebase.firestore.Timestamp.fromDate(now))
+            .get();
+        
+        if (expiredStudentsSnapshot.empty) {
+            return; // No expired students
+        }
+        
+        const batch = db.batch();
+        const classUpdates = new Map(); // Track class student count updates
+        
+        expiredStudentsSnapshot.forEach(doc => {
+            const studentData = doc.data();
+            
+            // Remove student from class
+            batch.update(doc.ref, {
+                classId: firebase.firestore.FieldValue.delete(),
+                coachId: firebase.firestore.FieldValue.delete(),
+                classJoinedAt: firebase.firestore.FieldValue.delete(),
+                classExpiryDate: firebase.firestore.FieldValue.delete()
+            });
+            
+            // Track which classes need student count updates
+            if (studentData.classId) {
+                const currentCount = classUpdates.get(studentData.classId) || 0;
+                classUpdates.set(studentData.classId, currentCount + 1);
+            }
+        });
+        
+        // Update class student counts
+        for (const [classId, decrementBy] of classUpdates.entries()) {
+            const classRef = db.collection('classes').doc(classId);
+            batch.update(classRef, {
+                studentCount: firebase.firestore.FieldValue.increment(-decrementBy)
+            });
+        }
+        
+        await batch.commit();
+        console.log(`✅ Removed ${expiredStudentsSnapshot.size} expired students from classes`);
+        
+    } catch (error) {
+        console.error('❌ Error checking expired students:', error);
+        // Don't throw - we don't want to block login if this fails
+    }
+}
+
 
 async function removeGuardianStudent(studentId, studentName) {
     if (!confirm(`Remove ${studentName} from your students list?\n\nThis will unlink them from your account.`)) {
