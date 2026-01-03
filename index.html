@@ -24222,6 +24222,8 @@ async function handleAddStudent(event) {
     }
 }
 
+
+
 async function loadGuardianStudents() {
     if (!currentUser) return;
     const container = document.getElementById('guardian-students-container');
@@ -24239,7 +24241,7 @@ async function loadGuardianStudents() {
                 <div class="loading">
                     <p style="margin-bottom: 15px;">No students added yet.</p>
                     <button class="practice-btn" onclick="showAddStudentModal()" style="padding: 10px 20px;">
-                        ➕ Add Students
+                        ➕ Add Student
                     </button>
                 </div>
             `;
@@ -24257,7 +24259,7 @@ async function loadGuardianStudents() {
         let html = `
             <div style="text-align: right; margin-bottom: 15px;">
                 <button class="practice-btn" onclick="showAddStudentModal()" style="padding: 10px 20px;">
-                    ➕ Add Students
+                    ➕ Add Student
                 </button>
             </div>
         `;
