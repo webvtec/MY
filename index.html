@@ -18243,6 +18243,13 @@ async function loadMyClass() {
     
     const container = document.getElementById('class-container');
     
+    // ✅ CHECK IF CONTAINER EXISTS
+    if (!container) {
+        console.error('❌ class-container element not found in HTML');
+        alert('Class container not found. Please refresh the page.');
+        return;
+    }
+    
     try {
         const userDoc = await db.collection('users').doc(currentUser.uid).get();
         const userData = userDoc.data();
@@ -18290,7 +18297,9 @@ async function loadMyClass() {
         
     } catch (error) {
         console.error('Error loading class:', error);
-        container.innerHTML = '<div class="feedback error">❌ Failed to load class</div>';
+        if (container) {
+            container.innerHTML = '<div class="feedback error">❌ Failed to load class</div>';
+        }
     }
 }
 
