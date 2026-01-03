@@ -24236,18 +24236,6 @@ async function loadGuardianStudents() {
             .where('userType', '==', 'student')
             .get();
         
-        if (studentsSnapshot.empty) {
-            container.innerHTML = `
-                <div class="loading">
-                    <p style="margin-bottom: 15px;">No students added yet.</p>
-                    <button class="practice-btn" onclick="showAddStudentModal()" style="padding: 10px 20px;">
-                        ➕ Add Student
-                    </button>
-                </div>
-            `;
-            return;
-        }
-        
         // Get all student data with coach information
         const studentPromises = [];
         studentsSnapshot.forEach(doc => {
@@ -24264,99 +24252,107 @@ async function loadGuardianStudents() {
             </div>
         `;
         
-        // Display each student as a card
-        students.forEach(student => {
-            const now = new Date();
-            const coachExpiryDate = student.coachExpiry;
-            let coachStatus = 'Not in any class';
-            let coachStatusColor = '#868e96';
-            
-            if (student.coachName && coachExpiryDate) {
-                if (now < coachExpiryDate) {
-                    const daysLeft = Math.ceil((coachExpiryDate - now) / (1000 * 60 * 60 * 24));
-                    coachStatus = `Expires in ${daysLeft} days`;
-                    coachStatusColor = daysLeft > 7 ? '#51cf66' : '#ffc107';
-                } else {
-                    coachStatus = 'Expired';
-                    coachStatusColor = '#ff6b6b';
-                }
-            }
-            
+        if (students.length === 0) {
             html += `
-                <div style="background: white; border-radius: 15px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); border: 2px solid #e3f2fd;">
-                    
-                    <!-- Student Header -->
-                    <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px solid #e3f2fd;">
-                        <div style="width: 60px; height: 60px; border-radius: 50%; background: linear-gradient(135deg, #667eea, #764ba2); display: flex; align-items: center; justify-content: center; color: white; font-size: 1.5rem; font-weight: bold;">
-                            ${student.photoURL ? 
-                                `<img src="${student.photoURL}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">` :
-                                student.name.charAt(0).toUpperCase()
-                            }
-                        </div>
-                        <div style="flex: 1;">
-                            <h3 style="margin: 0; color: #0d3b66; font-size: 1.3rem;">${student.name}</h3>
-                            <p style="margin: 5px 0 0 0; color: #666; font-size: 0.9rem;">${student.email}</p>
-                            <p style="margin: 5px 0 0 0; color: #666; font-size: 0.85rem; font-family: monospace;"><strong>ID:</strong> ${student.studentId}</p>
-                        </div>
-                    </div>
-                    
-                    <!-- Student Stats Grid -->
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
-                        
-                        <!-- Coins -->
-                        <div style="background: linear-gradient(135deg, #ffd700, #ffed4e); padding: 15px; border-radius: 10px; text-align: center;">
-                            <div style="font-size: 2rem; margin-bottom: 5px;">🪙</div>
-                            <div style="font-size: 1.5rem; font-weight: bold; color: #0d3b66;">${student.coins}</div>
-                            <div style="font-size: 0.85rem; color: #666; margin-top: 5px;">Coins Available</div>
-                        </div>
-                        
-                        <!-- Coach Class Status -->
-                        <div style="background: linear-gradient(135deg, #e3f2fd, #bbdefb); padding: 15px; border-radius: 10px;">
-                            <div style="font-size: 1.1rem; font-weight: bold; color: #0d3b66; margin-bottom: 8px;">
-                                👨‍🏫 Coach Class
-                            </div>
-                            ${student.coachName ? `
-                                <div style="margin-bottom: 5px;">
-                                    <strong style="color: #0d3b66;">${student.coachName}</strong>
-                                </div>
-                                <div style="background: ${coachStatusColor}; color: white; padding: 5px 10px; border-radius: 15px; font-size: 0.85rem; display: inline-block; margin-top: 5px;">
-                                    ${coachStatus}
-                                </div>
-                            ` : `
-                                <div style="color: #666; font-size: 0.9rem;">Not enrolled in any class</div>
-                            `}
-                        </div>
-                        
-                        <!-- Booking Status -->
-                        <div style="background: linear-gradient(135deg, #f3e5f5, #e1bee7); padding: 15px; border-radius: 10px;">
-                            <div style="font-size: 1.1rem; font-weight: bold; color: #0d3b66; margin-bottom: 8px;">
-                                🎯 Booking Status
-                            </div>
-                            ${student.bookingEnabled ? `
-                                <div style="background: #51cf66; color: white; padding: 8px 12px; border-radius: 15px; font-size: 0.9rem; text-align: center;">
-                                    ✅ Active
-                                    ${student.bookingDaysLeft ? `<div style="font-size: 0.8rem; margin-top: 3px;">${student.bookingDaysLeft} days left</div>` : ''}
-                                </div>
-                            ` : `
-                                <div style="background: #ff6b6b; color: white; padding: 8px 12px; border-radius: 15px; font-size: 0.9rem; text-align: center;">
-                                    ❌ Disabled
-                                </div>
-                            `}
-                        </div>
-                        
-                    </div>
-                    
-                    <!-- Action Button -->
-                    <div style="text-align: right;">
-                        <button class="practice-btn" onclick="removeGuardianStudent('${student.id}', '${student.name}')" 
-                            style="padding: 10px 20px; font-size: 0.9rem; background: #dc3545;">
-                            🗑️ Remove Student
-                        </button>
-                    </div>
-                    
+                <div class="loading">
+                    <p style="margin-bottom: 15px;">No students added yet.</p>
                 </div>
             `;
-        });
+        } else {
+            // Display each student as a card
+            students.forEach(student => {
+                const now = new Date();
+                const coachExpiryDate = student.coachExpiry;
+                let coachStatus = 'Not in any class';
+                let coachStatusColor = '#868e96';
+                
+                if (student.coachName && coachExpiryDate) {
+                    if (now < coachExpiryDate) {
+                        const daysLeft = Math.ceil((coachExpiryDate - now) / (1000 * 60 * 60 * 24));
+                        coachStatus = `Expires in ${daysLeft} days`;
+                        coachStatusColor = daysLeft > 7 ? '#51cf66' : '#ffc107';
+                    } else {
+                        coachStatus = 'Expired';
+                        coachStatusColor = '#ff6b6b';
+                    }
+                }
+                
+                html += `
+                    <div style="background: white; border-radius: 15px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); border: 2px solid #e3f2fd;">
+                        
+                        <!-- Student Header -->
+                        <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px solid #e3f2fd;">
+                            <div style="width: 60px; height: 60px; border-radius: 50%; background: linear-gradient(135deg, #667eea, #764ba2); display: flex; align-items: center; justify-content: center; color: white; font-size: 1.5rem; font-weight: bold;">
+                                ${student.photoURL ? 
+                                    `<img src="${student.photoURL}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">` :
+                                    student.name.charAt(0).toUpperCase()
+                                }
+                            </div>
+                            <div style="flex: 1;">
+                                <h3 style="margin: 0; color: #0d3b66; font-size: 1.3rem;">${student.name}</h3>
+                                <p style="margin: 5px 0 0 0; color: #666; font-size: 0.9rem;">${student.email}</p>
+                                <p style="margin: 5px 0 0 0; color: #666; font-size: 0.85rem; font-family: monospace;"><strong>ID:</strong> ${student.studentId}</p>
+                            </div>
+                        </div>
+                        
+                        <!-- Student Stats Grid -->
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
+                            
+                            <!-- Coins -->
+                            <div style="background: linear-gradient(135deg, #ffd700, #ffed4e); padding: 15px; border-radius: 10px; text-align: center;">
+                                <div style="font-size: 2rem; margin-bottom: 5px;">🪙</div>
+                                <div style="font-size: 1.5rem; font-weight: bold; color: #0d3b66;">${student.coins}</div>
+                                <div style="font-size: 0.85rem; color: #666; margin-top: 5px;">Coins Available</div>
+                            </div>
+                            
+                            <!-- Coach Class Status -->
+                            <div style="background: linear-gradient(135deg, #e3f2fd, #bbdefb); padding: 15px; border-radius: 10px;">
+                                <div style="font-size: 1.1rem; font-weight: bold; color: #0d3b66; margin-bottom: 8px;">
+                                    👨‍🏫 Coach Class
+                                </div>
+                                ${student.coachName ? `
+                                    <div style="margin-bottom: 5px;">
+                                        <strong style="color: #0d3b66;">${student.coachName}</strong>
+                                    </div>
+                                    <div style="background: ${coachStatusColor}; color: white; padding: 5px 10px; border-radius: 15px; font-size: 0.85rem; display: inline-block; margin-top: 5px;">
+                                        ${coachStatus}
+                                    </div>
+                                ` : `
+                                    <div style="color: #666; font-size: 0.9rem;">Not enrolled in any class</div>
+                                `}
+                            </div>
+                            
+                            <!-- Booking Status -->
+                            <div style="background: linear-gradient(135deg, #f3e5f5, #e1bee7); padding: 15px; border-radius: 10px;">
+                                <div style="font-size: 1.1rem; font-weight: bold; color: #0d3b66; margin-bottom: 8px;">
+                                    🎯 Booking Status
+                                </div>
+                                ${student.bookingEnabled ? `
+                                    <div style="background: #51cf66; color: white; padding: 8px 12px; border-radius: 15px; font-size: 0.9rem; text-align: center;">
+                                        ✅ Active
+                                        ${student.bookingDaysLeft ? `<div style="font-size: 0.8rem; margin-top: 3px;">${student.bookingDaysLeft} days left</div>` : ''}
+                                    </div>
+                                ` : `
+                                    <div style="background: #ff6b6b; color: white; padding: 8px 12px; border-radius: 15px; font-size: 0.9rem; text-align: center;">
+                                        ❌ Disabled
+                                    </div>
+                                `}
+                            </div>
+                            
+                        </div>
+                        
+                        <!-- Action Button -->
+                        <div style="text-align: right;">
+                            <button class="practice-btn" onclick="removeGuardianStudent('${student.id}', '${student.name}')" 
+                                style="padding: 10px 20px; font-size: 0.9rem; background: #dc3545;">
+                                🗑️ Remove Student
+                            </button>
+                        </div>
+                        
+                    </div>
+                `;
+            });
+        }
         
         container.innerHTML = html;
         
