@@ -24013,9 +24013,11 @@ async function loadUserDashboard() {
         document.getElementById('display-country').textContent = userData?.country || 'Not specified';
         document.getElementById('edit-country').value = userData?.country || '';
         
-        // ✅ FIXED: Show proper user type
-        document.getElementById('display-usertype').textContent = 
-            userData?.userType ? userData.userType.charAt(0).toUpperCase() + userData.userType.slice(1) + ' Account' : 'Student Account';
+        // ✅ HIDE USER TYPE DISPLAY - NOT NEEDED
+        const userTypeRow = document.querySelector('.profile-field:has(#display-usertype)');
+        if (userTypeRow) {
+            userTypeRow.style.display = 'none';
+        }
         
        // ===== COACH-SPECIFIC RESTRICTIONS =====
         if (isCoach) {
@@ -24028,16 +24030,10 @@ async function loadUserDashboard() {
                 deleteAccountOption.style.display = 'none';
             }
             
-            // ✅ HIDE ONLY SPELLING INCORRECT AND QUIZ INCORRECT FOR COACHES
+            // ✅ HIDE ALL STAT CARDS FOR COACHES
             const allStatCards = document.querySelectorAll('.dashboard-card');
             allStatCards.forEach(card => {
-                const label = card.querySelector('.card-label');
-                if (label) {
-                    const text = label.textContent;
-                    if (text.includes('MISTAKES') || text.includes('INCORRECT')) {
-                        card.style.display = 'none';
-                    }
-                }
+                card.style.display = 'none';
             });
             
             // ✅ HIDE SUBSCRIPTION STATUS FOR COACHES
@@ -24055,11 +24051,11 @@ async function loadUserDashboard() {
                 deleteAccountOption.style.display = 'flex';
             }
             
-            // Show quick stats for students
-            const quickStatsSection = document.querySelector('.dashboard-section:has(.dashboard-grid)');
-            if (quickStatsSection) {
-                quickStatsSection.style.display = 'block';
-            }
+            // Show all stat cards for students
+            const allStatCards = document.querySelectorAll('.dashboard-card');
+            allStatCards.forEach(card => {
+                card.style.display = 'block';
+            });
             
             // Show subscription status for students
             const subscriptionSection = document.querySelector('.dashboard-section:has(#sub-status-icon)');
@@ -24070,18 +24066,15 @@ async function loadUserDashboard() {
         
         // Update stats (wait for them to be loaded)
         setTimeout(() => {
-            // ✅ UPDATE FAVORITES FOR EVERYONE (including coaches)
-            const quizFavElement = document.getElementById('stat-quiz-favorites');
-            const spellingFavElement = document.getElementById('stat-spelling-favorites');
-            
-            if (quizFavElement) quizFavElement.textContent = userFavorites.length;
-            if (spellingFavElement) spellingFavElement.textContent = userSpellingFavorites.length;
-            
-            // ✅ ONLY UPDATE INCORRECT STATS FOR STUDENTS
             if (!isCoach) {
+                // ✅ ONLY UPDATE STATS FOR STUDENTS
+                const quizFavElement = document.getElementById('stat-quiz-favorites');
+                const spellingFavElement = document.getElementById('stat-spelling-favorites');
                 const quizIncorrectElement = document.getElementById('stat-quiz-incorrect');
                 const spellingIncorrectElement = document.getElementById('stat-spelling-incorrect');
                 
+                if (quizFavElement) quizFavElement.textContent = userFavorites.length;
+                if (spellingFavElement) spellingFavElement.textContent = userSpellingFavorites.length;
                 if (quizIncorrectElement) quizIncorrectElement.textContent = userIncorrect.length;
                 if (spellingIncorrectElement) spellingIncorrectElement.textContent = userSpellingIncorrect.length;
                 
