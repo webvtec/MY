@@ -2701,6 +2701,42 @@
         box-shadow: 0 0 30px rgba(255, 193, 7, 1), 0 0 40px rgba(255, 193, 7, 0.6);
     }
 }
+
+
+
+
+        .password-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.password-wrapper input {
+    padding-right: 45px !important;
+}
+
+.password-toggle {
+    position: absolute;
+    right: 12px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.2rem;
+    color: #0d3b66;
+    padding: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.3s ease;
+}
+
+.password-toggle:hover {
+    color: #667eea;
+}
+
+.password-toggle:focus {
+    outline: none;
+}
         
     </style>
 </head>
@@ -3092,7 +3128,7 @@
 </div>
 
 
-    <!-- Change Password Modal -->
+<!-- Change Password Modal -->
 <div class="auth-modal" id="changePasswordModal">
     <div class="auth-content">
         <div class="auth-header">
@@ -3103,17 +3139,35 @@
             <form id="change-password-form" onsubmit="handleChangePassword(event)">
                 <div class="form-group">
                     <label>Current Password *</label>
-                    <input type="password" id="current-password" required minlength="6">
+                    <div class="password-wrapper">
+                        <input type="password" id="current-password" required minlength="6">
+                        <button type="button" class="password-toggle" id="current-password-toggle" 
+                            onclick="togglePasswordVisibility('current-password', 'current-password-toggle')">
+                            👁️
+                        </button>
+                    </div>
                 </div>
                 
                 <div class="form-group">
                     <label>New Password * (minimum 6 characters)</label>
-                    <input type="password" id="new-password" required minlength="6">
+                    <div class="password-wrapper">
+                        <input type="password" id="new-password" required minlength="6">
+                        <button type="button" class="password-toggle" id="new-password-toggle" 
+                            onclick="togglePasswordVisibility('new-password', 'new-password-toggle')">
+                            👁️
+                        </button>
+                    </div>
                 </div>
                 
                 <div class="form-group">
                     <label>Confirm New Password *</label>
-                    <input type="password" id="confirm-new-password" required minlength="6">
+                    <div class="password-wrapper">
+                        <input type="password" id="confirm-new-password" required minlength="6">
+                        <button type="button" class="password-toggle" id="confirm-new-password-toggle" 
+                            onclick="togglePasswordVisibility('confirm-new-password', 'confirm-new-password-toggle')">
+                            👁️
+                        </button>
+                    </div>
                 </div>
                 
                 <button type="submit" class="auth-submit">✅ Change Password</button>
@@ -3145,9 +3199,15 @@
                 </div>
                 <div class="form-group">
                     <label>Password</label>
-                    <input type="password" id="signin-password" required>
+                    <div class="password-wrapper">
+                        <input type="password" id="signin-password" required>
+                        <button type="button" class="password-toggle" id="signin-password-toggle" 
+                            onclick="togglePasswordVisibility('signin-password', 'signin-password-toggle')">
+                            👁️
+                        </button>
+                    </div>
                 </div>
-                <button type="submit" class="auth-submit">SIGN IN    </button>
+                <button type="submit" class="auth-submit">SIGN IN</button>
                 <button type="button" class="auth-submit" onclick="signInWithGoogle()" style="background: #db4437; margin-top: 10px;">
                     SIGN IN WITH GOOGLE
                 </button>
@@ -3203,7 +3263,13 @@
     </div>
     <div class="form-group">
         <label>Password (min 6 characters)</label>
-        <input type="password" id="signup-student-password" required minlength="6">
+        <div class="password-wrapper">
+            <input type="password" id="signup-student-password" required minlength="6">
+            <button type="button" class="password-toggle" id="signup-student-password-toggle" 
+                onclick="togglePasswordVisibility('signup-student-password', 'signup-student-password-toggle')">
+                👁️
+            </button>
+        </div>
     </div>
     <div class="form-group">
         <label>Age</label>
@@ -3276,7 +3342,13 @@
         
         <div class="form-group">
             <label>Password * (min 6 characters)</label>
-            <input type="password" id="signup-parent-password" required minlength="6">
+            <div class="password-wrapper">
+                <input type="password" id="signup-parent-password" required minlength="6">
+                <button type="button" class="password-toggle" id="signup-parent-password-toggle" 
+                    onclick="togglePasswordVisibility('signup-parent-password', 'signup-parent-password-toggle')">
+                    👁️
+                </button>
+            </div>
         </div>
         
         <div class="form-group">
@@ -3395,7 +3467,13 @@
                 </div>
                 <div class="form-group">
                     <label>Password (min 6 characters)</label>
-                    <input type="password" id="signup-coach-password" required minlength="6">
+                    <div class="password-wrapper">
+                        <input type="password" id="signup-coach-password" required minlength="6">
+                        <button type="button" class="password-toggle" id="signup-coach-password-toggle" 
+                            onclick="togglePasswordVisibility('signup-coach-password', 'signup-coach-password-toggle')">
+                            👁️
+                        </button>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label>Organization/School Name (Optional)</label>
@@ -3426,7 +3504,13 @@
                 </div>
                 <div class="form-group">
                     <label>Password (min 6 characters)</label>
-                    <input type="password" id="signup-org-password" required minlength="6">
+                    <div class="password-wrapper">
+                        <input type="password" id="signup-org-password" required minlength="6">
+                        <button type="button" class="password-toggle" id="signup-org-password-toggle" 
+                            onclick="togglePasswordVisibility('signup-org-password', 'signup-org-password-toggle')">
+                            👁️
+                        </button>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label>Contact Phone</label>
@@ -24797,6 +24881,20 @@ async function removeGuardianStudent(studentId, studentName) {
     } catch (error) {
         console.error('Error removing student:', error);
         alert('Failed to remove student: ' + error.message);
+    }
+}
+
+
+    function togglePasswordVisibility(inputId, iconId) {
+    const passwordInput = document.getElementById(inputId);
+    const toggleIcon = document.getElementById(iconId);
+    
+    if (passwordInput.type === 'password') {
+        passwordInput.type = 'text';
+        toggleIcon.textContent = '🙈'; // Hide icon
+    } else {
+        passwordInput.type = 'password';
+        toggleIcon.textContent = '👁️'; // Show icon
     }
 }
     </script>
